@@ -1,6 +1,10 @@
 package com.shamela.library.presentation.screens.searchResults
 
 
+import androidx.compose.foundation.layout.WindowInsets
+import com.shamela.apptheme.presentation.common.ListDivider
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,27 +47,19 @@ fun SearchResultsScreen(
 ) {
     val state = viewModel.searchResultsState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
-    val focusRequester = FocusRequester()
+    val focusRequester = remember { FocusRequester() }
     Column(Modifier.fillMaxSize().padding(localPadding)) {
         SearchTopBar(
             onNavigateBack = navigateBack,
-            hint = "بحث..",
+            hint = stringResource(R.string.search_hint),
             focusRequester = focusRequester,
             value = state.query,
             onValueChanged = { viewModel.onEvent((SearchResultsEvent.OnSearchQueryChanged(it))) },
             onClickClear = { viewModel.onEvent(SearchResultsEvent.ClearSearchQuery) },
             onClickSearch = { query -> viewModel.onEvent(SearchResultsEvent.Search(query)) },
+            windowInsets = WindowInsets(0),
         )
-        EmptyListScreen(
-            visibility = state.isListEmpty,
-            text = "لم يتم العثور على أي نتائج..",
-        )
-        LoadingScreen(visibility = state.isLoading)
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
+        Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
@@ -72,11 +68,10 @@ fun SearchResultsScreen(
                         SectionItem(modifier = Modifier
                             .clickable {
                                 navigateToSectionBooksScreen(it.name, "remote")
-                            }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            },
                             item = it,
                             highlightText = state.lastQuery)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                        ListDivider(startInset = 72)
                     }
                 }else{
                     items(state.booksResultsList, key = {it.id}) { currentBook->
@@ -84,7 +79,7 @@ fun SearchResultsScreen(
                             "local"->{
                                 BookItem(modifier = Modifier
                                     .clickable {
-                                        Log.e("SearchResultsScreen", "Item Clicked: ${currentBook.title} ", )
+                                        Log.d("SearchResultsScreen", "Item Clicked: ${currentBook.title}")
                                         FilesBooksRepoImpl.openEpub(
                                             currentBook,
                                             onAddQuoteToFavorite = { quote ->
@@ -92,8 +87,7 @@ fun SearchResultsScreen(
                                                     SearchResultsEvent.AddQuoteToFavorite(quote)
                                                 )
                                             })
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    },
                                     item = currentBook,
                                     highlightText = state.lastQuery,
                                     onInfoClick = { navigateToBookDetails(currentBook) }
@@ -101,7 +95,7 @@ fun SearchResultsScreen(
                             }
                             "remote"->{
                                 BookItem(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    modifier = Modifier,
                                     item = currentBook,
                                     onInfoClick = { navigateToBookDetails(currentBook) },
                                     icon = {
@@ -122,12 +116,16 @@ fun SearchResultsScreen(
                             }
                         }
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                        ListDivider(startInset = 72)
                     }
                 }
-
-
             }
+            // Overlays on top of the (empty) list, not stacked above it.
+            EmptyListScreen(
+                visibility = state.isListEmpty,
+                text = stringResource(R.string.no_results),
+            )
+            LoadingScreen(visibility = state.isLoading)
         }
     }
 

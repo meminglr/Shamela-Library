@@ -1,6 +1,8 @@
 package com.folioreader.ui.composables
 
 
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -31,6 +33,10 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import org.readium.r2.shared.Link
 
+/**
+ * One table-of-contents entry. Rows grow with their title (long chapter names used to be cut off
+ * by a fixed 48dp box), nested levels are indented, and expandable entries show a chevron.
+ */
 @Composable
 fun LinkItem(
     item: Link,
@@ -39,91 +45,53 @@ fun LinkItem(
     onLinkClicked: (String?, String?) -> Unit,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    val color = when (level) {
-        3 -> MaterialTheme.colorScheme.primary.copy(alpha = 1f - .6f)
-        2 -> MaterialTheme.colorScheme.primary.copy(alpha = 1f - .7f)
-        1 -> MaterialTheme.colorScheme.primary.copy(alpha = 1f - .8f)
-        0 -> MaterialTheme.colorScheme.primary.copy(alpha = 1f - .9f)
-        else -> {
-            MaterialTheme.colorScheme.background
-        }
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .padding(horizontal = 16.dp)
-            .background(color)
-            .drawBehind {
-                val strokeWidth = 1 * density
-                val y = size.height - strokeWidth / 2
-                val borderColor = color.copy(alpha = 0.5f)
-
-                if (isFirstItem) {
-                    drawLine(
-                        borderColor,
-                        Offset(0f, 1f),
-                        Offset(size.width, 1f),
-                        strokeWidth
+    val hasChildren = item.children.isNotEmpty() && level != 3
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clickable { onLinkClicked(item.title, item.href) }
+                .padding(start = (16 + 20 * level).dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = item.title ?: "",
+                style = AppFonts.content(
+                    if (level == 0) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium
+                ),
+                color = if (level == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            if (hasChildren) {
+                IconButton(onClick = { isExpanded = !isExpanded }) {
+                    Icon(
+                        imageVector = if (isExpanded) ShamelaIcons.Remove else ShamelaIcons.Add,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                drawLine(
-                    borderColor,
-                    Offset(size.width, 0f),
-                    Offset(size.width, size.height),
-                    strokeWidth
-                )
-                drawLine(
-                    borderColor,
-                    Offset(0f, 0f),
-                    Offset(0f, size.height),
-                    strokeWidth
-                )
-
-                drawLine(
-                    borderColor,
-                    Offset(0f, y),
-                    Offset(size.width, y),
-                    strokeWidth
-                )
-
             }
-            .clickable { onLinkClicked(item.title, item.href)  }
-            .padding(vertical = 4.dp)
-        ,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Spacer(modifier = Modifier.width(12.dp + (12 * level).dp))
-        if (item.children.isNotEmpty() && level != 3) {
-            IconButton(onClick = { isExpanded = !isExpanded }) {
-                if (isExpanded) {
-                    Icon(imageVector = ShamelaIcons.Remove, contentDescription = "Shrink")
-                } else {
-                    Icon(imageVector = ShamelaIcons.Add, contentDescription = "expand")
-                }
-            }
-        } else {
-            Spacer(modifier = Modifier.width(16.dp + (12 * level).dp))
         }
-        Text(text = item.title ?: "", style = AppFonts.textNormal)
-    }
-    AnimatedVisibility(
-        visible = isExpanded,
-        enter = expandVertically(),
-        exit = shrinkVertically()
-    ) {
-
-        Column {
-            item.children.forEach {
-                if (level != 3) {
-                    LinkItem(
-                        item = it,
-                        level = level + 1,
-                        onLinkClicked = { title, href -> onLinkClicked(title, href) })
+        HorizontalDivider(
+            modifier = Modifier.padding(start = (16 + 20 * level).dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column {
+                item.children.forEach {
+                    if (level != 3) {
+                        LinkItem(
+                            item = it,
+                            level = level + 1,
+                            onLinkClicked = { title, href -> onLinkClicked(title, href) })
+                    }
                 }
             }
         }
     }
 }
-
-

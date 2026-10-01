@@ -7,13 +7,14 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
 object ShamelaIcons {
-    private fun buildIcon(name: String, pathData: String): ImageVector {
+    private fun buildIcon(name: String, pathData: String, autoMirror: Boolean = false): ImageVector {
         return ImageVector.Builder(
             name = name,
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
             viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportHeight = 24f,
+            autoMirror = autoMirror
         ).apply {
             addPath(
                 pathData = PathParser().parsePathString(pathData).toNodes(),
@@ -21,6 +22,11 @@ object ShamelaIcons {
             )
         }.build()
     }
+
+    /** "Back" chevron that follows the layout direction: "<" in Turkish (LTR), ">" in Arabic (RTL). */
+    val NavigateBack by lazy { buildIcon("NavigateBack", "M17.77 3.77L16 2 6 12l10 10 1.77-1.77L9.54 12z", autoMirror = true) }
+    /** "Open" chevron that follows the layout direction: ">" in Turkish (LTR), "<" in Arabic (RTL). */
+    val NavigateForward by lazy { buildIcon("NavigateForward", "M6.23 20.23L8 22l10-10L8 2 6.23 3.77 14.46 12z", autoMirror = true) }
 
     val Add by lazy { buildIcon("Add", "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z") }
     val ArrowBackIosNew by lazy { buildIcon("ArrowBackIosNew", "M17.77 3.77L16 2 6 12l10 10 1.77-1.77L9.54 12z") }

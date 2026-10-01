@@ -11,7 +11,7 @@ import com.shamela.apptheme.R
 object NotificationHelper {
 
     fun createChannel(context: Context, type: ChannelType) {
-        val channelId = context.getString(type.id)
+        val channelId = type.id
         val channel = NotificationChannel(
             channelId,
             context.getString(type.title),
@@ -30,7 +30,7 @@ object NotificationHelper {
         content: String,
         type: ChannelType,
     ): Notification {
-        val channelId = context.getString(type.id)
+        val channelId = type.id
         return NotificationCompat.Builder(context, channelId)
             .setContentTitle(title)
             .setContentText(content)

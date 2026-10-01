@@ -1,5 +1,7 @@
 package com.shamela.apptheme.presentation.common
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -13,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.shamela.apptheme.R
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
@@ -31,15 +32,23 @@ fun DefaultTopBar(
 ) {
     CenterAlignedTopAppBar(
         modifier = Modifier,
-        title = { Text(text = title, style = AppFonts.textLargeBold) },
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(15.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ),
         actions = {
             AnimatedVisibility(visible = actionIcon != null) {
                 actionIcon?.let {
                     IconButton(onClick = onActionClick) {
-                        Icon(it, contentDescription = null)
+                        Icon(it, contentDescription = stringResource(R.string.search))
                     }
                 }
             }
@@ -48,7 +57,7 @@ fun DefaultTopBar(
             when {
                 navigationContent != null -> navigationContent()
                 onNavigateBack != null -> IconButton(onClick = onNavigateBack) {
-                    Icon(ShamelaIcons.ArrowBackIos, contentDescription = null)
+                    Icon(ShamelaIcons.NavigateBack, contentDescription = stringResource(R.string.back))
                 }
             }
         }

@@ -1,5 +1,7 @@
 package com.shamela.library.domain.util
 
+import com.shamela.library.R
+import androidx.annotation.StringRes
 import com.shamela.library.domain.model.Book
 import java.text.Collator
 import java.util.Locale
@@ -11,11 +13,11 @@ import java.util.Locale
  * names/authors read أ→ي and fewest pages first, while [DOWNLOAD_TIME] defaults to
  * newest-first which is what users usually expect from a "recently added" sort.
  */
-enum class BookSortOption(val label: String, val defaultAscending: Boolean) {
-    NAME(label = "اسم الكتاب", defaultAscending = true),
-    AUTHOR(label = "اسم المؤلف", defaultAscending = true),
-    PAGE_COUNT(label = "عدد الصفحات", defaultAscending = true),
-    DOWNLOAD_TIME(label = "تاريخ التحميل", defaultAscending = false),
+enum class BookSortOption(@StringRes val label: Int, val defaultAscending: Boolean) {
+    NAME(label = R.string.sort_name, defaultAscending = true),
+    AUTHOR(label = R.string.sort_author, defaultAscending = true),
+    PAGE_COUNT(label = R.string.sort_page_count, defaultAscending = true),
+    DOWNLOAD_TIME(label = R.string.sort_download_time, defaultAscending = false),
 }
 
 object BookSorter {

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Şamile</string>
+    <string name="minutes_left">%1$d dakika ·&#160;</string>
+    <string name="minute_left">%1$d dakika ·&#160;</string>
+    <string name="less_than_minute">Bir dakikadan az.&#160;</string>
+    <string name="copied">Kopyalandı</string>
+    <string name="send_to">Gönder</string>
+    <string name="copy">Kopyala</string>
+    <string name="share">Paylaş</string>
+    <string name="addToFavorite">Favori</string>
+    <string name="meaning">Anlam</string>
+    <string name="define">Tanımla</string>
+    <string name="highlight">Vurgula</string>
+    <string name="pages_left">%1$d sayfa kaldı</string>
+    <string name="page_left">%1$d sayfa kaldı</string>
+    <string name="highlights">Vurgular</string>
+    <string name="change_Font">Yazı tipini değiştir</string>
+    <string name="change_Font_Color">Yazı rengi</string>
+    <string name="changeStyle">Stili değiştir</string>
+    <string name="error_CannotChangeStyle">Stil değiştirilemedi</string>
+    <string name="OK">Tamam</string>
+    <string name="Cancel">İptal</string>
+    <string name="loading">Yükleniyor</string>
+    <string name="please_wait">Lütfen bekleyin</string>
+    <string name="edit_notes">Notu düzenle</string>
+    <string name="save_note">Notu kaydet</string>
+    <string name="please_enter_note">Bir not girin</string>
+    <string name="contents">İçindekiler</string>
+    <string name="dictionary">Sözlük</string>
+    <string name="wikipedia">Vikipedi</string>
+    <string name="cannot_access_epub_message">Kitap açılamadı, depolama izni gerekiyor</string>
+    <string name="direction_horizontal">Yatay</string>
+    <string name="direction_vertical">Dikey</string>
+    <string name="menu_item_search">Ara</string>
+    <string name="menu_item_config">Ayarlar</string>
+    <string name="search_hint">Kitapta ara</string>
+    <string name="search_empty_text">Sonuç bulunamadı</string>
+    <string name="search_failure_text">Arama başarısız oldu</string>
+    <plurals name="numberOfSearchResults">
+        <item quantity="one">1 sonuç</item>
+        <item quantity="other">%d sonuç</item>
+    </plurals>
+
+    <string name="book_contents">Kitabın bölümleri</string>
+    <string name="reader_settings">Ayarlar</string>
+    <string name="reader_index">İçindekiler</string>
+    <string name="search_dots">Ara...</string>
+    <string name="results_count">Sonuç sayısı: %1$d</string>
+    <string name="searching">Aranıyor</string>
+    <string name="no_results_found">Sonuç bulunamadı.</string>
+    <string name="dictionary_not_loaded">Sözlük henüz yüklenmedi. Ayarlardan indirip tekrar deneyebilirsiniz.</string>
+    <string name="dictionary_no_results">\"%1$s\" kelimesi için sonuç bulunamadı.</string>
+</resources>

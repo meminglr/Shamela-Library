@@ -1,5 +1,7 @@
 package com.shamela.library.presentation.screens
 
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -72,8 +74,8 @@ fun HomeHostScreen() {
         if (NavigationUtils.parentGraphRoute(navController) == NavigationGraphs.HOME_GRAPH_ROUTE) {
             val currentRoute =  NavigationUtils.currentRoute(navController)
             val categoryName = navController.currentBackStackEntry?.arguments?.getString("categoryName")
-            Log.e("Mah", "HomeHostScreen: currentRout = $currentRoute")
-            Log.e("Mah", "HomeHostScreen: categoryName = $categoryName")
+            Log.d("Shamela", "HomeHostScreen: currentRout = $currentRoute")
+            Log.d("Shamela", "HomeHostScreen: categoryName = $categoryName")
             if (currentRoute == SearchResults.route){
                 categoryName == "all"
             }else{
@@ -103,7 +105,7 @@ fun HomeHostScreen() {
                 exit = slideOutVertically(targetOffsetY = { it }),
             ) {
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentDestination = navBackStackEntry?.destination
@@ -134,11 +136,13 @@ fun HomeHostScreen() {
                             },
                             label = {
                                 Text(
-                                    text = screen.label,
-                                    style = AppFonts.textSmallBold.copy(fontSize = 14.sp),
+                                    text = stringResource(screen.label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
                                 )
                             },
-                            alwaysShowLabel = false
+                            // Icons alone (book, download, heart...) are ambiguous; always label them.
+                            alwaysShowLabel = true
                         )
                     }
                 }
@@ -151,21 +155,22 @@ fun HomeHostScreen() {
                 exit = shrinkVertically(),
             ) {
                 DefaultTopBar(
-                    title = destination[selectedScreen].label,
+                    title = stringResource(destination[selectedScreen].label),
                     actionIcon = destination[selectedScreen].actionIcon,
                     onActionClick = { destination[selectedScreen].onActionClick() },
                     navigationContent = if (selectedScreen == 0) {
                         {
                             Box {
                                 IconButton(onClick = { menuExpanded = true }) {
-                                    Icon(ShamelaIcons.MoreVert, contentDescription = null)
+                                    Icon(ShamelaIcons.MoreVert, contentDescription = stringResource(R.string.about_app))
                                 }
                                 DropdownMenu(
                                     expanded = menuExpanded,
                                     onDismissRequest = { menuExpanded = false }
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("حول التطبيق", style = AppFonts.textNormal) },
+                                        text = { Text(stringResource(R.string.about_app)) },
+                                        leadingIcon = { Icon(ShamelaIcons.Info, contentDescription = null) },
                                         onClick = {
                                             menuExpanded = false
                                             navController.navigate(AboutApp.route)

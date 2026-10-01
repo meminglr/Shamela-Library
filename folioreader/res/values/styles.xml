@@ -87,7 +87,11 @@
     </style>
 
     <style name="TextViewTextSelector" parent="@android:style/Widget.TextView">
-        <item name="android:padding">16dp</item>
+        <!-- Narrower sides so four actions fit on one line in longer languages (e.g. Turkish). -->
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">16dp</item>
+        <item name="android:paddingBottom">16dp</item>
         <item name="android:textSize">14sp</item>
         <item name="android:textColor">?defaultFontColor</item>
         <item name="android:textStyle">bold</item>

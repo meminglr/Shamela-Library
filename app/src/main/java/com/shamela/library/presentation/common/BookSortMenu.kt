@@ -1,5 +1,7 @@
 package com.shamela.library.presentation.common
 
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,18 +42,18 @@ fun BookSortMenu(
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
         IconButton(onClick = { expanded = true }) {
-            Icon(imageVector = ShamelaIcons.Sort, contentDescription = "ترتيب الكتب")
+            Icon(imageVector = ShamelaIcons.Sort, contentDescription = stringResource(R.string.sort_books))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             Text(
-                text = "ترتيب حسب",
-                style = AppFonts.textNormalBold,
+                text = stringResource(R.string.sort_by),
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
             availableOptions.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(text = option.label, style = AppFonts.textNormal) },
+                    text = { Text(text = stringResource(option.label), style = MaterialTheme.typography.bodyLarge) },
                     onClick = {
                         onOptionSelected(option)
                         expanded = false
@@ -75,8 +77,8 @@ fun BookSortMenu(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text = if (ascending) "تصاعدي" else "تنازلي",
-                        style = AppFonts.textNormal
+                        text = stringResource(if (ascending) R.string.sort_ascending else R.string.sort_descending),
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 },
                 onClick = onToggleDirection,

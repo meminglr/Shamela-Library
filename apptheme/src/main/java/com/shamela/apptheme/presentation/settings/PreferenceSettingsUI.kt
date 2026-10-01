@@ -1,6 +1,22 @@
 package com.shamela.apptheme.presentation.settings
 
 
+import com.shamela.apptheme.presentation.theme.colors.AppColors
+import com.shamela.apptheme.presentation.theme.ShamelaIcons
+import com.shamela.apptheme.presentation.common.SettingsSectionTitle
+import kotlin.math.roundToInt
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.Icon
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shamela.apptheme.R
@@ -59,15 +76,22 @@ fun PreferenceSettingsUI(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(bottom = 24.dp),
     ) {
-
-        SettingsSection(
-            title = stringResource(R.string.change_theme),
+        SettingsSectionTitle(stringResource(R.string.change_theme))
+        ChoiceChips(
             options = uiState.availableThemes,
-            selectedOption = uiState.userPrefs.theme,
+            selected = uiState.userPrefs.theme,
+            leading = { theme ->
+                val icon = when (theme) {
+                    AppTheme.LIGHT -> ShamelaIcons.LightMode
+                    AppTheme.DARK -> ShamelaIcons.DarkMode
+                    else -> ShamelaIcons.AutoMode
+                }
+                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            },
         ) {
             onEvent(
                 PreferenceSettingsEvent.OnChangeAppTheme(
@@ -81,10 +105,23 @@ fun PreferenceSettingsUI(
                 )
             )
         }
-        SettingsSection(
-            title = stringResource(R.string.change_color),
+
+        SettingsSectionTitle(stringResource(R.string.change_color))
+        ChoiceChips(
             options = uiState.availableColorSchemes,
-            selectedOption = uiState.userPrefs.colorSchemeName,
+            selected = uiState.userPrefs.colorSchemeName,
+            leading = { name ->
+                val swatch = remember(name) {
+                    AppColors.colorSchemeOf(name, context).lightColorScheme.primary
+                }
+                Box(
+                    Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(swatch)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                )
+            },
         ) {
             onEvent(
                 PreferenceSettingsEvent.OnChangeAppTheme(
@@ -98,15 +135,16 @@ fun PreferenceSettingsUI(
                 )
             )
         }
+
+        SettingsSectionTitle(stringResource(R.string.font_size))
         FontSizeSelector(
-            title = stringResource(R.string.font_size),
             sliderPosition = uiState.sliderPosition,
             onSliderPositionChanged = {
                 onEvent(PreferenceSettingsEvent.OnChangeSliderPosition(it))
             },
             list = uiState.availableFontSizes,
             onValueChangeFinished = { finalPosition ->
-                val index = ceil(finalPosition).toInt()
+                val index = finalPosition.roundToInt().coerceIn(0, uiState.availableFontSizes.lastIndex)
                 onEvent(
                     PreferenceSettingsEvent.OnChangeAppFontSize(
                         uiState.userPrefs.copy(fontSize = uiState.availableFontSizes[index])
@@ -115,9 +153,8 @@ fun PreferenceSettingsUI(
             }
         )
 
-
+        SettingsSectionTitle(stringResource(R.string.font_family))
         FontsSection(
-            title = stringResource(R.string.font_family),
             options = uiState.availableFontFamilies,
             selectedOption = uiState.userPrefs.fontFamily,
         ) {
@@ -128,34 +165,26 @@ fun PreferenceSettingsUI(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsSection(
-    title: String,
+private fun ChoiceChips(
     options: List<String>,
-    selectedOption: String,
+    selected: String,
+    leading: @Composable (String) -> Unit,
     onOptionClicked: (String) -> Unit,
 ) {
-    Text(
-        text = title, modifier = Modifier
+    FlowRow(
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 4.dp), style = AppFonts.textNormalBold
-    )
-    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
-    FlowRow(modifier = Modifier.padding(top = 12.dp)) {
-        options.forEach {
-            val isSelected = (it == selectedOption)
-            Text(
-                modifier = Modifier
-                    .padding(vertical = 4.dp)
-                    .padding(end = 8.dp)
-                    .clip(CircleShape)
-                    .clickable { onOptionClicked(it) }
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(0.6f), CircleShape)
-                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                text = it,
-                style = AppFonts.textNormal
+            .padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { option ->
+            FilterChip(
+                selected = option == selected,
+                onClick = { onOptionClicked(option) },
+                label = { Text(PreferenceLabels.label(option), style = MaterialTheme.typography.labelLarge) },
+                leadingIcon = { leading(option) },
             )
         }
     }
@@ -163,40 +192,41 @@ private fun SettingsSection(
 
 @Composable
 private fun FontsSection(
-    title: String,
     options: List<String>,
     selectedOption: String,
     onOptionClicked: (String) -> Unit,
 ) {
-    Text(
-        text = title, modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 4.dp), style = AppFonts.textNormalBold
-    )
-    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
-    Column(modifier = Modifier.padding(top = 12.dp)) {
-        options.forEach {
-            val isSelected = (it == selectedOption)
-            Box(
+    Column(
+        modifier = Modifier
+            .padding(top = 8.dp)
+            .selectableGroup()
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selectedOption
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(70.dp)
-                    .padding(vertical = 4.dp)
-                    .padding(end = 8.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { onOptionClicked(it) }
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary.copy(0.6f),
-                        RoundedCornerShape(20.dp)
-                    )
-                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent),
-                contentAlignment = Alignment.Center
+                    .heightIn(min = 56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .selectable(selected = isSelected, role = Role.RadioButton) { onOptionClicked(option) }
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                RadioButton(selected = isSelected, onClick = null)
+                Spacer(Modifier.width(12.dp))
                 Text(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    text = it,
-                    style = AppFonts.textNormal.copy(fontFamily = AppFonts.fontFamilyOf(it)),
+                    text = PreferenceLabels.label(option),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                // Sample in the font itself, so the choice is visible before applying it.
+                Text(
+                    text = "بسم الله",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = AppFonts.fontFamilyOf(option),
+                        textDirection = TextDirection.Rtl,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -206,7 +236,6 @@ private fun FontsSection(
 
 @Composable
 private fun FontSizeSelector(
-    title: String,
     sliderPosition: Float,
     list: List<Int>,
     onSliderPositionChanged: (Float) -> Unit,
@@ -217,52 +246,51 @@ private fun FontSizeSelector(
     var currentValue by remember { mutableFloatStateOf(sliderPosition) }
     LaunchedEffect(sliderPosition) { currentValue = sliderPosition }
 
-    Text(
-        text = title,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 4.dp), style = AppFonts.textNormalBold
+    val labels = listOf(
+        stringResource(R.string.xSmall),
+        stringResource(R.string.small),
+        stringResource(R.string.normal),
+        stringResource(R.string.large),
+        stringResource(R.string.xLarge),
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp)
-    ) {
-        Slider(
-            value = currentValue,
-            onValueChange = {
-                currentValue = it
-                onSliderPositionChanged(it)
-            },
-            onValueChangeFinished = { onValueChangeFinished(currentValue) },
-            valueRange = 0f..max(list.lastIndex.toFloat(),0f),
-            steps = ceil(list.size / 2f).toInt(),
-            colors = SliderDefaults.colors(
-                activeTrackColor = MaterialTheme.colorScheme.secondary.copy(0.7f),
-                inactiveTickColor = MaterialTheme.colorScheme.tertiary,
-                activeTickColor = MaterialTheme.colorScheme.secondary
-            ),
+    val index = currentValue.roundToInt().coerceIn(0, max(list.lastIndex, 0))
+    Column(modifier = Modifier.padding(top = 12.dp)) {
+        Text(
+            text = labels.getOrElse(index) { "" },
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            val wordsList = listOf(
-                stringResource(R.string.xSmall),
-                stringResource(R.string.small),
-                stringResource(R.string.normal),
-                stringResource(R.string.large),
-                stringResource(R.string.xLarge),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("A", style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = currentValue,
+                onValueChange = {
+                    currentValue = it
+                    onSliderPositionChanged(it)
+                },
+                onValueChangeFinished = { onValueChangeFinished(currentValue) },
+                valueRange = 0f..max(list.lastIndex.toFloat(), 0f),
+                // n positions need n - 2 intermediate steps.
+                steps = max(list.size - 2, 0),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
             )
-            list.forEachIndexed { index, it ->
-                val color =
-                    if (currentValue.toInt() == index) MaterialTheme.colorScheme.primary else Color.Unspecified
-                Text(
-                    text = wordsList[index],
-                    style = AppFonts.textNormal.copy(fontSize = (16 + it).sp, color = color)
-                )
-            }
+            Text("A", style = MaterialTheme.typography.titleLarge)
         }
+        // Live preview at the selected size.
+        Text(
+            text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+            style = AppFonts.content(MaterialTheme.typography.bodyLarge).copy(
+                fontSize = (16 + list.getOrElse(index) { 0 }).sp,
+                textAlign = TextAlign.Center,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(16.dp),
+        )
     }
 }
 

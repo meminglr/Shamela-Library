@@ -9,6 +9,7 @@ import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.model.Category
 import com.shamela.library.domain.model.Quote
 import com.shamela.library.domain.repo.BooksRepository
+import com.shamela.library.domain.search.BookSearchMatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -114,24 +115,31 @@ object FilesBooksRepoImpl : BooksRepository {
     }
 
     override fun searchBooksByName(categoryName: String, query: String): Flow<Book> = channelFlow {
-        Log.e(TAG, "search Books By Name")
         openShamelaFolder { categories ->
-            if (categoryName == "all") {
-                categories?.forEach { folder ->
-                    val bookFile = folder.listFiles()?.find { it.name.contains(query) }
-                    bookFile?.let {
-                        parseBook(it, folder.name)?.let { book -> send(book) }
-                    }
-                }
-            } else {
-                categories?.find { it.name.contains(categoryName) }?.let { folder ->
-                    val bookFile = folder.listFiles()?.find { it.name.contains(query) }
-                    bookFile?.let {
-                        parseBook(it, categoryName)?.let { book -> send(book) }
-                    }
-                }
+            val folders = if (categoryName == "all") categories.orEmpty()
+            else categories?.filter { it.name == categoryName }.orEmpty()
+            // Match on the file name first (cheap), then parse only the hits for author/page count.
+            val matches = folders.flatMap { folder ->
+                folder.listFiles { file -> file.isFile && file.name.endsWith(".epub") }
+                    .orEmpty()
+                    .map { file -> placeholderBook(file, folder.name) to file }
+            }.filter { (book, _) -> BookSearchMatcher.matches(book, query) }
+                .sortedByDescending { (book, _) -> BookSearchMatcher.relevanceScore(book, query) }
+            matches.forEach { (placeholder, file) ->
+                send(parseBook(file, placeholder.categoryName) ?: placeholder)
             }
         }
+    }
+
+    private fun placeholderBook(bookFile: File, categoryName: String): Book {
+        val bookTitle = bookFile.name.removeSuffix(".epub")
+        return Book(
+            id = UUID.nameUUIDFromBytes((bookTitle + categoryName).toByteArray()).toString(),
+            title = bookTitle,
+            author = "-",
+            pageCount = 0,
+            categoryName = categoryName
+        )
     }
 
     override fun getAllBooks(): Flow<Book> = channelFlow {
@@ -199,7 +207,7 @@ object FilesBooksRepoImpl : BooksRepository {
     }
 
     suspend fun parseBook(file: File, categoryName: String): Book? {
-        Log.e("Mah ", "parseBook: parsing Book: ${file.name} at $categoryName")
+        Log.d("Shamela", "parseBook: parsing Book: ${file.name} at $categoryName")
 
         return withContext(Dispatchers.IO) {
             FolioReader.get().parseEpub(file)?.let { (authorName, pageCount) ->

@@ -1,6 +1,7 @@
 package com.shamela.library.presentation.screens.library
 
 
+import com.shamela.library.R
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
@@ -11,6 +12,7 @@ import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.usecases.books.BooksUseCases
 import com.shamela.library.domain.usecases.quotes.QuotesUseCases
 import com.shamela.library.domain.util.BookSortOption
+import com.shamela.library.presentation.utils.BookIndexing
 import com.shamela.library.presentation.utils.BooksDownloadManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,21 +51,30 @@ class LibraryViewModel @Inject constructor(
 
             LibraryEvent.LoadUserBooksAndSections -> {
                 viewModelScope.launch {
-                    Log.e("Mah ", "LibraryViewModel: loading Books")
-                    booksUseCases.getAllBooks().onEach {
+                    Log.d("Shamela", "LibraryViewModel: loading Books")
+                    launch {
                         //reading the files under the downloads folder, saving them to database if they're not already (for externally added files)
                         //another case is, when the app data is cleared or the app is deleted then downloaded again.
-                        if (it.pageCount > 0)  /* books are initially not parsed*/
-                            booksUseCases.saveDownloadedBook(it)
-                    }.launchIn(this)
+                        booksUseCases.getAllBooks().collect {
+                            if (it.pageCount > 0)  /* books are initially not parsed*/
+                                booksUseCases.saveDownloadedBook(it)
+                        }
+                        // Books downloaded while the app was killed (or indexed by an older version)
+                        // have no full-text index yet; build it in the background.
+                        BookIndexing.indexMissing(application, booksUseCases.booksDao.getDownloadedBooksOnce())
+                    }
                     booksUseCases.getDownloadedBooks().onEach {
                         val databaseBooks = it.associateBy { book -> book.id }
+                        val idsChanged = databaseBooks.keys != _libraryState.value.books.keys
+                        // The database is the source of truth: books deleted elsewhere (e.g. "delete
+                        // all" in settings) must disappear here too.
                         _libraryState.update { state ->
                             state.copy(
-                                books = state.books + databaseBooks,
+                                books = databaseBooks,
                                 isLoading = false
                             )
                         }
+                        if (idsChanged) launch { reloadSections() }
                         // Keep download times in sync with newly arrived books while that sort is active.
                         if (_libraryState.value.sortOption == BookSortOption.DOWNLOAD_TIME) {
                             ensureDownloadTimes()
@@ -98,28 +110,13 @@ class LibraryViewModel @Inject constructor(
                 viewModelScope.launch {
                     Log.e("LibraryViewModel", "AddQuoteToFavorite ${event.quote}")
                     quotesUseCases.saveQuote(event.quote)
-                    Toast.makeText(application, "تمت الإضافة بنجاح", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(application, application.getString(R.string.quote_added), Toast.LENGTH_SHORT).show()
                 }
             }
 
             is LibraryEvent.DeleteBook -> {
                 viewModelScope.launch {
-                    val book = event.book
-                    booksUseCases.deleteBook(book).let { isDeleteSuccess ->
-                        if (isDeleteSuccess) {
-                            _libraryState.update { it.copy(books = it.books - book.id) }
-                            launch {
-                                // Reload library sections, to update books count and exclude empty sections
-                                _libraryState.update { it.copy(sections = emptyMap()) }
-                                booksUseCases.getAllCategories().collect { category ->
-                                    _libraryState.update {
-                                        it.copy(sections = it.sections + mapOf(category.id to category), isLoading = false)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
+                    deleteBooks(listOf(event.book))
                 }
             }
 
@@ -141,10 +138,9 @@ class LibraryViewModel @Inject constructor(
             }
 
             LibraryEvent.DeleteSelectedBooks -> {
-                libraryState.value.selectedBooks.forEach {
-                    onEvent(LibraryEvent.DeleteBook(it))
-                }
+                val selected = libraryState.value.selectedBooks
                 _libraryState.update { it.copy(selectedBooks = emptyList()) }
+                viewModelScope.launch { deleteBooks(selected) }
             }
 
             is LibraryEvent.OnChangeSortOption -> {
@@ -160,6 +156,21 @@ class LibraryViewModel @Inject constructor(
             LibraryEvent.OnToggleSortDirection -> {
                 _libraryState.update { it.copy(sortAscending = !it.sortAscending) }
             }
+        }
+    }
+
+    /** Deletes books one after another, then reloads the sections once (not once per book). */
+    private suspend fun deleteBooks(books: List<Book>) {
+        val deletedIds = books.filter { booksUseCases.deleteBook(it) }.map { it.id }
+        if (deletedIds.isEmpty()) return
+        _libraryState.update { it.copy(books = it.books - deletedIds.toSet()) }
+        reloadSections()
+    }
+
+    private suspend fun reloadSections() {
+        val sections = booksUseCases.getAllCategories().toList()
+        _libraryState.update {
+            it.copy(sections = sections.associateBy { category -> category.id }, isLoading = false)
         }
     }
 
@@ -202,24 +213,6 @@ class LibraryViewModel @Inject constructor(
             )
         }
         if (_libraryState.value.sortOption == BookSortOption.DOWNLOAD_TIME) ensureDownloadTimes()
-        viewModelScope.launch {
-
-            launch {
-                //update categories section with the new book
-                booksUseCases.getAllCategories().collect { category ->
-                    _libraryState.update {
-                        it.copy(
-                            sections = it.sections + mapOf(category.id to category),
-                            isLoading = false
-                        )
-                    }
-                }
-            }
-            /*            launch {
-                            //save the downloaded book to the database
-                            booksUseCases.saveDownloadedBook(book)
-                        }*/
-        }
-
+        viewModelScope.launch { reloadSections() }
     }
 }

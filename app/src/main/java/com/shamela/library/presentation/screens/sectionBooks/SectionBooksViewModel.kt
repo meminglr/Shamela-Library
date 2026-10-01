@@ -1,6 +1,7 @@
 package com.shamela.library.presentation.screens.sectionBooks
 
 
+import com.shamela.library.R
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
@@ -69,7 +70,7 @@ class SectionBooksViewModel @Inject constructor(
                                 book = event.book,
                                 bookCategory = event.book.categoryName
                             )
-                        }
+                        } ?: BooksDownloadManager.reportLinkUnavailable(event.book.title)
                 }
             }
 
@@ -93,7 +94,7 @@ class SectionBooksViewModel @Inject constructor(
                 viewModelScope.launch {
                     Log.d("SectionBooksViewModel", "AddQuoteToFavorite ${event.quote}")
                     quotesUseCases.saveQuote(event.quote)
-                    Toast.makeText(application, "تمت الإضافة بنجاح", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(application, application.getString(R.string.quote_added), Toast.LENGTH_SHORT).show()
                 }
             }
 

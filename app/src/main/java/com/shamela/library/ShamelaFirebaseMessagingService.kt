@@ -18,8 +18,8 @@ class ShamelaFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["title"] ?: message.notification?.title ?: "المكتبة الشاملة"
-        val body = message.data["body"] ?: message.notification?.body ?: "يتوفر إصدار جديد من التطبيق"
+        val title = message.data["title"] ?: message.notification?.title ?: getString(R.string.app_name)
+        val body = message.data["body"] ?: message.notification?.body ?: getString(R.string.new_version_available)
 
         val intent = Intent(this, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_OPEN_ABOUT_SCREEN, true)
@@ -51,10 +51,10 @@ class ShamelaFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "تحديثات التطبيق",
+                getString(R.string.updates_channel_name),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = "إشعارات الإصدارات الجديدة من مكتبة الشاملة"
+                description = getString(R.string.updates_channel_description)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)

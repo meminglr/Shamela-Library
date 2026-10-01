@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.folioreader.FolioReader
 import com.folioreader.model.locators.toSearchLocator
+import com.folioreader.model.locators.SearchLocator
 import com.shamela.apptheme.data.db.DatabaseHelper
+import com.shamela.apptheme.data.db.FtsQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,13 +87,20 @@ class SearchViewModel : ViewModel() {
                                                 )
                                             }
                                         }*/
+                                    val token = FtsQuery.normalized(query)
                                     publication?.let { publication ->
                                         bookPages
-                                            .map { page -> publication.readingOrder.indexOfFirst { it.href == page.href } }
-                                            .sorted()
-                                            .forEach { index ->
-                                                val results = searchApi.search(index, query)
+                                            .map { page -> publication.readingOrder.indexOfFirst { it.href == page.href } to page }
+                                            .sortedBy { it.first }
+                                            .forEach { (index, page) ->
+                                                // The streamer matches raw text, so a query without harakat can
+                                                // miss a page the (normalized) index found; fall back to a snippet.
+                                                val results = runCatching { searchApi.search(index, query) }
+                                                    .getOrDefault(emptyList())
                                                     .map { it.toSearchLocator() }
+                                                    .ifEmpty {
+                                                        listOfNotNull(snippetLocator(page.content, token, page.href, ""))
+                                                    }
                                                 _state.update {
                                                     it.copy(
                                                         searchResults = it.searchResults + results,
@@ -151,42 +160,11 @@ class SearchViewModel : ViewModel() {
 
                                     val bookPages =
                                         database?.searchCategory(category, query) ?: emptyList()
+                                    // Page content is stored normalized, so locate the normalized query.
+                                    val token = FtsQuery.normalized(query)
                                     val searchLocators = bookPages.mapNotNull { page ->
-                                        query.let {
-                                            if (page.content.indexOf(it) >= 0)
-                                                it
-                                            else
-                                                null
-
-                                        }?.let { token ->
-                                            val queryIndex = page.content.indexOf(token)
-                                            Log.e(
-                                                TAG,
-                                                "onEven: query: [$query], token = [$token], queryIndex: [$queryIndex] , pageContent: [${page.content}]"
-                                            )
-                                            val textBefore = page.content.run {
-                                                substring(maxOf(queryIndex - 50, 0), queryIndex)
-                                            }
-                                            val textAfter = page.content.run {
-                                                substring(
-                                                    queryIndex + token.length,
-                                                    minOf(queryIndex + token.length + 50, lastIndex)
-                                                )
-                                            }
-                                            page.bookTitle to
-                                                    Locator(
-                                                        href = page.href,
-                                                        created = 0,
-                                                        title = page.category,
-                                                        locations = Locations(cfi = "...$textBefore $token $textAfter..."),
-                                                        text = LocatorText(
-                                                            before = textBefore,
-                                                            hightlight = token,
-                                                            after = textAfter
-                                                        )
-                                                    ).toSearchLocator()
-                                        }
-
+                                        snippetLocator(page.content, token, page.href, page.category)
+                                            ?.let { page.bookTitle to it }
                                     }
                                     _state.update {
                                         it.copy(
@@ -199,7 +177,7 @@ class SearchViewModel : ViewModel() {
                                 _state.update {
                                     it.copy(
                                         isLoading = false,
-                                        isListEmpty = it.searchResults.isEmpty()
+                                        isListEmpty = it.sectionSearchResults.isEmpty()
                                     )
                                 }
                             }
@@ -208,6 +186,22 @@ class SearchViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    /** A search result showing up to 50 chars around the first [token] match in [content]. */
+    private fun snippetLocator(content: String, token: String, href: String, title: String): SearchLocator? {
+        val queryIndex = content.indexOf(token)
+        if (queryIndex < 0 || token.isEmpty()) return null
+        val matchEnd = queryIndex + token.length
+        val textBefore = content.substring(maxOf(queryIndex - 50, 0), queryIndex)
+        val textAfter = content.substring(matchEnd, minOf(matchEnd + 50, content.length))
+        return Locator(
+            href = href,
+            created = 0,
+            title = title,
+            locations = Locations(cfi = "...$textBefore $token $textAfter..."),
+            text = LocatorText(before = textBefore, hightlight = token, after = textAfter)
+        ).toSearchLocator()
     }
 
     override fun onCleared() {

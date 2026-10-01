@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="font_family">Yazı tipi</string>
+    <string name="font_size">Yazı boyutu</string>
+    <string name="change_color">Renk</string>
+    <string name="change_theme">Tema</string>
+    <string name="xSmall">Çok küçük</string>
+    <string name="small">Küçük</string>
+    <string name="normal">Normal</string>
+    <string name="large">Büyük</string>
+    <string name="xLarge">Çok büyük</string>
+    <string name="clear">Temizle</string>
+    <string name="prepering_books">Kitaplar hazırlanıyor</string>
+    <string name="books_preperation_notificatinos">Kitap hazırlama bildirimleri</string>
+    <string name="books_preperation_notification_description">Kitapların aramaya hazırlanmasıyla ilgili bildirimler</string>
+    <string name="updating_database">Veritabanı güncelleniyor</string>
+    <string name="database_update_notifications">Veritabanı güncelleme bildirimleri</string>
+    <string name="database_update_notifications_description">Veritabanı güncellemeleriyle ilgili bildirimler</string>
+    <string name="book_preparation_notification_content">Kitaplar arama için hazırlanıyor</string>
+    <string name="book_preparation_notification_title">Kitaplar aramaya hazırlanıyor</string>
+    <string name="search">Ara</string>
+    <string name="no_data">Veri yok</string>
+    <string name="migration_notification_content">Veritabanı güncelleniyor...</string>
+
+    <string name="theme_auto">Otomatik</string>
+    <string name="theme_light">Açık</string>
+    <string name="theme_dark">Koyu</string>
+    <string name="color_golden">Altın</string>
+    <string name="color_blue">Mavi</string>
+    <string name="color_brown">Kahverengi</string>
+    <string name="color_green">Yeşil</string>
+    <string name="color_indigo">Çivit mavisi</string>
+    <string name="color_muted_blue">Soluk mavi</string>
+    <string name="color_olive">Zeytin yeşili</string>
+    <string name="color_material_you">Sistem renkleri (Android 12+)</string>
+    <string name="font_system">Sistem yazı tipi</string>
+    <string name="font_amiri">Amiri</string>
+    <string name="font_kitab">Kitab</string>
+    <string name="font_tajawal">Tajawal</string>
+    <string name="font_kufi">Kufi</string>
+    <string name="font_messiri">El Messiri</string>
+    <string name="font_cairo">Cairo</string>
+    <string name="font_ibm_plex">IBM Plex</string>
+    <string name="font_noto_naskh">Noto Naskh</string>
+    <string name="font_scheherazade">Scheherazade</string>
+    <string name="back">Geri</string>
+</resources>

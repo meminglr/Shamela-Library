@@ -1,5 +1,10 @@
 package com.folioreader.ui.activity.searchActivity
 
+import androidx.compose.ui.text.font.FontWeight
+import com.folioreader.R
+import androidx.compose.ui.res.stringResource
+import android.content.Context
+import com.shamela.apptheme.presentation.util.AppLocale
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
@@ -61,6 +66,15 @@ import java.util.UUID
 
 
 class SearchActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
+    }
+
     private val viewModel: SearchViewModel by viewModels()
     private val focusRequester = FocusRequester()
 
@@ -77,6 +91,7 @@ class SearchActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
@@ -105,7 +120,7 @@ class SearchActivity : ComponentActivity() {
         setContent {
             val state = viewModel.state.collectAsStateWithLifecycle().value
             AppTheme.ShamelaLibraryTheme {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(this@SearchActivity)) {
 
                     if (searchType == Search_Type_SingleBookSearch) {
                         SingleBookSearchResults(
@@ -182,7 +197,7 @@ class SearchActivity : ComponentActivity() {
         Column(Modifier.fillMaxSize()) {
             SearchTopBar(
                 onNavigateBack = /*navigateBack*/ { finish() },
-                hint = "بحث..",
+                hint = stringResource(R.string.search_dots),
                 focusRequester = focusRequester,
                 value = query,
                 onValueChanged = { viewModel.onEven(SearchEvent.OnSearchQueryChanged(it)) },
@@ -209,25 +224,23 @@ class SearchActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        MaterialTheme.colorScheme.surfaceColorAtElevation(
-                                            0.2.dp
-                                        )
+                                        MaterialTheme.colorScheme.surfaceContainer
                                     )
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "عدد النتائج: ${searchResults.size}",
-                                    style = AppFonts.textNormalBold,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    text = stringResource(R.string.results_count, searchResults.size),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Row {
                                     AnimatedVisibility(visible = isLoading) {
                                         Text(
-                                            text = "جار البحث",
-                                            style = AppFonts.textNormalBold,
-                                            color = MaterialTheme.colorScheme.onBackground
+                                            text = stringResource(R.string.searching),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -255,7 +268,7 @@ class SearchActivity : ComponentActivity() {
 
                 EmptyListScreen(
                     visibility = isListEmpty,
-                    text = "لم يتم العثور على أي نتائج..",
+                    text = stringResource(R.string.no_results_found),
                 )
             }
         }
@@ -279,7 +292,7 @@ class SearchActivity : ComponentActivity() {
         Column(Modifier.fillMaxSize()) {
             SearchTopBar(
                 onNavigateBack = { finish() },
-                hint = "بحث..",
+                hint = stringResource(R.string.search_dots),
                 focusRequester = focusRequester,
                 value = query,
                 onValueChanged = { viewModel.onEven(SearchEvent.OnSearchQueryChanged(it)) },
@@ -306,23 +319,23 @@ class SearchActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp)
+                                        MaterialTheme.colorScheme.surfaceContainer
                                     )
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "عدد النتائج: ${searchResults.size}",
-                                    style = AppFonts.textNormalBold,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    text = stringResource(R.string.results_count, searchResults.size),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Row {
                                     AnimatedVisibility(visible = isLoading) {
                                         Text(
-                                            text = "جار البحث",
-                                            style = AppFonts.textNormalBold,
-                                            color = MaterialTheme.colorScheme.onBackground
+                                            text = stringResource(R.string.searching),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -356,7 +369,7 @@ class SearchActivity : ComponentActivity() {
 
                 EmptyListScreen(
                     visibility = isListEmpty,
-                    text = "لم يتم العثور على أي نتائج..",
+                    text = stringResource(R.string.no_results_found),
                 )
             }
         }
@@ -376,9 +389,9 @@ class SearchActivity : ComponentActivity() {
             append("$before")
             withStyle(
                 style = SpanStyle(
-                    fontSize = (AppFonts.textNormal.fontSize.value + 4f).sp,
-                    background = Color(0xfff8ff00),
-                    color = Color.Black
+                    fontWeight = FontWeight.Bold,
+                    background = MaterialTheme.colorScheme.tertiaryContainer,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
             ) {
                 append("$highlightedText")
@@ -392,12 +405,11 @@ class SearchActivity : ComponentActivity() {
         ) {
             Text(
                 text = text,
-                style = AppFonts.textNormal,
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                style = AppFonts.content(MaterialTheme.typography.bodyLarge),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 
@@ -407,17 +419,18 @@ class SearchActivity : ComponentActivity() {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    MaterialTheme.colorScheme.primary
-                        .copy(backgroundColorAlpha)
-                        .compositeOver(MaterialTheme.colorScheme.background)
+                    if (largeText) MaterialTheme.colorScheme.surfaceContainerHigh
+                    else MaterialTheme.colorScheme.surfaceContainer
                 )
                 .padding(horizontal = 16.dp)
         ) {
             Text(
                 text = text,
-                style = if(largeText) AppFonts.textLarge else  AppFonts.textNormalBold,
+                style = AppFonts.content(
+                    if (largeText) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall
+                ),
                 maxLines = 1,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.primary,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .align(Alignment.CenterStart)

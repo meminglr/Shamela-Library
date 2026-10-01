@@ -13,9 +13,9 @@ import com.shamela.apptheme.presentation.theme.colors.Golden
 
 
 object AppTheme {
-    private const val DEFAULT = "تلقائي"
-    private const val LIGHT = "فاتح"
-    private const val DARK = "مظلم"
+    const val DEFAULT = "تلقائي"
+    const val LIGHT = "فاتح"
+    const val DARK = "مظلم"
 
 
     private val selectedColorScheme = mutableStateOf(Golden.lightColorScheme)

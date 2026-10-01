@@ -1,5 +1,10 @@
 package com.shamela.apptheme.presentation.common
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.shamela.apptheme.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,29 +37,53 @@ fun EmptyListScreen(visibility: Boolean, text:String, modifier: Modifier = Modif
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center
+        EmptyState(
+            icon = ShamelaIcons.AutoStories,
+            title = text,
+            modifier = modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** The app's one empty-state layout: tonal icon badge, title and optional explanation. */
+@Composable
+fun EmptyState(
+    icon: ImageVector,
+    title: String,
+    modifier: Modifier = Modifier,
+    message: String? = null,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(16.dp)
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = ShamelaIcons.AutoStories,
+                    imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.Center),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (message != null) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = text,
-                    style = AppFonts.textLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -65,6 +94,6 @@ fun EmptyListScreen(visibility: Boolean, text:String, modifier: Modifier = Modif
 @Composable
 private fun EmptyListPrev() {
     AppTheme.ShamelaLibraryTheme {
-        EmptyListScreen(true, "لا يوجد بيانات")
+        EmptyListScreen(true, stringResource(R.string.no_data))
     }
 }

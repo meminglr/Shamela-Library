@@ -1,6 +1,17 @@
 package com.shamela.library.presentation.screens.library
 
 
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.animation.AnimatedContent
+import com.shamela.apptheme.presentation.common.EmptyState
+import com.shamela.apptheme.presentation.common.ListDivider
+import com.shamela.apptheme.presentation.common.SegmentedTabs
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -78,7 +89,7 @@ fun LibraryScreen(
     LaunchedEffect(key1 = Unit, block = {
         Library.buttons.onEach {
             if (it) {
-                Log.e("Mah ", "LibraryScreen: Search is clicked")
+                Log.d("Shamela", "LibraryScreen: Search is clicked")
                 navigateToSearchResultsScreen("all", "local")
             }
         }.launchIn(this)
@@ -106,13 +117,19 @@ fun LibraryScreen(
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
     ) {
         item {
-            ViewTypeSection(
-                modifier = Modifier,
-                selectedBooksViewType = libraryState.booksViewType
-            ) { viewModel.onEvent(LibraryEvent.OnChangeViewType(it)) }
+            SegmentedTabs(
+                options = BooksViewType.entries,
+                selected = libraryState.booksViewType,
+                label = { stringResource(it.label) },
+                onSelect = { viewModel.onEvent(LibraryEvent.OnChangeViewType(it)) },
+            )
         }
-        item {
-            LoadingScreen(visibility = libraryState.isLoading)
+        if (libraryState.isLoading) {
+            item {
+                Box(Modifier.fillParentMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
         }
         if (!libraryState.isLoading && libraryState.books.isEmpty()) {
             item {
@@ -129,62 +146,33 @@ fun LibraryScreen(
                     SectionItem(modifier = Modifier
                         .clickable {
                             navigateToSectionBooksScreen(it.name, "local")
-                        }
-                        .padding(horizontal = 8.dp, vertical = 4.dp), item = it)
-                    Divider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                        }, item = it)
+                    ListDivider(startInset = 72)
                 }
             }
 
             BooksViewType.Books -> {
                 item {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "ترتيب: ${libraryState.sortOption.label}",
-                            style = AppFonts.textNormal
-                        )
-                        BookSortMenu(
-                            sortOption = libraryState.sortOption,
-                            ascending = libraryState.sortAscending,
-                            onOptionSelected = { viewModel.onEvent(LibraryEvent.OnChangeSortOption(it)) },
-                            onToggleDirection = { viewModel.onEvent(LibraryEvent.OnToggleSortDirection) }
-                        )
-                    }
-                }
-                item {
-                    AnimatedVisibility(visible = libraryState.selectedBooks.isNotEmpty(), enter = expandVertically(), exit = shrinkVertically()) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    showDeleteSelectedDialog = true
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
+                    AnimatedContent(
+                        targetState = libraryState.selectedBooks.isNotEmpty(),
+                        label = "library toolbar"
+                    ) { selecting ->
+                        if (selecting) {
+                            SelectionBar(
+                                count = libraryState.selectedBooks.size,
+                                onCancel = { viewModel.onEvent(LibraryEvent.CancelSelection) },
+                                onDelete = { showDeleteSelectedDialog = true },
+                            )
+                        } else {
+                            SortBar(
+                                label = stringResource(R.string.sort_current, stringResource(libraryState.sortOption.label)),
                             ) {
-                                Icon(
-                                    modifier = Modifier.align(Alignment.CenterVertically),
-                                    imageVector = ShamelaIcons.Delete,
-                                    contentDescription = "delete"
+                                BookSortMenu(
+                                    sortOption = libraryState.sortOption,
+                                    ascending = libraryState.sortAscending,
+                                    onOptionSelected = { viewModel.onEvent(LibraryEvent.OnChangeSortOption(it)) },
+                                    onToggleDirection = { viewModel.onEvent(LibraryEvent.OnToggleSortDirection) }
                                 )
-                                Text(
-                                    modifier = Modifier.align(Alignment.CenterVertically),
-                                    text = "حذف الكتب المحددة",
-                                    style = AppFonts.textNormal,
-                                )
-                            }
-                            Button(onClick = {
-                                viewModel.onEvent(LibraryEvent.CancelSelection)
-                            }) {
-                                Text(text = "إلغاء", style = AppFonts.textNormal, color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
                     }
@@ -211,7 +199,6 @@ fun LibraryScreen(
                                 viewModel.onEvent(LibraryEvent.SelectBook(it))
                             })
                         }
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
                         .animateItem(),
                         item = it,
                         onFavoriteIconClicked = { viewModel.onEvent(LibraryEvent.ToggleFavorite(it)) },
@@ -221,7 +208,7 @@ fun LibraryScreen(
                         isSelected = libraryState.selectedBooks.contains(it),
                         onInfoClick = { navigateToBookDetails(it) }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                    ListDivider(startInset = 72)
                 }
             }
             }
@@ -230,8 +217,8 @@ fun LibraryScreen(
 
     bookPendingDelete?.let { book ->
         ConfirmationDialog(
-            title = "حذف الكتاب",
-            message = "هل أنت متأكد من حذف كتاب \"${book.title}\"؟",
+            title = stringResource(R.string.delete_book_title),
+            message = stringResource(R.string.delete_book_message, book.title),
             onConfirm = {
                 viewModel.onEvent(LibraryEvent.DeleteBook(book))
                 bookPendingDelete = null
@@ -242,8 +229,8 @@ fun LibraryScreen(
 
     if (showDeleteSelectedDialog) {
         ConfirmationDialog(
-            title = "حذف الكتب المحددة",
-            message = "هل أنت متأكد من حذف ${libraryState.selectedBooks.size} كتاب محدد؟",
+            title = stringResource(R.string.delete_selected_books),
+            message = stringResource(R.string.delete_selected_books_message, libraryState.selectedBooks.size),
             onConfirm = {
                 viewModel.onEvent(LibraryEvent.DeleteSelectedBooks)
                 showDeleteSelectedDialog = false
@@ -255,70 +242,63 @@ fun LibraryScreen(
 
 @Composable
 fun EmptyLibraryState(modifier: Modifier = Modifier) {
-    Column(
+    EmptyState(
+        icon = ShamelaIcons.LocalLibrary,
+        title = stringResource(R.string.library_empty_title),
+        message = stringResource(R.string.library_empty_message),
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    )
+}
+
+/** "Sorted by …" row with the sort menu, shown above the book list. */
+@Composable
+fun SortBar(label: String, menu: @Composable () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = ShamelaIcons.LocalLibrary,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "لا توجد كتب في مكتبتك بعد",
-            style = AppFonts.textLargeBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "يمكنك تحميل الكتب من تبويب التحميل، وستظهر هنا لتقرأها في أي وقت.",
-            style = AppFonts.textNormal,
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            modifier = Modifier.weight(1f)
         )
+        menu()
     }
 }
 
+/** Contextual bar replacing the sort row while books are selected. */
 @Composable
-fun ViewTypeSection(
-    modifier: Modifier,
-    selectedBooksViewType: BooksViewType,
-    onClick: (BooksViewType) -> Unit,
-) {
-    Row(
-        modifier
-            .fillMaxWidth(0.8f)
-            .padding(vertical = 16.dp)
-            .clip(CircleShape)
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), CircleShape)
-            .height(IntrinsicSize.Min)
+private fun SelectionBar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
-        BooksViewType.values().forEach {
+        Row(
+            Modifier.padding(start = 4.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onCancel) {
+                Icon(ShamelaIcons.Cancel, contentDescription = stringResource(R.string.cancel))
+            }
             Text(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        if (selectedBooksViewType == it) MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.4f
-                        ) else Color.Transparent
-                    )
-                    .clickable { onClick(it) }
-                    .padding(vertical = 12.dp),
-                text = it.label,
-                style = AppFonts.textNormalBold,
-                textAlign = TextAlign.Center
+                text = stringResource(R.string.selected_count, count),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f)
             )
-            if (it != BooksViewType.values().last()) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                )
+            TextButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Icon(ShamelaIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.delete))
             }
         }
     }

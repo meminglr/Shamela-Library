@@ -9,21 +9,18 @@ import android.provider.OpenableColumns
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.shamela.apptheme.domain.usecases.userPreferences.UserPreferencesUseCases
 import com.shamela.apptheme.presentation.settings.PreferenceSettingsEvent
 import com.shamela.apptheme.presentation.settings.PreferenceSettingsState
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
-import com.shamela.apptheme.presentation.worker.BookPreparationWorker
 import com.shamela.library.R
 import com.shamela.library.ShamelaApp
+import com.shamela.library.data.local.backup.LibraryBackup
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.domain.usecases.books.BooksUseCases
-import com.shamela.library.presentation.utils.BooksDownloadManager
+import com.shamela.library.presentation.utils.BookIndexing
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -42,12 +39,13 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     @FilesRepoImpl private val booksUseCases: BooksUseCases,
     private val userPreferencesUseCases: UserPreferencesUseCases,
+    private val libraryBackup: LibraryBackup,
     private val app: Application,
 ) : ViewModel() {
     private val _settingsState = MutableStateFlow<SettingsState>(SettingsState())
     val settingsState = _settingsState.asStateFlow()
 
-    private val _toastsChannel = Channel<Int>()
+    private val _toastsChannel = Channel<ToastMessage>(Channel.BUFFERED)
     val toastsChannel = _toastsChannel.receiveAsFlow()
 
     private val _preferenceSettings = MutableStateFlow<PreferenceSettingsState>(PreferenceSettingsState())
@@ -93,7 +91,7 @@ class SettingsViewModel @Inject constructor(
             val bookFileName = "${bookTitle.removeSuffix(".epub")}.epub"
             val destinationFile = File(ShamelaApp.externalBooksDirectory, bookFileName)
             if (destinationFile.exists()) {
-                _toastsChannel.send(R.string.the_book_already_exists)
+                _toastsChannel.send(ToastMessage(R.string.the_book_already_exists))
                 return@withContext null // File already exists, return null
             }
             try {
@@ -109,7 +107,7 @@ class SettingsViewModel @Inject constructor(
                 if (destinationFile.exists()) {
                     destinationFile.delete() // Clean up partially copied file
                 }
-                _toastsChannel.send(R.string.could_not_add_book_to_library)
+                _toastsChannel.send(ToastMessage(R.string.could_not_add_book_to_library))
                 null
             }
         }
@@ -120,6 +118,60 @@ class SettingsViewModel @Inject constructor(
         when (event) {
             is SettingsEvent.OnChangeViewType -> {
                 _settingsState.update { it.copy(selectedViewType = event.newViewType) }
+                if (event.newViewType == SettingsViewType.General) refreshStorage()
+            }
+
+            SettingsEvent.RefreshStorage -> refreshStorage()
+
+            SettingsEvent.DeleteAllBooks -> {
+                viewModelScope.launch {
+                    _settingsState.update { it.copy(isLoading = true) }
+                    withContext(Dispatchers.IO) {
+                        booksUseCases.booksDao.getDownloadedBooksOnce().forEach { booksUseCases.deleteBook(it) }
+                        // Files that never made it into the database (e.g. interrupted downloads).
+                        File(ShamelaApp.externalMediaDir, "ShamelaDownloads").listFiles()
+                            ?.forEach { it.deleteRecursively() }
+                    }
+                    _settingsState.update { it.copy(isLoading = false) }
+                    refreshStorage()
+                    _toastsChannel.send(ToastMessage(R.string.all_books_deleted))
+                }
+            }
+
+            is SettingsEvent.ExportBackup -> {
+                viewModelScope.launch {
+                    val message = withContext(Dispatchers.IO) {
+                        try {
+                            val count = app.contentResolver.openOutputStream(event.uri, "wt")
+                                ?.use { libraryBackup.export(it) }
+                                ?: return@withContext ToastMessage(R.string.backup_failed)
+                            ToastMessage(R.string.backup_exported, listOf(count))
+                        } catch (e: Exception) {
+                            Log.e("SettingsViewModel", "export failed", e)
+                            ToastMessage(R.string.backup_failed)
+                        }
+                    }
+                    _toastsChannel.send(message)
+                }
+            }
+
+            is SettingsEvent.ImportBackup -> {
+                viewModelScope.launch {
+                    val message = withContext(Dispatchers.IO) {
+                        try {
+                            val result = app.contentResolver.openInputStream(event.uri)
+                                ?.use { libraryBackup.import(it) }
+                                ?: return@withContext ToastMessage(R.string.backup_failed)
+                            ToastMessage(R.string.backup_imported, listOf(result.imported, result.skipped))
+                        } catch (e: LibraryBackup.InvalidBackupException) {
+                            ToastMessage(R.string.backup_invalid)
+                        } catch (e: Exception) {
+                            Log.e("SettingsViewModel", "import failed", e)
+                            ToastMessage(R.string.backup_failed)
+                        }
+                    }
+                    _toastsChannel.send(message)
+                }
             }
 
             is SettingsEvent.AddExternalBookToLibrary -> {
@@ -132,15 +184,12 @@ class SettingsViewModel @Inject constructor(
                                 ShamelaApp.EXTERNAL_BOOKS_CATEGORY
                             )?.let { book ->
                                 booksUseCases.saveDownloadedBook(book)
-                                val bookFilePath = BooksDownloadManager.getBookPath(book)
-                                val workManager = WorkManager.getInstance(app.applicationContext)
-                                val request = OneTimeWorkRequestBuilder<BookPreparationWorker>()
-                                    .setInputData(workDataOf(BookPreparationWorker.EPUB_FILE_PATH to bookFilePath))
-                                    .build()
-                                workManager.enqueue(request)
-                                _toastsChannel.send(R.string.book_added_successfully)
+                                BookIndexing.enqueue(app.applicationContext, book, replace = true)
+                                _toastsChannel.send(ToastMessage(R.string.book_added_successfully))
                             } ?: run {
-                                _toastsChannel.send(R.string.book_is_not_compatible)
+                                // Don't leave an unreadable file behind in the library folder.
+                                bookFile.delete()
+                                _toastsChannel.send(ToastMessage(R.string.book_is_not_compatible))
                             }
                         }
                         _settingsState.update {
@@ -163,6 +212,19 @@ class SettingsViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun refreshStorage() {
+        viewModelScope.launch {
+            val (count, bytes) = withContext(Dispatchers.IO) {
+                val books = File(ShamelaApp.externalMediaDir, "ShamelaDownloads")
+                    .walkTopDown()
+                    .filter { it.isFile && it.name.endsWith(".epub") }
+                    .toList()
+                books.size to books.sumOf { it.length() }
+            }
+            _settingsState.update { it.copy(downloadedBooksCount = count, downloadedBytes = bytes) }
         }
     }
 

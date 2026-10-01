@@ -27,6 +27,7 @@
                 style="@style/TextViewTextSelector"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/copy" />
 
             <TextView
@@ -34,18 +35,21 @@
                 style="@style/TextViewTextSelector"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/share" />
             <TextView
                 android:id="@+id/addSelectionToFavirite"
                 style="@style/TextViewTextSelector"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/addToFavorite" />
             <TextView
                 android:id="@+id/meaningSelection"
                 style="@style/TextViewTextSelector"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:text="@string/meaning" />
         </LinearLayout>
 

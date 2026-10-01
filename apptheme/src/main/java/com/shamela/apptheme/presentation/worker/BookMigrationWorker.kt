@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import com.shamela.apptheme.R
 import com.shamela.apptheme.data.db.DatabaseHelper
 import com.shamela.apptheme.data.util.ArabicNormalizer
 import com.shamela.apptheme.domain.model.BookPage
@@ -31,8 +32,8 @@ class BookMigrationWorker(
         val notification =  NotificationHelper.startNotification(
             context = appContext,
             type = ChannelType.DatabaseMigration,
-            title = "تحديث قاعدة البيانات",
-            content = "يتم تحديث قاعدة البيانات.."
+            title = appContext.getString(R.string.updating_database),
+            content = appContext.getString(R.string.migration_notification_content)
         )
         val notificationId = this.id.hashCode()
         val foreground = if (Build.VERSION.SDK_INT >= 34) {

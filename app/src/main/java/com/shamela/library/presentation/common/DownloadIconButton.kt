@@ -1,5 +1,7 @@
 package com.shamela.library.presentation.common
 
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -28,7 +30,7 @@ fun DownloadIconButton(
     when (status) {
         DownloadStatus.NotDownloaded -> {
             IconButton(onClick = onDownloadClick) {
-                Icon(imageVector = ShamelaIcons.FileDownload, contentDescription = "تحميل")
+                Icon(imageVector = ShamelaIcons.FileDownload, contentDescription = stringResource(R.string.download), tint = MaterialTheme.colorScheme.primary)
             }
         }
         is DownloadStatus.Downloading -> {
@@ -51,7 +53,7 @@ fun DownloadIconButton(
             IconButton(onClick = {}) {
                 Icon(
                     imageVector = ShamelaIcons.CheckCircle,
-                    contentDescription = "تم التحميل",
+                    contentDescription = stringResource(R.string.downloaded),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }

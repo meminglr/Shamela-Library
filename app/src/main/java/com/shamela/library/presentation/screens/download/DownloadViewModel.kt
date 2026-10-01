@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,25 +56,12 @@ class DownloadViewModel @Inject constructor(
                 if (_downloadState.value.books.isEmpty() && !_downloadState.value.isLoadingBooks) {
                     _downloadState.update { it.copy(isLoadingBooks = true) }
                     viewModelScope.launch(Dispatchers.IO) {
-                        val allBooks = mutableListOf<Book>()
-                        val groupedMutable = mutableMapOf<Char, MutableList<Book>>()
-                        var currentCategory = ""
-
-                        booksUseCases.getAllBooks().collect { book ->
-                            allBooks.add(book)
-                            val key = book.title.firstOrNull() ?: '-'
-                            groupedMutable.getOrPut(key) { mutableListOf() }.add(book)
-
-                            if (book.categoryName != currentCategory) {
-                                currentCategory = book.categoryName
-                                val snapshot = groupedMutable.mapValues { it.value.toList() }
-                                _downloadState.update { it.copy(books = allBooks.toList(), groupedBooks = snapshot) }
-                            }
-                        }
-
-                        val finalGrouped = BooksGroupingUtil.groupByFirstChar(allBooks)
+                        // Publish the list once, fully sorted. Publishing per-category snapshots made
+                        // rows jump under the user's finger and download the wrong book.
+                        val allBooks = booksUseCases.getAllBooks().toList()
+                        val grouped = BooksGroupingUtil.groupByFirstChar(allBooks)
                         _downloadState.update {
-                            it.copy(books = allBooks.toList(), groupedBooks = finalGrouped, isLoadingBooks = false)
+                            it.copy(books = allBooks, groupedBooks = grouped, isLoadingBooks = false)
                         }
                     }
                 }
@@ -87,7 +75,7 @@ class DownloadViewModel @Inject constructor(
                             book = event.book,
                             bookCategory = event.book.categoryName
                         )
-                    }
+                    } ?: BooksDownloadManager.reportLinkUnavailable(event.book.title)
                 }
             }
 

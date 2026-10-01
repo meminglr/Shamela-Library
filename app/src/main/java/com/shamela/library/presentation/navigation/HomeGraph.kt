@@ -1,5 +1,7 @@
 package com.shamela.library.presentation.navigation
 
+import com.shamela.library.R
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -34,7 +36,8 @@ sealed interface HomeHostDestination {
     val selectedIcon: ImageVector
     val actionIcon: ImageVector?
     val onActionClick: () -> Boolean
-    val label: String
+    /** String resource of the title, or 0 for destinations without one. */
+    @get:StringRes val label: Int
 }
 
 object Library : HomeHostDestination {
@@ -42,7 +45,7 @@ object Library : HomeHostDestination {
     override val unSelectedIcon = ShamelaIcons.LocalLibrary
     override val selectedIcon = ShamelaIcons.LocalLibrary
     override val actionIcon = ShamelaIcons.Search
-    override val label = "المكتبة"
+    override val label = R.string.nav_library
     private val _buttons = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     val buttons: Flow<Boolean> = _buttons.asSharedFlow()
     override val onActionClick = {
@@ -55,7 +58,7 @@ object Download : HomeHostDestination {
     override val unSelectedIcon = ShamelaIcons.FileDownload
     override val selectedIcon = ShamelaIcons.FileDownload
     override val actionIcon = ShamelaIcons.Search
-    override val label = "التحميل"
+    override val label = R.string.nav_download
 
     private val _buttons = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     val buttons: Flow<Boolean> = _buttons.asSharedFlow()
@@ -69,7 +72,7 @@ object Favorite : HomeHostDestination {
     override val route = "FAVORITE_SCREEN"
     override val unSelectedIcon = ShamelaIcons.FavoriteBorder
     override val selectedIcon = ShamelaIcons.Favorite
-    override val label = "المفضلة"
+    override val label = R.string.nav_favorite
     override val actionIcon = null
     override val onActionClick = {
         false
@@ -81,7 +84,7 @@ object Search : HomeHostDestination {
     override val route = "SEARCH_SCREEN"
     override val unSelectedIcon = ShamelaIcons.Search
     override val selectedIcon = ShamelaIcons.Search
-    override val label = "البحث"
+    override val label = R.string.nav_search
     override val actionIcon = null
     override val onActionClick = {
         false
@@ -92,7 +95,7 @@ object Settings : HomeHostDestination {
     override val route = "SETTINGS_SCREEN"
     override val unSelectedIcon = ShamelaIcons.Settings
     override val selectedIcon = ShamelaIcons.Settings
-    override val label = "الإعدادات"
+    override val label = R.string.nav_settings
     override val actionIcon = null
     override val onActionClick = {
         false
@@ -103,7 +106,7 @@ object SectionBooks : HomeHostDestination {
     override val route = "SECTION_BOOKS/{categoryName}/{type}"
     override val unSelectedIcon = ShamelaIcons.Book
     override val selectedIcon = ShamelaIcons.Book
-    override val label = ""
+    override val label = 0
     override val actionIcon = null
     override val onActionClick = {
         false
@@ -118,7 +121,7 @@ object AboutApp : HomeHostDestination {
     override val route = "ABOUT_APP_SCREEN"
     override val unSelectedIcon = ShamelaIcons.Info
     override val selectedIcon = ShamelaIcons.Info
-    override val label = "حول التطبيق"
+    override val label = R.string.about_app
     override val actionIcon = null
     override val onActionClick = { false }
 
@@ -132,7 +135,7 @@ object SearchResults : HomeHostDestination {
     override val route = "SEARCH_RESULTS/{categoryName}/{type}"
     override val unSelectedIcon = ShamelaIcons.Book
     override val selectedIcon = ShamelaIcons.Book
-    override val label = ""
+    override val label = 0
     override val actionIcon = null
     override val onActionClick = {
         false
@@ -147,7 +150,7 @@ object BookDetails : HomeHostDestination {
     override val route = "BOOK_DETAILS/{book}"
     override val unSelectedIcon = ShamelaIcons.Book
     override val selectedIcon = ShamelaIcons.Book
-    override val label = ""
+    override val label = 0
     override val actionIcon = null
     override val onActionClick = { false }
 

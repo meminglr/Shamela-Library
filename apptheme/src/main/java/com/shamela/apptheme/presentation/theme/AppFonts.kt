@@ -10,6 +10,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.sp
 
 
@@ -26,15 +28,81 @@ object AppFonts {
     private const val NOTO_NASKH = "خط نوتو نسخ"
     private const val SCHEHERAZADE = "خط شهرزاد"
 
-    val Typography = Typography(
-        bodyLarge = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-            letterSpacing = 0.5.sp
-        )
+    /**
+     * Whether the app chrome is laid out right-to-left (Arabic UI) or left-to-right (Turkish UI).
+     * Set by each activity (see [setUiDirection]); drives text alignment and the UI font.
+     */
+    private val isRtlUi = mutableStateOf(true)
+
+    /** Called from every activity's onCreate/onResume with its effective layout direction. */
+    fun setUiDirection(rtl: Boolean) {
+        isRtlUi.value = rtl
+    }
+
+    /**
+     * Font for app chrome. The user's font is an Arabic typeface: in the Arabic UI it is used for
+     * everything; in the Turkish UI Latin labels use the system font (most of the bundled Arabic
+     * fonts have no or serif-only Latin glyphs), while Arabic content keeps the user's font via
+     * [content].
+     */
+    private val uiFontFamily by derivedStateOf {
+        if (isRtlUi.value) selectedFontFamily.value else FontFamily.Default
+    }
+
+    /**
+     * Applied to every text style: bidi direction follows the text itself (so "48 سؤالاً" keeps its
+     * number in place inside a left-to-right screen), while alignment follows the screen direction
+     * so mixed Arabic/Turkish lists stay aligned on one edge.
+     */
+    private fun TextStyle.directional(): TextStyle = copy(
+        textDirection = TextDirection.Content,
+        textAlign = if (isRtlUi.value) TextAlign.Right else TextAlign.Left,
     )
+
+    private fun TextStyle.scaled(family: FontFamily): TextStyle {
+        val delta = selectedFontSize.value
+        return copy(
+            fontFamily = family,
+            fontSize = (fontSize.value + delta).sp,
+            lineHeight = if (lineHeight.isSp) (lineHeight.value + delta).sp else lineHeight,
+        ).directional()
+    }
+
+    /** The full Material 3 type scale in the selected font and size, used by MaterialTheme. */
+    val Typography by derivedStateOf {
+        val base = Typography()
+        val f = uiFontFamily
+        Typography(
+            displayLarge = base.displayLarge.scaled(f),
+            displayMedium = base.displayMedium.scaled(f),
+            displaySmall = base.displaySmall.scaled(f),
+            headlineLarge = base.headlineLarge.scaled(f),
+            headlineMedium = base.headlineMedium.scaled(f),
+            headlineSmall = base.headlineSmall.scaled(f),
+            titleLarge = base.titleLarge.scaled(f),
+            titleMedium = base.titleMedium.scaled(f).copy(fontWeight = FontWeight.SemiBold),
+            titleSmall = base.titleSmall.scaled(f),
+            bodyLarge = base.bodyLarge.scaled(f),
+            bodyMedium = base.bodyMedium.scaled(f),
+            bodySmall = base.bodySmall.scaled(f),
+            labelLarge = base.labelLarge.scaled(f),
+            labelMedium = base.labelMedium.scaled(f),
+            labelSmall = base.labelSmall.scaled(f),
+        )
+    }
+
+    /**
+     * For Arabic content (book titles, authors, quotes, descriptions): always the user's Arabic
+     * font, a touch larger because Arabic glyphs read smaller than Latin at the same size.
+     */
+    fun content(style: TextStyle, naturalAlign: Boolean = false): TextStyle = style.copy(
+        fontFamily = selectedFontFamily.value,
+        fontSize = (style.fontSize.value + if (isRtlUi.value) 0 else 1).sp,
+    ).directional().let {
+        // Single-line, ellipsized Arabic text must align to its own start: forcing left alignment
+        // on right-to-left text makes Android clip the first letters instead of ellipsizing.
+        if (naturalAlign) it.copy(textAlign = TextAlign.Start) else it
+    }
 
     private lateinit var AmiriFamily: FontFamily
     private lateinit var KitabFamily: FontFamily
@@ -110,50 +178,50 @@ object AppFonts {
 
     val textSmall by derivedStateOf {
         TextStyle(
-            fontFamily = selectedFontFamily.value,
+            fontFamily = uiFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = (selectedFontSize.value + 12).sp
-        )
+        ).directional()
     }
     val textSmallBold by derivedStateOf {
         TextStyle(
-            fontFamily = selectedFontFamily.value,
+            fontFamily = uiFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = (selectedFontSize.value + 12).sp
-        )
+        ).directional()
     }
 
     val textNormal by derivedStateOf {
         TextStyle(
-            fontFamily = selectedFontFamily.value,
+            fontFamily = uiFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = (selectedFontSize.value + 16).sp,
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Bottom, trim = LineHeightStyle.Trim.Both)
-        )
+        ).directional()
     }
 
     val textNormalBold by derivedStateOf {
         TextStyle(
-            fontFamily = selectedFontFamily.value,
+            fontFamily = uiFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = (selectedFontSize.value + 16).sp
-        )
+        ).directional()
     }
 
     val textLarge by derivedStateOf {
         TextStyle(
-            fontFamily = selectedFontFamily.value,
+            fontFamily = uiFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = (selectedFontSize.value + 20).sp
-        )
+        ).directional()
     }
 
     val textLargeBold by derivedStateOf {
         TextStyle(
-            fontFamily = selectedFontFamily.value,
+            fontFamily = uiFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = (selectedFontSize.value + 20).sp
-        )
+        ).directional()
     }
 
     fun selectedFontTypeFace(context: Context): Typeface? {

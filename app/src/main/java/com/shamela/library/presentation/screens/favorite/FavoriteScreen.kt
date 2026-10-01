@@ -1,6 +1,10 @@
 package com.shamela.library.presentation.screens.favorite
 
 
+import com.shamela.apptheme.presentation.common.ListDivider
+import com.shamela.apptheme.presentation.common.SegmentedTabs
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,10 +67,12 @@ fun FavoriteScreen(
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
     ) {
         item {
-            ViewTypeSection(
-                modifier = Modifier,
-                selectedFavoriteViewType = state.viewType
-            ) { viewModel.onEvent(FavoriteEvent.OnChangeViewType(it)) }
+            SegmentedTabs(
+                options = FavoriteViewType.entries,
+                selected = state.viewType,
+                label = { stringResource(it.label) },
+                onSelect = { viewModel.onEvent(FavoriteEvent.OnChangeViewType(it)) },
+            )
         }
         when(state.viewType){
             FavoriteViewType.Quotes -> {
@@ -83,17 +89,17 @@ fun FavoriteScreen(
                             modifier = Modifier
                                 .clickable {
                                     viewModel.onEvent(FavoriteEvent.OpenBookForQuote(currentQuote))
-                                }.padding(horizontal = 16.dp, vertical = 8.dp)
+                                }
                                 .animateItem(),
                             item = currentQuote)
-                        Divider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                        ListDivider(startInset = 36)
                     }
 
                 }
                 item {
                     EmptyListScreen(
                         visibility = state.isListEmpty,
-                        text = "مفضلة الإقتباسات فارغة،\n أضف بعض الإقتباسات للمفضلة!",
+                        text = stringResource(R.string.favorite_quotes_empty),
                         modifier = Modifier.fillParentMaxSize()
                     )
                 }
@@ -109,7 +115,6 @@ fun FavoriteScreen(
                                         viewModel.onEvent(FavoriteEvent.AddQuoteToFavorite(quote))
                                     })
                             }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
                             .animateItem(),
                         onFavoriteIconClicked = {
                             viewModel.onEvent(FavoriteEvent.ToggleFavorite(currentBook))
@@ -117,53 +122,16 @@ fun FavoriteScreen(
                         item = currentBook,
                         onInfoClick = { navigateToBookDetails(currentBook) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                    ListDivider(startInset = 72)
                 }
                 item {
                     EmptyListScreen(
                         visibility = state.isListEmpty,
-                        text = "مفضلة الكتب فارغة،\n أضف بعض الكتب للمفضلة!",
+                        text = stringResource(R.string.favorite_books_empty),
                         modifier = Modifier.fillParentMaxSize())
                 }
             }
         }
 
-    }
-}
-
-@Composable
-private fun ViewTypeSection(modifier: Modifier, selectedFavoriteViewType: FavoriteViewType, onClick: (FavoriteViewType) -> Unit) {
-    Row(
-        modifier
-            .fillMaxWidth(0.8f)
-            .padding(vertical = 16.dp)
-            .clip(CircleShape)
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), CircleShape)
-            .height(IntrinsicSize.Min)
-    ) {
-        FavoriteViewType.values().forEach {
-            Text(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        if (selectedFavoriteViewType == it) MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.4f
-                        ) else Color.Transparent
-                    )
-                    .clickable { onClick(it) }
-                    .padding(vertical = 12.dp),
-                text = it.label,
-                style = AppFonts.textNormalBold,
-                textAlign = TextAlign.Center
-            )
-            if (it != FavoriteViewType.entries.last()) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                )
-            }
-        }
     }
 }

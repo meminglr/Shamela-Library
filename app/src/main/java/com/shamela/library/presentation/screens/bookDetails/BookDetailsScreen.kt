@@ -1,5 +1,10 @@
 package com.shamela.library.presentation.screens.bookDetails
 
+import com.shamela.library.presentation.common.sectionDisplayName
+import com.shamela.apptheme.presentation.util.AppLocale
+import androidx.compose.ui.platform.LocalContext
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -75,9 +80,9 @@ fun BookDetailsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(book.id) { viewModel.load(book) }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(LocalContext.current)) {
         Scaffold(
-            topBar = { DefaultTopBar(title = "عن الكتاب", onNavigateBack = navigateBack) },
+            topBar = { DefaultTopBar(title = stringResource(R.string.about_book), onNavigateBack = navigateBack) },
             bottomBar = {
                 BookActionBottomBar(
                     isDownloaded = state.isDownloaded,
@@ -102,7 +107,7 @@ fun BookDetailsScreen(
                     Column(Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
                         Text(
                             text = book.title,
-                            style = AppFonts.textLargeBold,
+                            style = AppFonts.content(MaterialTheme.typography.headlineSmall),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(12.dp))
@@ -113,10 +118,12 @@ fun BookDetailsScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            MetaChip(icon = ShamelaIcons.AutoStories, text = "${book.pageCount} صفحة")
-                            MetaChip(icon = ShamelaIcons.Person, text = book.author)
+                            MetaChip(icon = ShamelaIcons.AutoStories, text = stringResource(R.string.book_pages, book.pageCount))
+                            book.author.takeUnless { it.isBlank() || it == "-" }?.let {
+                                MetaChip(icon = ShamelaIcons.Person, text = it, isContent = true)
+                            }
                             state.details?.authorDeathYear?.let {
-                                MetaChip(icon = ShamelaIcons.Event, text = "توفي $it هـ")
+                                MetaChip(icon = ShamelaIcons.Event, text = stringResource(R.string.author_death_year, it.toString()))
                             }
                         }
 
@@ -126,13 +133,13 @@ fun BookDetailsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = book.categoryName,
-                                style = AppFonts.textSmallBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                text = sectionDisplayName(book.categoryName),
+                                style = AppFonts.content(MaterialTheme.typography.labelLarge),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                         }
                     }
@@ -164,8 +171,8 @@ fun BookDetailsScreen(
                             )
                             Spacer(Modifier.height(16.dp))
                             Text(
-                                text = "لا تتوفر معلومات إضافية عن هذا الكتاب في الوقت الحالي.",
-                                style = AppFonts.textNormal,
+                                text = stringResource(R.string.book_details_unavailable),
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
@@ -173,9 +180,9 @@ fun BookDetailsScreen(
                     }
                 } else {
                     val tabs = buildList {
-                        if (!details.description.isNullOrBlank()) add("نبذة")
-                        if (details.topics.isNotEmpty()) add("الموضوعات")
-                        if (details.about.isNotEmpty()) add("التفاصيل")
+                        if (!details.description.isNullOrBlank()) add(R.string.tab_description)
+                        if (details.topics.isNotEmpty()) add(R.string.tab_topics)
+                        if (details.about.isNotEmpty()) add(R.string.tab_details)
                     }
                     var selected by remember { mutableIntStateOf(0) }
                     val current = selected.coerceIn(0, tabs.lastIndex)
@@ -201,8 +208,8 @@ fun BookDetailsScreen(
                                 onClick = { selected = i },
                                 text = {
                                     Text(
-                                        text = title,
-                                        style = if (current == i) AppFonts.textNormalBold else AppFonts.textNormal
+                                        text = stringResource(title),
+                                        style = MaterialTheme.typography.titleSmall
                                     )
                                 },
                                 selectedContentColor = MaterialTheme.colorScheme.primary,
@@ -219,9 +226,9 @@ fun BookDetailsScreen(
                         label = "Tab Transition"
                     ) { currentTab ->
                         when (currentTab) {
-                            "نبذة" -> DescriptionTab(details)
-                            "الموضوعات" -> TopicsList(details.topics)
-                            "التفاصيل" -> DetailsTab(details.about)
+                            R.string.tab_description -> DescriptionTab(details)
+                            R.string.tab_topics -> TopicsList(details.topics)
+                            R.string.tab_details -> DetailsTab(details.about)
                         }
                     }
                 }
@@ -231,7 +238,7 @@ fun BookDetailsScreen(
 }
 
 @Composable
-private fun MetaChip(icon: ImageVector, text: String) {
+private fun MetaChip(icon: ImageVector, text: String, isContent: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = icon,
@@ -242,7 +249,7 @@ private fun MetaChip(icon: ImageVector, text: String) {
         Spacer(Modifier.width(6.dp))
         Text(
             text = text,
-            style = AppFonts.textSmall,
+            style = if (isContent) AppFonts.content(MaterialTheme.typography.bodyMedium) else MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -252,9 +259,9 @@ private fun MetaChip(icon: ImageVector, text: String) {
 
 @Composable
 fun BookDetailsUnavailable(navigateBack: () -> Unit) {
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(LocalContext.current)) {
         Scaffold(
-            topBar = { DefaultTopBar(title = "عن الكتاب", onNavigateBack = navigateBack) }
+            topBar = { DefaultTopBar(title = stringResource(R.string.about_book), onNavigateBack = navigateBack) }
         ) { padding ->
             Box(
                 Modifier.fillMaxSize().padding(padding).padding(32.dp),
@@ -269,8 +276,8 @@ fun BookDetailsUnavailable(navigateBack: () -> Unit) {
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "تعذّر فتح تفاصيل الكتاب.",
-                        style = AppFonts.textNormal,
+                        text = stringResource(R.string.book_details_error),
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -289,9 +296,8 @@ private fun DescriptionTab(details: BookDetails) {
     ) {
         Text(
             text = details.description.orEmpty(),
-            style = AppFonts.textNormal,
+            style = AppFonts.content(MaterialTheme.typography.bodyLarge).copy(lineHeight = 30.sp),
             color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 28.sp
         )
 
         Spacer(Modifier.height(24.dp))
@@ -302,8 +308,7 @@ private fun DescriptionTab(details: BookDetails) {
 
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = if (isAI) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -315,23 +320,23 @@ private fun DescriptionTab(details: BookDetails) {
                 Icon(
                     imageVector = ShamelaIcons.Info,
                     contentDescription = null,
-                    tint = if (isAI) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = if (!isAI) "المصدر: $src" else "هذه النبذة مولدة بإستخدام الذكاء الاصطناعي.",
-                        style = AppFonts.textSmallBold,
-                        color = if (isAI) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = if (!isAI) stringResource(R.string.description_source, src.orEmpty()) else stringResource(R.string.description_ai_generated),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (BuildConfig.DEBUG && isAI) {
-                        val model = details.descriptionModel?.takeIf { it.isNotBlank() } ?: "غير معروف"
+                        val model = details.descriptionModel?.takeIf { it.isNotBlank() } ?: stringResource(R.string.unknown)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "النموذج: $model",
-                            style = AppFonts.textSmall,
-                            color = MaterialTheme.colorScheme.error,
+                            text = stringResource(R.string.description_model, model),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
                         )
                     }
                 }
@@ -349,8 +354,7 @@ private fun DetailsTab(about: List<BookInfoItem>) {
             .padding(24.dp)
     ) {
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -375,23 +379,22 @@ private fun InfoRow(info: BookInfoItem) {
         if (info.label.isBlank()) {
             Text(
                 text = info.value,
-                style = AppFonts.textSmall,
+                style = AppFonts.content(MaterialTheme.typography.bodyMedium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     text = info.label,
-                    style = AppFonts.textNormalBold,
+                    style = AppFonts.content(MaterialTheme.typography.labelLarge),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(0.35f)
                 )
                 Text(
                     text = info.value,
-                    style = AppFonts.textNormal,
+                    style = AppFonts.content(MaterialTheme.typography.bodyMedium),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(0.65f),
-                    textAlign = TextAlign.Start,
                 )
             }
         }
@@ -406,19 +409,16 @@ private fun BookActionBottomBar(
     onOpenClick: () -> Unit
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 8.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+        Box(modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
             Button(
                 onClick = if (isDownloaded) onOpenClick else onDownloadClick,
                 enabled = !isDownloading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
+                    .height(52.dp),
 
             ) {
 
@@ -430,7 +430,7 @@ private fun BookActionBottomBar(
                         strokeWidth = 2.5.dp
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(text = "جارٍ التحميل...", style = AppFonts.textLargeBold)
+                    Text(text = stringResource(R.string.downloading), style = MaterialTheme.typography.titleMedium)
                 } else if (isDownloaded) {
                     // Show Read button
                     Icon(
@@ -439,7 +439,7 @@ private fun BookActionBottomBar(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(text = "قراءة الكتاب", style = AppFonts.textLargeBold)
+                    Text(text = stringResource(R.string.read_book), style = MaterialTheme.typography.titleMedium)
                 } else {
                     // Show Download button
                     Icon(
@@ -448,7 +448,7 @@ private fun BookActionBottomBar(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(text = "تحميل الكتاب", style = AppFonts.textLargeBold)
+                    Text(text = stringResource(R.string.download_book), style = MaterialTheme.typography.titleMedium)
                 }
             }
         }

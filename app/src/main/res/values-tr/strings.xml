@@ -1,0 +1,136 @@
+<resources>
+    <string name="app_name">Şamile Kütüphanesi</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">Kütüphane</string>
+    <string name="nav_download">İndir</string>
+    <string name="nav_favorite">Favoriler</string>
+    <string name="nav_search">Ara</string>
+    <string name="nav_settings">Ayarlar</string>
+    <string name="about_app">Uygulama hakkında</string>
+
+    <!-- Common -->
+    <string name="view_sections">Bölümler</string>
+    <string name="view_books">Kitaplar</string>
+    <string name="view_quotes">Alıntılar</string>
+    <string name="cancel">İptal</string>
+    <string name="delete">Sil</string>
+    <string name="done">Tamam</string>
+    <string name="action_clear">Temizle</string>
+    <string name="search_hint">Ara...</string>
+    <string name="no_results">Sonuç bulunamadı.</string>
+    <string name="quote_added">Favorilere eklendi</string>
+    <string name="pages_count_label">Sayfa sayısı: %1$d</string>
+    <string name="books_count_label">Kitap sayısı: %1$d</string>
+    <string name="page_number_label">Sayfa: %1$d</string>
+    <string name="external_books_section">Harici kitaplar</string>
+
+    <!-- Sorting -->
+    <string name="sort_name">Kitap adı</string>
+    <string name="sort_author">Yazar adı</string>
+    <string name="sort_page_count">Sayfa sayısı</string>
+    <string name="sort_download_time">İndirme tarihi</string>
+    <string name="sort_current">Sıralama: %1$s</string>
+    <string name="sort_books">Kitapları sırala</string>
+    <string name="sort_by">Sıralama ölçütü</string>
+    <string name="sort_ascending">Artan</string>
+    <string name="sort_descending">Azalan</string>
+
+    <!-- Library -->
+    <string name="selected_count">%1$d seçildi</string>
+    <string name="delete_selected_books">Seçili kitapları sil</string>
+    <string name="delete_book_title">Kitabı sil</string>
+    <string name="delete_book_message">\"%1$s\" kitabını silmek istediğinize emin misiniz?</string>
+    <string name="delete_selected_books_message">Seçili %1$d kitabı silmek istediğinize emin misiniz?</string>
+    <string name="library_empty_title">Kütüphanenizde henüz kitap yok</string>
+    <string name="library_empty_message">İndir sekmesinden kitap indirebilirsiniz; indirdiğiniz kitaplar istediğiniz zaman okumanız için burada görünür.</string>
+
+    <!-- Download -->
+    <string name="download">İndir</string>
+    <string name="downloaded">İndirildi</string>
+    <string name="download_failed">\"%1$s\" indirilemedi. Bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="download_failed_no_space">\"%1$s\" indirilemedi: yeterli depolama alanı yok.</string>
+    <string name="download_link_unavailable">\"%1$s\" için indirme bağlantısı bulunamadı.</string>
+
+    <string name="download_section">Bölümü indir</string>
+    <string name="download_section_message">Bu bölümden %1$d kitap indirilecek. Devam edilsin mi?</string>
+
+    <!-- Favorites -->
+    <string name="favorite_quotes_empty">Favori alıntınız yok.\nOkurken bir metni seçip favorilere ekleyebilirsiniz!</string>
+    <string name="favorite_books_empty">Favori kitabınız yok.\nKütüphanenizdeki kitapları favorilere ekleyin!</string>
+
+    <!-- Search -->
+    <string name="search_select_sections_hint">Arama yapmak için bir veya daha fazla bölüm seçmelisiniz</string>
+    <string name="search_requires_downloads">Arama yapabilmek için önce bazı kitapları indirmelisiniz</string>
+    <string name="search_word">Aranacak kelime</string>
+    <string name="search_word_placeholder">Aranacak kelimeyi girin...</string>
+    <string name="select_all">Tümünü seç</string>
+    <string name="choose_section">Bölüm seç</string>
+    <string name="choose_sections">Bir veya daha fazla bölüm seçin</string>
+
+    <!-- Book details -->
+    <string name="about_book">Kitap hakkında</string>
+    <string name="book_pages">%1$d sayfa</string>
+    <string name="author_death_year">Vefatı: %1$s H.</string>
+    <string name="book_details_unavailable">Bu kitap hakkında şu anda ek bilgi bulunmuyor.</string>
+    <string name="tab_description">Özet</string>
+    <string name="tab_topics">Konular</string>
+    <string name="tab_details">Ayrıntılar</string>
+    <string name="book_details_error">Kitap ayrıntıları açılamadı.</string>
+    <string name="description_source">Kaynak: %1$s</string>
+    <string name="description_ai_generated">Bu özet yapay zekâ ile oluşturulmuştur.</string>
+    <string name="description_model">Model: %1$s</string>
+    <string name="unknown">Bilinmiyor</string>
+    <string name="downloading">İndiriliyor...</string>
+    <string name="read_book">Kitabı oku</string>
+    <string name="download_book">Kitabı indir</string>
+
+    <!-- About -->
+    <string name="app_description">EPUB biçimindeki İslami kitapları okumak için bir uygulama. Kitapları indirip internet bağlantısı olmadan istediğiniz zaman okuyabilirsiniz.</string>
+    <string name="update_app">Uygulamayı güncelle</string>
+    <string name="update_downloading_progress">İndiriliyor… %%%1$d</string>
+    <string name="whats_new">Yenilikler</string>
+    <string name="current_version">Mevcut sürüm</string>
+    <string name="latest_version">En son sürüm</string>
+    <string name="update_check_failed">Güncellemeler kontrol edilemedi</string>
+    <string name="update_download_failed">İndirme başarısız oldu, lütfen tekrar deneyin</string>
+    <string name="no_releases_found">Henüz yayınlanmış bir sürüm yok</string>
+    <string name="update_notification_title">Şamile Kütüphanesi güncellemesi</string>
+    <string name="update_notification_description">Güncelleme indiriliyor…</string>
+
+    <!-- Push notifications -->
+    <string name="updates_channel_name">Uygulama güncellemeleri</string>
+    <string name="updates_channel_description">Şamile Kütüphanesi\'nin yeni sürümleri hakkında bildirimler</string>
+    <string name="new_version_available">Uygulamanın yeni bir sürümü mevcut</string>
+
+    <!-- Settings -->
+    <string name="prefernces">Tercihler</string>
+    <string name="external_bboks">Harici kitaplar</string>
+    <string name="settings_general">Genel</string>
+    <string name="external_book_hint">Cihazınızdaki bir EPUB kitabı ekleyin; kütüphanede Harici kitaplar bölümünde görünür.</string>
+    <string name="select_book">Kitap seçin</string>
+    <string name="add_to_library">Kütüphaneye ekle</string>
+    <string name="add_external_book">Harici kitap ekle</string>
+    <string name="could_not_add_book_to_library">Kitap kütüphaneye eklenemedi</string>
+    <string name="the_book_already_exists">Bu kitap zaten mevcut</string>
+    <string name="book_added_successfully">Kitap başarıyla eklendi</string>
+    <string name="book_is_not_compatible">Bu kitap uygulamayla uyumlu değil</string>
+
+    <string name="language">Dil</string>
+    <string name="language_system">Sistem dili</string>
+
+    <string name="storage">Depolama</string>
+    <string name="storage_usage">%1$d kitap · %2$s</string>
+    <string name="delete_all_books">Tüm kitapları sil</string>
+    <string name="delete_all_books_message">İndirilen tüm kitaplar, alıntılarıyla birlikte cihazdan silinecek. Emin misiniz?</string>
+    <string name="all_books_deleted">Tüm kitaplar silindi</string>
+
+    <string name="backup">Yedekleme</string>
+    <string name="backup_description">Favori kitaplarınızı ve alıntılarınızı bir dosyaya kaydedin; daha sonra veya başka bir cihazda geri yükleyin.</string>
+    <string name="backup_export">Dışa aktar</string>
+    <string name="backup_import">İçe aktar</string>
+    <string name="backup_exported">%1$d öğe dışa aktarıldı</string>
+    <string name="backup_imported">%1$d öğe içe aktarıldı, indirilmemiş kitaplara ait %2$d öğe atlandı</string>
+    <string name="backup_invalid">Geçersiz yedek dosyası</string>
+    <string name="backup_failed">İşlem başarısız oldu, lütfen tekrar deneyin</string>
+</resources>

@@ -1,6 +1,7 @@
 package com.shamela.library.presentation.screens.favorite
 
 
+import com.shamela.library.R
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
@@ -59,7 +60,7 @@ class FavoriteViewModel @Inject constructor(
                 viewModelScope.launch {
                     Log.e("FavoriteViewModel", "AddQuoteToFavorite ${event.quote}")
                     quotesUseCases.saveQuote(event.quote)
-                    Toast.makeText(application, "تمت الإضافة بنجاح", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(application, application.getString(R.string.quote_added), Toast.LENGTH_SHORT).show()
                 }
             }
 

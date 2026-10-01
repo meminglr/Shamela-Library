@@ -1,5 +1,8 @@
 package com.shamela.library.presentation.common
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -18,77 +21,46 @@ import androidx.compose.ui.unit.dp
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
 
+/**
+ * Standard confirmation dialog. [destructive] dialogs (deleting) use error colors; others (e.g.
+ * starting a large download) use the primary colors.
+ */
 @Composable
 fun ConfirmationDialog(
     title: String,
     message: String,
-    confirmText: String = "حذف",
-    dismissText: String = "إلغاء",
+    confirmText: String = stringResource(R.string.delete),
+    dismissText: String = stringResource(R.string.cancel),
+    icon: ImageVector = ShamelaIcons.Delete,
+    destructive: Boolean = true,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val accent = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = AlertDialogDefaults.shape,
-        containerColor = MaterialTheme.colorScheme.surface,
-
-        icon = {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = ShamelaIcons.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        },
-
+        icon = { Icon(imageVector = icon, contentDescription = null, tint = accent) },
         title = {
             Text(
                 text = title,
-                style = AppFonts.textLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center),
             )
         },
-
         text = {
             Text(
                 text = message,
-                style = AppFonts.textNormal,
-                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
-
         confirmButton = {
-            TextButton(
-                onClick = onConfirm
-            ) {
-                Text(
-                    text = confirmText,
-                    style = AppFonts.textNormal,
-                    color = MaterialTheme.colorScheme.error
-                )
+            TextButton(onClick = onConfirm) {
+                Text(text = confirmText, color = accent)
             }
         },
-
         dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = dismissText,
-                    style = AppFonts.textNormal
-                )
+            TextButton(onClick = onDismiss) {
+                Text(text = dismissText)
             }
         }
     )

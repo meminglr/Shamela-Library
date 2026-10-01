@@ -1,29 +1,28 @@
 package com.shamela.library.presentation.common
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -35,99 +34,115 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
+import com.shamela.library.R
 import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.search.BookSearchMatcher
 
-private fun buildHighlightedString(text: String, query: String): AnnotatedString =
-    buildAnnotatedString {
+/** [text] with the (Arabic-normalized) match of [query] highlighted; never fails on a miss. */
+@Composable
+internal fun buildHighlightedString(text: String, query: String): AnnotatedString {
+    val highlight = SpanStyle(
+        background = MaterialTheme.colorScheme.tertiaryContainer,
+        color = MaterialTheme.colorScheme.onTertiaryContainer,
+    )
+    return buildAnnotatedString {
         val range = BookSearchMatcher.findHighlightRange(text, query)
         if (range == null) {
             append(text)
         } else {
             append(text.substring(0, range.first))
-            withStyle(SpanStyle(
-                fontSize = AppFonts.textNormal.fontSize.value.sp,
-                background = Color(0xfff8ff00),
-                color = Color.Black
-            )) { append(text.substring(range)) }
+            withStyle(highlight) { append(text.substring(range)) }
             append(text.substring(range.last + 1))
         }
     }
+}
 
-//@Composable
-//fun BookItem(
-//    modifier: Modifier,
-//    icon: @Composable () -> Unit = {
-//        Icon(imageVector = Icons.Default.ArrowBackIosNew, contentDescription = null)
-//    },
-//    item: Book,
-//) {
-//    Row(
-//        modifier = modifier
-//            .fillMaxWidth(),
-//        verticalAlignment = Alignment.CenterVertically,
-//        horizontalArrangement = Arrangement.SpaceBetween
-//    ) {
-//        Column(Modifier.fillMaxWidth(0.9f)) {
-//            Text(
-//                text = item.title,
-//                maxLines = 1,
-//                style = AppFonts.textNormalBold,
-//                overflow = TextOverflow.Ellipsis
-//            )
-//            Spacer(modifier = Modifier.height(4.dp))
-//            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-//                Text(text = item.author, style = AppFonts.textNormal)
-//                Text(text = " عدد الصفحات: ${item.pageCount}", style = AppFonts.textNormal)
-//            }
-//        }
-//        icon()
-//    }
-//}
-
+/** Rounded tonal tile used as the leading visual of list rows (book "cover", section folder). */
 @Composable
-fun BookItem(
-    modifier: Modifier,
-    icon: @Composable () -> Unit = {
-        Icon(imageVector = ShamelaIcons.ArrowBackIosNew, contentDescription = null)
-    },
-    item: Book,
-    highlightText: String = "",
-    onInfoClick: (() -> Unit)? = null,
+fun ListLeadingTile(
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    container: Color = MaterialTheme.colorScheme.primaryContainer,
+    content: Color = MaterialTheme.colorScheme.onPrimaryContainer,
 ) {
-    val text = buildHighlightedString(item.title, highlightText)
-    val authorText = buildHighlightedString(item.author, highlightText)
+    Box(
+        modifier = modifier
+            .size(width = 40.dp, height = 48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(container),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = content, modifier = Modifier.size(22.dp))
+    }
+}
+
+/**
+ * The single book row layout shared by every list: cover tile, title (up to two lines), author and
+ * page count, then trailing actions. Callers only add click/animation modifiers.
+ */
+@Composable
+private fun BookRow(
+    item: Book,
+    highlightText: String,
+    modifier: Modifier = Modifier,
+    leading: @Composable () -> Unit = { ListLeadingTile(ShamelaIcons.MenuBook) },
+    trailing: @Composable RowScope.() -> Unit,
+) {
     Row(
         modifier = modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(Modifier.weight(1f)) {
+        leading()
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                text = text,
-                maxLines = 1,
-                style = AppFonts.textNormalBold,
-                overflow = TextOverflow.Ellipsis
+                text = buildHighlightedString(item.title, highlightText),
+                style = AppFonts.content(MaterialTheme.typography.titleMedium),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = authorText, style = AppFonts.textNormal)
-                Text(text = " عدد الصفحات: ${item.pageCount}", style = AppFonts.textNormal)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val author = item.author.takeUnless { it.isBlank() || it == "-" }
+                if (author != null) {
+                    Text(
+                        text = buildHighlightedString(author, highlightText),
+                        style = AppFonts.content(MaterialTheme.typography.bodyMedium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text(
+                        text = "  ·  ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+                if (item.pageCount > 0) {
+                    Text(
+                        text = stringResource(R.string.book_pages, item.pageCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
             }
         }
-        InfoIconButton(onInfoClick)
-        icon()
+        trailing()
     }
 }
 
@@ -137,10 +152,46 @@ private fun InfoIconButton(onInfoClick: (() -> Unit)?) {
         IconButton(onClick = onInfoClick) {
             Icon(
                 imageVector = ShamelaIcons.Info,
-                contentDescription = "عن الكتاب",
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                contentDescription = stringResource(R.string.about_book),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun FavoriteIconButton(isFavorite: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        val tint by animateColorAsState(
+            targetValue = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            label = "favorite tint"
+        )
+        Icon(
+            imageVector = if (isFavorite) ShamelaIcons.Favorite else ShamelaIcons.FavoriteBorder,
+            contentDescription = stringResource(R.string.nav_favorite),
+            tint = tint
+        )
+    }
+}
+
+@Composable
+fun BookItem(
+    modifier: Modifier,
+    icon: @Composable () -> Unit = {
+        Icon(
+            imageVector = ShamelaIcons.NavigateForward,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+    },
+    item: Book,
+    highlightText: String = "",
+    onInfoClick: (() -> Unit)? = null,
+) {
+    BookRow(item = item, highlightText = highlightText, modifier = modifier) {
+        InfoIconButton(onInfoClick)
+        icon()
     }
 }
 
@@ -152,42 +203,9 @@ fun FavoriteBookItem(
     highlightText: String = "",
     onInfoClick: (() -> Unit)? = null,
 ) {
-    val text = buildHighlightedString(item.title, highlightText)
-    val authorText = buildHighlightedString(item.author, highlightText)
-    Row(
-        modifier = modifier
-            .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = text,
-                maxLines = 1,
-                style = AppFonts.textNormalBold,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = authorText, style = AppFonts.textNormal)
-                Text(text = " عدد الصفحات: ${item.pageCount}", style = AppFonts.textNormal)
-            }
-        }
+    BookRow(item = item, highlightText = highlightText, modifier = modifier) {
         InfoIconButton(onInfoClick)
-        IconButton(
-//            modifier = Modifier.size(55.dp),
-            onClick = onFavoriteIconClicked
-        ) {
-            val tintColor by animateColorAsState(
-                targetValue = if (item.isFavorite) Color(0xff8B0000) else LocalContentColor.current,
-                label = ""
-            )
-            Icon(
-                imageVector = if (item.isFavorite) ShamelaIcons.Favorite else ShamelaIcons.FavoriteBorder,
-                contentDescription = null,
-                tint = tintColor
-            )
-        }
+        FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
     }
 }
 
@@ -212,110 +230,73 @@ fun LibraryBookItem(
             false
         },
     )
-    val text = buildHighlightedString(item.title, highlightText)
-    val authorText = buildHighlightedString(item.author, highlightText)
     SwipeToDismissBox(
         state = swipeState,
         backgroundContent = {
+            val active = swipeState.targetValue != SwipeToDismissBoxValue.Settled
             val color by animateColorAsState(
-                targetValue = when (swipeState.targetValue) {
-                    SwipeToDismissBoxValue.Settled -> Color.Transparent
-                    SwipeToDismissBoxValue.StartToEnd -> Color.Red
-                    SwipeToDismissBoxValue.EndToStart -> Color.Red
-                }, label = "swipe to dismiss background color"
+                targetValue = if (active) MaterialTheme.colorScheme.errorContainer else Color.Transparent,
+                label = "swipe background"
             )
-            val scale by animateFloatAsState(
-                targetValue = if (swipeState.targetValue == SwipeToDismissBoxValue.Settled) 0.8f else 1.2f,
-                label = "swipe to dismiss icon scale"
-            )
-            val icon = ShamelaIcons.Delete
-            val alignment = Alignment.CenterEnd
-
+            val scale by animateFloatAsState(targetValue = if (active) 1.15f else 0.85f, label = "swipe icon scale")
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(color)
-                    .padding(horizontal = 12.dp), contentAlignment = alignment
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterEnd
             ) {
                 Icon(
-                    imageVector = icon,
-                    contentDescription = null,
+                    imageVector = ShamelaIcons.Delete,
+                    contentDescription = stringResource(R.string.delete),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.scale(scale)
                 )
             }
         },
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true,
-        content = {
-            val cardElevation by animateDpAsState(
-                targetValue = if (swipeState.dismissDirection != SwipeToDismissBoxValue.Settled) 4.dp else 0.dp,
-                label = "swipe to dismiss card elevation"
-            )
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(cardElevation),
-                shape = RectangleShape,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
+    ) {
+        val rowColor by animateColorAsState(
+            targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            label = "selection background"
+        )
+        Surface(color = rowColor) {
+            BookRow(
+                item = item,
+                highlightText = highlightText,
+                modifier = modifier,
+                leading = {
+                    AnimatedContent(targetState = isSelected, label = "selection leading") { selected ->
+                        if (selected) {
+                            Box(
+                                modifier = Modifier.size(width = 40.dp, height = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = ShamelaIcons.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            ListLeadingTile(ShamelaIcons.MenuBook)
+                        }
+                    }
+                },
             ) {
-                Row(
-                    modifier = modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    AnimatedVisibility(
-                        visible = isSelected,
-                        enter = expandHorizontally(),
-                        exit = shrinkHorizontally()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(bottom = 12.dp, end = 12.dp, top = 12.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Icon(
-                                imageVector = ShamelaIcons.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = text,
-                            maxLines = 1,
-                            style = AppFonts.textNormalBold,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = authorText, style = AppFonts.textNormal)
-                            Text(
-                                text = " عدد الصفحات: ${item.pageCount}",
-                                style = AppFonts.textNormal
-                            )
-                        }
-                    }
-                    InfoIconButton(onInfoClick)
-                    IconButton(
-                        onClick = onFavoriteIconClicked
-                    ) {
-                        val tintColor by animateColorAsState(
-                            targetValue = if (item.isFavorite) Color(0xff8B0000) else LocalContentColor.current,
-                            label = ""
-                        )
-                        Icon(
-                            imageVector = if (item.isFavorite) ShamelaIcons.Favorite else ShamelaIcons.FavoriteBorder,
-                            contentDescription = null,
-                            tint = tintColor
-                        )
-                    }
-                }
+                InfoIconButton(onInfoClick)
+                FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
             }
         }
-    )
+    }
 }

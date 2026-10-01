@@ -1,6 +1,9 @@
 package com.shamela.library.presentation.screens.library
 
-enum class BooksViewType(val label: String) {
-    Sections(label = "الأقسام"),
-    Books(label = "الكتب")
+import androidx.annotation.StringRes
+import com.shamela.library.R
+
+enum class BooksViewType(@StringRes val label: Int) {
+    Sections(label = R.string.view_sections),
+    Books(label = R.string.view_books)
 }

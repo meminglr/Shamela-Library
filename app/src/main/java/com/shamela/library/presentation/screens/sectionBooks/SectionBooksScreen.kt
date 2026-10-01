@@ -1,6 +1,12 @@
 package com.shamela.library.presentation.screens.sectionBooks
 
 
+import com.shamela.library.presentation.common.ConfirmationDialog
+import com.shamela.library.presentation.common.sectionDisplayName
+import com.shamela.apptheme.presentation.common.ListDivider
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -82,12 +88,28 @@ fun SectionBooksScreen(
         sectionBooksState.books.keys.any { sectionBooksState.downloadStatuses[it] is DownloadStatus.Downloading }
     }
 
+    var confirmSectionDownload by remember { mutableStateOf(false) }
+    if (confirmSectionDownload) {
+        val remaining = (totalInSection - downloadedInSection).coerceAtLeast(0)
+        ConfirmationDialog(
+            title = stringResource(R.string.download_section),
+            message = stringResource(R.string.download_section_message, remaining),
+            confirmText = stringResource(R.string.download),
+            icon = ShamelaIcons.FileDownload,
+            destructive = false,
+            onConfirm = {
+                confirmSectionDownload = false
+                viewModel.onEvent(SectionBooksEvent.OnClickDownloadSection)
+            },
+            onDismiss = { confirmSectionDownload = false },
+        )
+    }
     Column {
         SectionTopBar(
             title = categoryName,
             onNavigateBack = navigateBack,
             onSearch = { navigateToSearchResultsScreen(categoryName, sectionBooksState.type) },
-            onDownload = { viewModel.onEvent(SectionBooksEvent.OnClickDownloadSection) },
+            onDownload = { confirmSectionDownload = true },
             isDownloadButtonEnabled = sectionBooksState.isDownloadButtonEnabled,
             downloadedBookCount = downloadedInSection,
             totalBookCount = totalInSection,
@@ -104,7 +126,7 @@ fun SectionBooksScreen(
                 .fillMaxSize()
                 .clipToBounds(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(vertical = 16.dp)
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(sortedBooks, key = { it.id }) { currentBook ->
                 when (sectionBooksState.type) {
@@ -119,8 +141,7 @@ fun SectionBooksScreen(
                                                 SectionBooksEvent.AddQuoteToFavorite(quote)
                                             )
                                         })
-                                }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                },
                             item = currentBook,
                             onInfoClick = { navigateToBookDetails(currentBook) }
                         )
@@ -128,7 +149,7 @@ fun SectionBooksScreen(
 
                     "remote" -> {
                         BookItem(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier,
                             onInfoClick = { navigateToBookDetails(currentBook) },
                             icon = {
                                 DownloadIconButton(
@@ -151,7 +172,7 @@ fun SectionBooksScreen(
                         )
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                ListDivider(startInset = 72)
             }
         }
     }
@@ -182,25 +203,24 @@ private fun SectionTopBar(
     TopAppBar(
         modifier = Modifier,
         title = {
-            var titleTextStyle by remember { mutableStateOf(AppFonts.textLargeBold) }
-            var readyToDraw by remember { mutableStateOf(false) }
-            Text(
-                text = title,
-                style = titleTextStyle,
-                maxLines = 2,
-                modifier = Modifier.drawWithContent { if (readyToDraw) drawContent() },
-                onTextLayout = { textLayoutResult ->
-                    if (textLayoutResult.didOverflowHeight) {
-                        titleTextStyle =
-                            titleTextStyle.copy(fontSize = titleTextStyle.fontSize * 0.9)
-                    } else {
-                        readyToDraw = true
-                    }
+            Column {
+                Text(
+                    text = sectionDisplayName(title),
+                    style = AppFonts.content(MaterialTheme.typography.titleLarge, naturalAlign = true),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (totalBookCount > 0) {
+                    Text(
+                        text = stringResource(R.string.books_count_label, totalBookCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-            )
+            }
         },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(15.dp),
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
         actions = {
             BookSortMenu(
@@ -211,9 +231,8 @@ private fun SectionTopBar(
                 onToggleDirection = onToggleSortDirection,
             )
             IconButton(onClick = onSearch) {
-                Icon(ShamelaIcons.Search, contentDescription = null)
+                Icon(ShamelaIcons.Search, contentDescription = stringResource(R.string.nav_search))
             }
-            Spacer(modifier = Modifier.size(4.dp))
             IconButton(onClick = onDownload, enabled = isDownloadButtonEnabled) {
                 when {
                     totalBookCount > 0 && downloadedBookCount == totalBookCount -> {
@@ -231,14 +250,14 @@ private fun SectionTopBar(
                         )
                     }
                     else -> {
-                        Icon(ShamelaIcons.FileDownload, contentDescription = null)
+                        Icon(ShamelaIcons.FileDownload, contentDescription = stringResource(R.string.download_section))
                     }
                 }
             }
         },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(ShamelaIcons.ArrowForwardIos, contentDescription = null)
+                Icon(ShamelaIcons.NavigateBack, contentDescription = null)
             }
         }
     )

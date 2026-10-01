@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.shamela.apptheme.presentation.theme.AppTheme
 
+/** A centered, standard-size progress indicator over the screen background. */
 @Composable
 fun LoadingScreen(visibility: Boolean) {
     AnimatedVisibility(
@@ -30,24 +31,14 @@ fun LoadingScreen(visibility: Boolean) {
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        val transition = rememberInfiniteTransition(label = "transition")
-        val color by transition.animateColor(
-            initialValue = MaterialTheme.colorScheme.primary,
-            targetValue = MaterialTheme.colorScheme.secondary,
-            animationSpec = infiniteRepeatable(
-                animation = tween(500),
-                repeatMode = RepeatMode.Reverse
-            ), label = "color"
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(MaterialTheme.colorScheme.surface)
                 .clickable(enabled = false) {},
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = color, modifier = Modifier.size(80.dp), strokeWidth = 4.dp)
+            CircularProgressIndicator()
         }
     }
 }

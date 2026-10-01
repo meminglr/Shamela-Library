@@ -1,0 +1,15 @@
+diff --git a/core/src/main/java/org/nanohttpd/protocols/http/NanoHTTPD.java b/core/src/main/java/org/nanohttpd/protocols/http/NanoHTTPD.java
+index 42c2151..87fecff 100644
+--- a/core/src/main/java/org/nanohttpd/protocols/http/NanoHTTPD.java
++++ b/core/src/main/java/org/nanohttpd/protocols/http/NanoHTTPD.java
+@@ -348,7 +348,9 @@ public abstract class NanoHTTPD {
+      * Constructs an HTTP server on given port.
+      */
+     public NanoHTTPD(int port) {
+-        this(null, port);
++        // Shamela patch: bind to loopback by default. The reader's book server must never be
++        // reachable from other devices on the same network.
++        this("127.0.0.1", port);
+     }
+ 
+     // -------------------------------------------------------------------------------

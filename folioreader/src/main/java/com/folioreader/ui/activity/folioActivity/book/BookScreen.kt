@@ -1,6 +1,9 @@
 package com.folioreader.ui.activity.folioActivity.book
 
 
+import androidx.compose.ui.text.style.TextOverflow
+import com.folioreader.R
+import androidx.compose.ui.res.stringResource
 import android.annotation.SuppressLint
 import android.util.Log
 import android.webkit.JavascriptInterface
@@ -300,7 +303,7 @@ private fun BottomBar(
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(15.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -314,7 +317,7 @@ private fun BottomBar(
                 Icon(
                     imageVector = ShamelaIcons.KeyboardArrowRight,
                     contentDescription = "Previous page",
-                    tint = if (isPrevButtonEnabled) MaterialTheme.colorScheme.onBackground else Color.Gray
+                    tint = if (isPrevButtonEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -367,7 +370,7 @@ private fun BottomBar(
                 Icon(
                     imageVector = ShamelaIcons.KeyboardArrowLeft,
                     contentDescription = "next page",
-                    tint = if (isNextButtonEnabled) MaterialTheme.colorScheme.onBackground else Color.Gray
+                    tint = if (isNextButtonEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 )
             }
         }
@@ -394,30 +397,23 @@ private fun BookTopBar(
     ) {
         TopAppBar(
             title = {
-                val baseStyle = AppFonts.textLargeBold
-                var style by remember(baseStyle) { mutableStateOf(baseStyle) }
-                var ready by remember(baseStyle) { mutableStateOf(false) }
+                // One line, ellipsized: long Arabic titles used to wrap and shrink the font.
                 Text(
                     text = title,
-                    style = style,
-                    maxLines = 2,
-                    modifier = Modifier.drawWithContent { if (ready) drawContent() },
-                    onTextLayout = {
-                        if (it.didOverflowHeight) style = style.copy(fontSize = style.fontSize * 0.9f)
-                        else ready = true
-                    }
+                    style = AppFonts.content(MaterialTheme.typography.titleLarge, naturalAlign = true),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(ShamelaIcons.ArrowForwardIos, contentDescription = null)
+                    Icon(ShamelaIcons.NavigateBack, contentDescription = null)
                 }
             },
             actions = {
                 IconButton(onClick = onSearch) {
                     Icon(ShamelaIcons.Search, null)
                 }
-                Spacer(modifier = Modifier.size(4.dp))
                 IconButton(onClick = onToggleMenu) {
                     Icon(ShamelaIcons.MoreVert, null)
                 }
@@ -428,7 +424,7 @@ private fun BookTopBar(
                             onSettings()
                         },
                         leadingIcon = { Icon(ShamelaIcons.Settings, null) },
-                        text = { Text("الإعدادات", style = AppFonts.textNormal) }
+                        text = { Text(stringResource(R.string.reader_settings), ) }
                     )
                     DropdownMenuItem(
                         onClick = {
@@ -436,12 +432,12 @@ private fun BookTopBar(
                             onToc()
                         },
                         leadingIcon = { Icon(ShamelaIcons.FormatListBulleted, null) },
-                        text = { Text("الفهرس", style = AppFonts.textNormal) }
+                        text = { Text(stringResource(R.string.reader_index), ) }
                     )
                 }
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(15.dp)
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             )
         )
     }

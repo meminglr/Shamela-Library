@@ -18,4 +18,31 @@
     <string name="database_update_notifications_description">مسؤولة عن اشعارات تحديث قاعدة البيانات</string>
     <string name="book_preparation_notification_content">يتم تحضير الكتب للبحث</string>
     <string name="book_preparation_notification_title">تحضير الكتب للبحث</string>
+    <string name="search">بحث</string>
+    <string name="no_data">لا يوجد بيانات</string>
+    <string name="migration_notification_content">يتم تحديث قاعدة البيانات..</string>
+
+    <!-- Display names of stored preference keys (the keys themselves stay Arabic in SharedPreferences) -->
+    <string name="theme_auto">تلقائي</string>
+    <string name="theme_light">فاتح</string>
+    <string name="theme_dark">مظلم</string>
+    <string name="color_golden">ذهبي</string>
+    <string name="color_blue">أزرق</string>
+    <string name="color_brown">بني</string>
+    <string name="color_green">أخضر</string>
+    <string name="color_indigo">نيلي</string>
+    <string name="color_muted_blue">أزرق باهت</string>
+    <string name="color_olive">أخضر زيتي</string>
+    <string name="color_material_you">ألوان النظام (اندرويد 12 فأعلى)</string>
+    <string name="font_system">خط النظام</string>
+    <string name="font_amiri">خط أميري</string>
+    <string name="font_kitab">خط كِتاب</string>
+    <string name="font_tajawal">خط تَجَوَّل</string>
+    <string name="font_kufi">خط كوفي</string>
+    <string name="font_messiri">خط المسيري</string>
+    <string name="font_cairo">خط كايرو</string>
+    <string name="font_ibm_plex">خط آي بي إم</string>
+    <string name="font_noto_naskh">خط نوتو نسخ</string>
+    <string name="font_scheherazade">خط شهرزاد</string>
+    <string name="back">رجوع</string>
 </resources>

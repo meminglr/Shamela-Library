@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface QuotesDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(quote: Quote)
+    suspend fun insert(quote: Quote): Long
 
     @Query("DELETE FROM Quote WHERE quoteId = :qId")
     suspend fun delete(qId: String)
@@ -18,4 +18,6 @@ interface QuotesDao {
     @Query("SELECT * FROM Quote")
     fun getAllQuotes(): Flow<List<Quote>>
 
+    @Query("SELECT * FROM Quote")
+    suspend fun getAllQuotesOnce(): List<Quote>
 }

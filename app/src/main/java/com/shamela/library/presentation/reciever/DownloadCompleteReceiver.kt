@@ -4,19 +4,23 @@ import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
-import com.shamela.apptheme.presentation.worker.BookPreparationWorker
+import android.util.Log
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.domain.usecases.books.BooksUseCases
+import com.shamela.library.presentation.utils.BookIndexing
 import com.shamela.library.presentation.utils.BooksDownloadManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Declared in the manifest (not registered from MainActivity), so downloads that finish while the
+ * app is in the background or killed are still saved to the library and indexed for search.
+ * The manifest restricts senders to the system DownloadManager.
+ */
 @AndroidEntryPoint
 class DownloadCompleteReceiver : BroadcastReceiver() {
 
@@ -24,38 +28,32 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
     @FilesRepoImpl
     lateinit var booksUseCases: BooksUseCases
 
-    private lateinit var workManager: WorkManager
-
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action
-        if (DownloadManager.ACTION_DOWNLOAD_COMPLETE == action) {
-            intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1).let { downloadId ->
-                if (downloadId != -1L) {
-                    workManager = WorkManager.getInstance(context)
-                    val scope = CoroutineScope(Dispatchers.IO)
+        if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+        val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+        if (downloadId == -1L) return
 
-                    BooksDownloadManager.reconcileOnReceive(
-                        downloadId = downloadId,
-                        context = context,
-                        workManager = workManager,
-                        saveBook = { book -> booksUseCases.saveDownloadedBook(book) },
-                        scope = scope,
-                    )
-
-                    BooksDownloadManager.downloadIsDone(downloadId) { book ->
-                        scope.launch {
-                            booksUseCases.saveDownloadedBook(book)
-                        }
-                        val bookFilePath = BooksDownloadManager.getBookPath(book)
-                        val request = OneTimeWorkRequestBuilder<BookPreparationWorker>()
-                            .setInputData(
-                                workDataOf(BookPreparationWorker.EPUB_FILE_PATH to bookFilePath)
-                            )
-                            .build()
-                        workManager.enqueue(request)
-                    }
+        val appContext = context.applicationContext
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                val book = BooksDownloadManager.resolveCompletedDownload(downloadId, appContext)
+                    ?.let { BooksDownloadManager.withMetadata(it) }
+                if (book != null) {
+                    booksUseCases.saveDownloadedBook(book)
+                    BookIndexing.enqueue(appContext, book, replace = true)
+                    BooksDownloadManager.notifyBookDownloaded(book)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "onReceive: failed to handle download $downloadId", e)
+            } finally {
+                pendingResult.finish()
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "DownloadCompleteReceiver"
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 }

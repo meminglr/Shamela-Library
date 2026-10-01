@@ -1,6 +1,7 @@
 package com.shamela.library.presentation.screens.settings
 
 
+import com.shamela.apptheme.presentation.common.SegmentedTabs
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +47,9 @@ import com.shamela.apptheme.presentation.theme.colors.Green
 import com.shamela.apptheme.presentation.util.ShamelaPrev
 import com.shamela.library.presentation.screens.LocalPaddingValues
 import com.shamela.library.presentation.screens.settings.components.ExternalBooksScreen
+import com.shamela.library.presentation.screens.settings.components.GeneralSettingsScreen
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 
 @Composable
@@ -71,9 +75,18 @@ fun SettingsScreen(
                 viewModel.onEvent(SettingsEvent.NewFileSelected(uri))
             }
         })
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+        onResult = { uri -> uri?.let { viewModel.onEvent(SettingsEvent.ExportBackup(it)) } }
+    )
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { viewModel.onEvent(SettingsEvent.ImportBackup(it)) } }
+    )
     LaunchedEffect(key1 = Unit) {
-        viewModel.toastsChannel.collect { stringRes ->
-            Toast.makeText(context, context.getString(stringRes), Toast.LENGTH_SHORT).show()
+        viewModel.toastsChannel.collect { message ->
+            val text = context.getString(message.res, *message.args.toTypedArray())
+            Toast.makeText(context, text, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -89,7 +102,10 @@ fun SettingsScreen(
                 }
             }
         },
-        onPreferenceEvent = { viewModel.onPrefsEvent(it)}
+        onPreferenceEvent = { viewModel.onPrefsEvent(it)},
+        onDeleteAllBooks = { viewModel.onEvent(SettingsEvent.DeleteAllBooks) },
+        onExportBackup = { exportLauncher.launch("shamela-backup.json") },
+        onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
     )
 }
 
@@ -101,18 +117,21 @@ private fun SettingsScreenUI(
     onChangeViewType: (SettingsViewType) -> Unit,
     onClickAddBookToLibrary: () -> Unit,
     onPreferenceEvent: (PreferenceSettingsEvent) -> Unit,
+    onDeleteAllBooks: () -> Unit = {},
+    onExportBackup: () -> Unit = {},
+    onImportBackup: () -> Unit = {},
 ) {
     val localPadding = LocalPaddingValues.current
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
             .padding(localPadding)
     ) {
-        ViewTypeSection(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            selectedViewType = uiState.selectedViewType,
-            onClick = onChangeViewType
+        SegmentedTabs(
+            options = SettingsViewType.entries,
+            selected = uiState.selectedViewType,
+            label = { stringResource(it.label) },
+            onSelect = onChangeViewType,
         )
         LoadingScreen(visibility = uiState.isLoading)
         when (uiState.selectedViewType) {
@@ -121,54 +140,29 @@ private fun SettingsScreenUI(
                 onEvent = onPreferenceEvent
             )
 
-            SettingsViewType.ExternalBooks -> ExternalBooksScreen(
+            SettingsViewType.General -> Column(
+                Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+            ) {
+                GeneralSettingsScreen(
+                    downloadedBooksCount = uiState.downloadedBooksCount,
+                    downloadedBytes = uiState.downloadedBytes,
+                    onDeleteAllBooks = onDeleteAllBooks,
+                    onExportBackup = onExportBackup,
+                    onImportBackup = onImportBackup,
+                )
+            }
+
+            SettingsViewType.ExternalBooks -> Column(Modifier.padding(horizontal = 16.dp)) {
+                ExternalBooksScreen(
                 onClickSelectBook = onClickSelectBook,
                 onClickAddBookToLibrary = onClickAddBookToLibrary,
                 selectedFileName = uiState.fileName,
                 selectedFileUri = uiState.fileUri
-            )
-
-        }
-    }
-}
-
-@Composable
-private fun ViewTypeSection(
-    modifier: Modifier,
-    selectedViewType: SettingsViewType,
-    onClick: (SettingsViewType) -> Unit,
-) {
-    Row(
-        modifier
-            .fillMaxWidth(0.8f)
-            .padding(vertical = 16.dp)
-            .clip(CircleShape)
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), CircleShape)
-            .height(IntrinsicSize.Min)
-    ) {
-        SettingsViewType.entries.forEach {
-            Text(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        if (selectedViewType == it) MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.4f
-                        ) else Color.Transparent
-                    )
-                    .clickable { onClick(it) }
-                    .padding(vertical = 12.dp),
-                text = stringResource(it.label),
-                style = AppFonts.textNormalBold,
-                textAlign = TextAlign.Center
-            )
-            if (it != SettingsViewType.entries.last()) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
                 )
             }
+
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.folioreader.ui.activity.folioActivity
 
+import com.shamela.apptheme.presentation.theme.AppFonts
+import com.shamela.apptheme.presentation.util.AppLocale
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
@@ -35,6 +37,10 @@ import com.shamela.apptheme.presentation.theme.AppTheme
 
 
 class FolioActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     private val viewModel: FolioActivityViewModel by viewModels()
 
     companion object {
@@ -47,6 +53,7 @@ class FolioActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppFonts.setUiDirection(rtl = true)
 
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -83,6 +90,7 @@ class FolioActivity : ComponentActivity() {
         setContent {
             val state = viewModel.state.collectAsStateWithLifecycle().value
             AppTheme.ShamelaLibraryTheme {
+                // The reader stays right-to-left in every UI language: page order follows the Arabic book.
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     state.publication?.let { publication ->
                         val searchResult = viewModel.searchResult.collectAsStateWithLifecycle().value
@@ -227,6 +235,8 @@ class FolioActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // The reader is always right-to-left (Arabic book), whatever the UI language.
+        AppFonts.setUiDirection(rtl = true)
         Log.v(LOG_TAG, "-> onResume")
         viewModel.onEvent(FolioActivityEvent.OnChangeTopActivity(true))
         val action = intent.action

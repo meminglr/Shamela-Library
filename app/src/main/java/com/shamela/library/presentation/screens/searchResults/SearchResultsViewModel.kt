@@ -1,12 +1,14 @@
 package com.shamela.library.presentation.screens.searchResults
 
 
+import com.shamela.library.R
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shamela.apptheme.data.db.FtsQuery
 import com.shamela.library.data.local.assets.AssetsRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.domain.model.Book
@@ -64,8 +66,9 @@ class SearchResultsViewModel @Inject constructor(
                             else -> localBooksUseCases
                         }
                         if (type == "sections") {
+                            val normalizedQuery = FtsQuery.normalized(query)
                             val newList = repo.getAllCategories().filter { category ->
-                                category.name.contains(query)
+                                FtsQuery.normalized(category.name).contains(normalizedQuery)
                             }.toList()
                             _searchResultsState.update {
                                 it.copy(
@@ -105,7 +108,7 @@ class SearchResultsViewModel @Inject constructor(
                                 book = event.book,
                                 bookCategory = event.book.categoryName
                             )
-                        }
+                        } ?: BooksDownloadManager.reportLinkUnavailable(event.book.title)
                 }
             }
 
@@ -126,7 +129,7 @@ class SearchResultsViewModel @Inject constructor(
                 viewModelScope.launch {
                     Log.d("SearchResultsViewModel", "AddQuoteToFavorite ${event.quote}")
                     quotesUseCases.saveQuote(event.quote)
-                    Toast.makeText(application, "تمت الإضافة بنجاح", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(application, application.getString(R.string.quote_added), Toast.LENGTH_SHORT).show()
                 }
             }
         }

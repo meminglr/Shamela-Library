@@ -1,6 +1,9 @@
 package com.shamela.library.presentation.screens.download
 
 
+import androidx.compose.ui.res.stringResource
+import com.shamela.apptheme.presentation.common.ListDivider
+import com.shamela.apptheme.presentation.common.SegmentedTabs
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -33,7 +36,6 @@ import com.shamela.library.presentation.common.SectionItem
 import com.shamela.library.presentation.navigation.Download
 import com.shamela.library.presentation.screens.LocalPaddingValues
 import com.shamela.library.presentation.screens.library.BooksViewType
-import com.shamela.library.presentation.screens.library.ViewTypeSection
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -51,10 +53,10 @@ fun DownloadScreen(
         Download.buttons.onEach {
             if (it) {
                 if (viewModel.downloadState.value.booksViewType == BooksViewType.Books){
-                    Log.e("Mah ", "DownloadScreen: Search Books is clicked")
+                    Log.d("Shamela", "DownloadScreen: Search Books is clicked")
                     navigateToSearchResultsScreen("all", "remote")
                 }else{
-                    Log.e("Mah ", "DownloadScreen: Search Sections is clicked")
+                    Log.d("Shamela", "DownloadScreen: Search Sections is clicked")
                     navigateToSearchResultsScreen("all", "sections")
                 }
             }
@@ -72,10 +74,12 @@ fun DownloadScreen(
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
     ) {
         item {
-            ViewTypeSection(
-                modifier = Modifier,
-                selectedBooksViewType = downloadState.booksViewType
-            ) { viewModel.onEvent(DownloadEvent.OnChangeViewType(it)) }
+            SegmentedTabs(
+                options = BooksViewType.entries,
+                selected = downloadState.booksViewType,
+                label = { stringResource(it.label) },
+                onSelect = { viewModel.onEvent(DownloadEvent.OnChangeViewType(it)) },
+            )
         }
 
 
@@ -85,9 +89,8 @@ fun DownloadScreen(
                     SectionItem(modifier = Modifier
                         .clickable {
                             navigateToSectionBooksScreen(it.name, "remote")
-                        }
-                        .padding(horizontal = 8.dp, vertical = 4.dp), item = it)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                        }, item = it)
+                    ListDivider(startInset = 72)
                 }
             }
 
@@ -102,9 +105,7 @@ fun DownloadScreen(
                     }
                     items(books, key = { it.id }) {
                         BookItem(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .animateItem(),
+                            modifier = Modifier.animateItem(),
                             icon = {
                                 DownloadIconButton(
                                     bookId = it.id,
@@ -122,7 +123,7 @@ fun DownloadScreen(
                             onInfoClick = { navigateToBookDetails(it) }
                         )
                         if (it != books.last()) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
+                            ListDivider(startInset = 72)
                         }
                     }
                 }

@@ -1,12 +1,138 @@
 <resources>
-    <string name="app_name" translatable="false">المكتبة الشاملة</string>
+    <string name="app_name">المكتبة الشاملة</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">المكتبة</string>
+    <string name="nav_download">التحميل</string>
+    <string name="nav_favorite">المفضلة</string>
+    <string name="nav_search">البحث</string>
+    <string name="nav_settings">الإعدادات</string>
+    <string name="about_app">حول التطبيق</string>
+
+    <!-- Common -->
+    <string name="view_sections">الأقسام</string>
+    <string name="view_books">الكتب</string>
+    <string name="view_quotes">الإقتباسات</string>
+    <string name="cancel">إلغاء</string>
+    <string name="delete">حذف</string>
+    <string name="done">تم</string>
+    <string name="action_clear">مسح</string>
+    <string name="search_hint">بحث..</string>
+    <string name="no_results">لم يتم العثور على أي نتائج..</string>
+    <string name="quote_added">تمت الإضافة بنجاح</string>
+    <string name="pages_count_label">عدد الصفحات: %1$d</string>
+    <string name="books_count_label">عدد الكتب: %1$d</string>
+    <string name="page_number_label">رقم الصفحة: %1$d</string>
+    <string name="external_books_section">كتب خارجية</string>
+
+    <!-- Sorting -->
+    <string name="sort_name">اسم الكتاب</string>
+    <string name="sort_author">اسم المؤلف</string>
+    <string name="sort_page_count">عدد الصفحات</string>
+    <string name="sort_download_time">تاريخ التحميل</string>
+    <string name="sort_current">ترتيب: %1$s</string>
+    <string name="sort_books">ترتيب الكتب</string>
+    <string name="sort_by">ترتيب حسب</string>
+    <string name="sort_ascending">تصاعدي</string>
+    <string name="sort_descending">تنازلي</string>
+
+    <!-- Library -->
+    <string name="selected_count">تم تحديد %1$d</string>
+    <string name="delete_selected_books">حذف الكتب المحددة</string>
+    <string name="delete_book_title">حذف الكتاب</string>
+    <string name="delete_book_message">هل أنت متأكد من حذف كتاب \"%1$s\"؟</string>
+    <string name="delete_selected_books_message">هل أنت متأكد من حذف %1$d كتاب محدد؟</string>
+    <string name="library_empty_title">لا توجد كتب في مكتبتك بعد</string>
+    <string name="library_empty_message">يمكنك تحميل الكتب من تبويب التحميل، وستظهر هنا لتقرأها في أي وقت.</string>
+
+    <!-- Download -->
+    <string name="download">تحميل</string>
+    <string name="downloaded">تم التحميل</string>
+    <string name="download_failed">تعذر تحميل كتاب (%1$s)، تحقق من الاتصال وحاول مرة أخرى</string>
+    <string name="download_failed_no_space">تعذر تحميل كتاب (%1$s): لا توجد مساحة كافية</string>
+    <string name="download_link_unavailable">رابط تحميل كتاب (%1$s) غير متوفر</string>
+
+    <string name="download_section">تحميل القسم</string>
+    <string name="download_section_message">سيتم تحميل %1$d كتاب من هذا القسم. هل تريد المتابعة؟</string>
+
+    <!-- Favorites -->
+    <string name="favorite_quotes_empty">مفضلة الإقتباسات فارغة،\n أضف بعض الإقتباسات للمفضلة!</string>
+    <string name="favorite_books_empty">مفضلة الكتب فارغة،\n أضف بعض الكتب للمفضلة!</string>
+
+    <!-- Search -->
+    <string name="search_select_sections_hint">يجب اختيار قسم واحد أو عدة اقسام ليتم إجراء البحث فيها</string>
+    <string name="search_requires_downloads">لا بد من تحميل بعض الكتب قبل التمكن من البحث</string>
+    <string name="search_word">كلمة البحث</string>
+    <string name="search_word_placeholder">أدخل كلمة البحث..</string>
+    <string name="select_all">تحديد الكل</string>
+    <string name="choose_section">إختر قسماً</string>
+    <string name="choose_sections">إختر قسماً أو أكثر</string>
+
+    <!-- Book details -->
+    <string name="about_book">عن الكتاب</string>
+    <string name="book_pages">%1$d صفحة</string>
+    <string name="author_death_year">توفي %1$s هـ</string>
+    <string name="book_details_unavailable">لا تتوفر معلومات إضافية عن هذا الكتاب في الوقت الحالي.</string>
+    <string name="tab_description">نبذة</string>
+    <string name="tab_topics">الموضوعات</string>
+    <string name="tab_details">التفاصيل</string>
+    <string name="book_details_error">تعذّر فتح تفاصيل الكتاب.</string>
+    <string name="description_source">المصدر: %1$s</string>
+    <string name="description_ai_generated">هذه النبذة مولدة بإستخدام الذكاء الاصطناعي.</string>
+    <string name="description_model">النموذج: %1$s</string>
+    <string name="unknown">غير معروف</string>
+    <string name="downloading">جارٍ التحميل...</string>
+    <string name="read_book">قراءة الكتاب</string>
+    <string name="download_book">تحميل الكتاب</string>
+
+    <!-- About -->
+    <string name="app_description">تطبيق لقراءة الكتب الإسلامية بصيغة EPUB، يتيح لك تحميل الكتب وتصفّحها في أي وقت دون الحاجة إلى اتصال بالإنترنت.</string>
+    <string name="update_app">تحديث التطبيق</string>
+    <string name="update_downloading_progress">جارٍ التحميل… %1$d%%</string>
+    <string name="whats_new">ما الجديد</string>
+    <string name="current_version">الإصدار الحالي</string>
+    <string name="latest_version">أحدث إصدار</string>
+    <string name="update_check_failed">تعذّر التحقق من التحديثات</string>
+    <string name="update_download_failed">فشل التحميل، يرجى المحاولة مرة أخرى</string>
+    <string name="no_releases_found">لا توجد إصدارات منشورة بعد</string>
+    <string name="update_notification_title">تحديث المكتبة الشاملة</string>
+    <string name="update_notification_description">جارٍ تحميل التحديث…</string>
+
+    <!-- Push notifications -->
+    <string name="updates_channel_name">تحديثات التطبيق</string>
+    <string name="updates_channel_description">إشعارات الإصدارات الجديدة من مكتبة الشاملة</string>
+    <string name="new_version_available">يتوفر إصدار جديد من التطبيق</string>
+
+    <!-- Settings -->
+    <string name="prefernces">التفضيلات</string>
+    <string name="external_bboks">الكتب الخارجية</string>
+    <string name="settings_general">عام</string>
+    <string name="external_book_hint">أضف كتاباً بصيغة EPUB من جهازك، وسيظهر في المكتبة ضمن قسم الكتب الخارجية.</string>
     <string name="select_book">اختر كتابا</string>
     <string name="add_to_library">إضافة إلى المكتبة</string>
     <string name="add_external_book">إضافة كتاب خارجي</string>
-    <string name="prefernces">التفضيلات</string>
-    <string name="external_bboks">الكتب الخارجية</string>
     <string name="could_not_add_book_to_library">تعذر إضافة الكتاب للمكتبة</string>
     <string name="the_book_already_exists">الكتاب موجود بالفعل</string>
     <string name="book_added_successfully">تمت اضافة الكتاب بنجاح</string>
     <string name="book_is_not_compatible">الكتاب غير متوافق مع المكتبة</string>
+
+    <string name="language">اللغة</string>
+    <string name="language_system">لغة النظام</string>
+    <string name="language_arabic" translatable="false">العربية</string>
+    <string name="language_turkish" translatable="false">Türkçe</string>
+
+    <string name="storage">التخزين</string>
+    <string name="storage_usage">%1$d كتاب · %2$s</string>
+    <string name="delete_all_books">حذف جميع الكتب</string>
+    <string name="delete_all_books_message">سيتم حذف جميع الكتب المحملة من الجهاز مع اقتباساتها. هل أنت متأكد؟</string>
+    <string name="all_books_deleted">تم حذف جميع الكتب</string>
+
+    <string name="backup">النسخ الاحتياطي</string>
+    <string name="backup_description">احفظ الكتب المفضلة والاقتباسات في ملف، واستعدها لاحقاً أو على جهاز آخر.</string>
+    <string name="backup_export">تصدير</string>
+    <string name="backup_import">استيراد</string>
+    <string name="backup_exported">تم تصدير %1$d عنصر</string>
+    <string name="backup_imported">تم استيراد %1$d عنصر، وتم تخطي %2$d لكتب غير محملة</string>
+    <string name="backup_invalid">ملف النسخة الاحتياطية غير صالح</string>
+    <string name="backup_failed">تعذرت العملية، حاول مرة أخرى</string>
 </resources>

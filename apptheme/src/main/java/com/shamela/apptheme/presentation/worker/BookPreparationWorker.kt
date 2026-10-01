@@ -46,6 +46,8 @@ class BookPreparationWorker(
         return withContext(Dispatchers.IO) {
             val bookFilePath = params.inputData.getString(EPUB_FILE_PATH)
                 ?: return@withContext Result.failure()
+            // The book may have been deleted while this job was queued.
+            if (!File(bookFilePath).isFile) return@withContext Result.success()
 
             var readPagesTime = System.currentTimeMillis()
             val pages = getPages(bookFilePath)
@@ -91,6 +93,10 @@ class BookPreparationWorker(
         )
 
         database.insertBookPages(pagesList)
+        // If the book was deleted while we were indexing, don't leave orphan pages in search results.
+        if (!bookFile.isFile || isStopped) {
+            database.deleteBookPages(bookID)
+        }
     }
 
     private suspend fun getPages(bookFilePath: String): Map<String, String> {

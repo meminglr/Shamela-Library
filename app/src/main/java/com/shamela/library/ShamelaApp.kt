@@ -5,6 +5,7 @@ import android.content.Context
 import com.shamela.apptheme.data.sharedPrefs.SharedPreferencesData
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
+import com.shamela.apptheme.presentation.util.AppLocale
 import com.shamela.apptheme.presentation.theme.colors.AppColors
 import com.shamela.apptheme.presentation.util.notifications.ChannelType
 import com.shamela.apptheme.presentation.util.notifications.NotificationHelper
@@ -20,10 +21,19 @@ class ShamelaApp : Application() {
 
         lateinit var externalBooksDirectory: File
             private set
+
+        /** Localized app name, used as the title of download notifications. */
+        lateinit var appLabel: String
+            private set
+    }
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
     }
 
     override fun onCreate() {
         super.onCreate()
+        appLabel = getString(R.string.app_name)
         externalMediaDir = externalMediaDirs.firstOrNull() ?: run {
             File(applicationContext.filesDir, "fallback_directory")
         }

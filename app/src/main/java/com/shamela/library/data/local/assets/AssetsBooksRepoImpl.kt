@@ -28,6 +28,7 @@ import java.io.InputStreamReader
 import java.text.Normalizer
 import java.util.Collections
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Qualifier
 
 @Qualifier
@@ -35,16 +36,15 @@ annotation class AssetsRepoImpl
 class AssetsBooksRepoImpl(private val context: Context) : BooksRepository {
     private val TAG = "AssetsBooksRepoImpl"
     private val gson = Gson()
-    private val categoryBookCounts: MutableMap<String, Int> = mutableMapOf()
+    /** Parsed category files. The catalog is read-only, so each JSON is parsed once per process. */
+    private val booksByCategory = ConcurrentHashMap<String, List<Book>>()
 
     suspend fun _getCategories(): List<Category> {
         return withContext(Dispatchers.IO) {
             try {
                 val categoryNames = context.assets.list("categories")
                 categoryNames?.mapIndexed { index, categoryName ->
-                    val bookCount = categoryBookCounts.getOrPut(categoryName) {
-                        _getBooksByCategory(categoryName).size
-                    }
+                    val bookCount = _getBooksByCategory(categoryName).size
                     Category(index.toString(), categoryName.removeSuffix(".json"), bookCount)
                 } ?: emptyList()
             } catch (e: IOException) {
@@ -55,20 +55,19 @@ class AssetsBooksRepoImpl(private val context: Context) : BooksRepository {
     }
 
     private suspend fun _getBooksByCategory(categoryName: String): List<Book> {
+        val categoryNameNoSuffix = categoryName.removeSuffix(".json")
+        booksByCategory[categoryNameNoSuffix]?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
-                val categoryNameNoSuffix = categoryName.removeSuffix(".json")
                 val fileName = "categories/$categoryNameNoSuffix.json"
-                val inputStream = context.assets.open(fileName)
-                val books =
+                val books = context.assets.open(fileName).use { inputStream ->
                     gson.fromJson(InputStreamReader(inputStream), Array<AssetsBook>::class.java)
-                inputStream.close()
-                books.toList()
-                    .map { book ->
-                        val uuidName = book.title + categoryNameNoSuffix
-                        val bookID = UUID.nameUUIDFromBytes(uuidName.toByteArray()).toString()
-                        Book(bookID, book.title, book.author, book.pageCount, categoryNameNoSuffix)
-                    }
+                }
+                books.map { book ->
+                    val uuidName = book.title + categoryNameNoSuffix
+                    val bookID = UUID.nameUUIDFromBytes(uuidName.toByteArray()).toString()
+                    Book(bookID, book.title, book.author, book.pageCount, categoryNameNoSuffix)
+                }.also { booksByCategory[categoryNameNoSuffix] = it }
             } catch (e: IOException) {
                 Log.e(TAG, "Error: getBooksByCategory($categoryName). ${e.message}")
                 emptyList()
@@ -169,11 +168,14 @@ class AssetsBooksRepoImpl(private val context: Context) : BooksRepository {
         bookName: String
     ): Uri? {
 
+        val baseUrl = BuildConfig.BASE_URL.trimEnd('/')
+        if (baseUrl.isBlank() || baseUrl == "null") {
+            Log.e(TAG, "getDownloadLink: BASE_URL is not configured in local.properties")
+            return null
+        }
         return try {
-
             val encodedPath = Uri.encode("$categoryName/$bookName.epub", "/")
-
-            "${BuildConfig.BASE_URL}/$encodedPath".toUri()
+            "$baseUrl/$encodedPath".toUri()
 
         } catch (e: Exception) {
             Log.e(

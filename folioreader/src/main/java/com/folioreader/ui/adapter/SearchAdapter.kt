@@ -193,7 +193,7 @@ class SearchAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
 
                 SearchItemType.RESOURCE_TITLE_ITEM -> {
-                    Log.e("Mah ", "onBind: RESOURCE_TITLE_ITEM = ${searchLocator}", )
+                    Log.d("Shamela", "onBind: RESOURCE_TITLE_ITEM = ${searchLocator}", )
                     textViewTitle.text = searchLocator.primaryContents
                     textViewTitle.visibility = View.VISIBLE
                     textViewCount.visibility = View.GONE

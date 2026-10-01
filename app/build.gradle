@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id "org.jetbrains.kotlin.kapt"
+    id 'com.google.devtools.ksp'
     id 'com.google.dagger.hilt.android'
     id 'com.google.gms.google-services'
     id 'com.google.firebase.crashlytics'
@@ -40,6 +40,12 @@ android {
             useSupportLibrary true
         }
 
+        // GitHub repository ("owner/name") whose releases the in-app updater checks.
+        buildConfigField(
+                "String",
+                "UPDATE_REPO",
+                "\"${localProperties['UPDATE_REPO'] ?: 'meminglr/Shamela-Library'}\""
+        )
         buildConfigField(
                 "String",
                 "BASE_URL",
@@ -52,7 +58,9 @@ android {
     }
 
     lint {
-        checkReleaseBuilds false
+        // Lint runs on release builds again; existing warnings don't block, new errors are visible.
+        checkReleaseBuilds true
+        abortOnError false
     }
 
     signingConfigs {
@@ -101,8 +109,8 @@ android {
         }
     }
 }
-kapt {
-    correctErrorTypes true
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 dependencies {
 
@@ -140,14 +148,14 @@ dependencies {
 
     //-> RoomDB
     implementation "androidx.room:room-runtime:$versions.room_version"
-    kapt "androidx.room:room-compiler:$versions.room_version"
+    ksp "androidx.room:room-compiler:$versions.room_version"
     implementation "androidx.room:room-ktx:$versions.room_version"
 
 
     //-> Hilt DI
     implementation "com.google.dagger:hilt-android:$versions.hilt_version"
-    kapt "com.google.dagger:hilt-compiler:$versions.hilt_version"
-    kapt "androidx.hilt:hilt-compiler:1.2.0"
+    ksp "com.google.dagger:hilt-compiler:$versions.hilt_version"
+    ksp "androidx.hilt:hilt-compiler:1.2.0"
     implementation 'androidx.hilt:hilt-navigation-compose:1.2.0'
 
     //-> Firebase
@@ -158,6 +166,7 @@ dependencies {
 
     //-> Testing
     testImplementation 'junit:junit:4.13.2'
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1"
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 

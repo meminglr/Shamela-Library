@@ -89,6 +89,7 @@ class BookDetailsViewModel @Inject constructor(
                 booksDownloadManager.downloadBook(uri, book, book.categoryName)
             } else {
                 _state.update { it.copy(isDownloading = false) }
+                BooksDownloadManager.reportLinkUnavailable(book.title)
             }
         }
     }

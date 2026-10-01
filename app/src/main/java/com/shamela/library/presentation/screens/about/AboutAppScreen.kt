@@ -1,5 +1,6 @@
 package com.shamela.library.presentation.screens.about
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,7 +47,7 @@ fun AboutAppScreen(
     Scaffold(
         topBar = {
             DefaultTopBar(
-                title = "حول التطبيق",
+                title = stringResource(R.string.about_app),
                 onNavigateBack = navigateBack,
             )
         }
@@ -76,13 +77,13 @@ fun AboutAppScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "المكتبة الشاملة",
+                    text = stringResource(R.string.app_name),
                     style = AppFonts.textLargeBold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "تطبيق لقراءة الكتب الإسلامية بصيغة EPUB، يتيح لك تحميل الكتب وتصفّحها في أي وقت دون الحاجة إلى اتصال بالإنترنت.",
+                    text = stringResource(R.string.app_description),
                     style = AppFonts.textNormal,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -100,7 +101,7 @@ fun AboutAppScreen(
                         onClick = { viewModel.onEvent(AboutAppEvent.DownloadAndInstall) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("تحديث التطبيق", style = AppFonts.textNormalBold)
+                        Text(stringResource(R.string.update_app), style = AppFonts.textNormalBold)
                     }
                 }
                 if (state.isDownloading) {
@@ -113,7 +114,7 @@ fun AboutAppScreen(
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = "جارٍ التحميل… ${state.downloadProgress}%",
+                            text = stringResource(R.string.update_downloading_progress, state.downloadProgress),
                             style = AppFonts.textNormal,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -122,9 +123,11 @@ fun AboutAppScreen(
                 state.error?.let { err ->
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = err,
+                        text = stringResource(err),
                         style = AppFonts.textNormal,
-                        color = MaterialTheme.colorScheme.error,
+                        // "No release yet" is information, not a failure.
+                        color = if (err == R.string.no_releases_found) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -137,7 +140,7 @@ fun AboutAppScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.3f))
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "ما الجديد",
+                        text = stringResource(R.string.whats_new),
                         style = AppFonts.textLargeBold,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.fillMaxWidth(),
@@ -160,20 +163,20 @@ fun AboutAppScreen(
 private fun VersionSection(state: AboutAppState) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            VersionRow(label = "الإصدار الحالي", version = state.currentVersion)
+            VersionRow(label = stringResource(R.string.current_version), version = state.currentVersion)
             Spacer(Modifier.height(8.dp))
             if (state.isLoadingLatestVersion) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("أحدث إصدار: ", style = AppFonts.textNormal, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.latest_version) + ": ", style = AppFonts.textNormal, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                 }
             } else if (state.latestVersion.isNotEmpty()) {
                 VersionRow(
-                    label = "أحدث إصدار",
+                    label = stringResource(R.string.latest_version),
                     version = state.latestVersion,
                     highlight = state.updateAvailable,
                 )

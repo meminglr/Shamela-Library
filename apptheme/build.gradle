@@ -47,6 +47,8 @@ dependencies {
     implementation "androidx.activity:activity-compose:$versions.compose_activity"
 
     implementation platform("androidx.compose:compose-bom:$versions.compose_bom")
+    // Full Material 3 color schemes (all roles, light + dark) generated from one seed color.
+    implementation "com.materialkolor:material-kolor:2.1.1"
     implementation("androidx.compose.animation:animation-core")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.ui:ui")

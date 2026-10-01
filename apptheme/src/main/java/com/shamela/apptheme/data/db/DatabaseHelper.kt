@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.util.Log
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.shamela.apptheme.data.util.ArabicNormalizer
@@ -19,7 +20,12 @@ class DatabaseHelper private constructor(val context: Context) :
 
     companion object {
         const val DATABASE_NAME = "AppDatabase"
-        const val DATABASE_VERSION = 2
+        // v3: ArabicNormalizer.VERSION 2 (more characters unified) — indexed content is re-normalized.
+        const val DATABASE_VERSION = 3
+
+        /** Upper bound on rows returned by section/library searches, which carry full page text. */
+        private const val MAX_SEARCH_RESULTS = 300
+        private const val MIGRATION_WORK_NAME = "fts-renormalize"
 
         @Volatile
         private var INSTANCE: DatabaseHelper? = null
@@ -38,17 +44,13 @@ class DatabaseHelper private constructor(val context: Context) :
 
 
     override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        Log.e("DatabaseHelper", "onUpgrade: isCalled")
-        if (oldVersion == 1 && newVersion == 2) {
-            // Perform the migration from v1 to v2
-            val migrationWorkRequest = OneTimeWorkRequestBuilder<BookMigrationWorker>().build()
-            WorkManager.getInstance(context).enqueue(migrationWorkRequest)
-            Log.e("DatabaseHelper", "onUpgrade: migration enqueued")
-        } else {
-            database.execSQL("DROP TABLE IF EXISTS ${BookPage.TABLE_NAME} ;")
-            onCreate(database)
-            Log.e("DatabaseHelper", "onUpgrade: database dropped")
-        }
+        Log.d("DatabaseHelper", "onUpgrade: $oldVersion -> $newVersion")
+        // Every version so far keeps the same FTS table; only the normalization rules changed.
+        // Re-normalizing is idempotent, so one pass brings any older index up to date without
+        // dropping it (dropping would silently disable search for every downloaded book).
+        val migrationWorkRequest = OneTimeWorkRequestBuilder<BookMigrationWorker>().build()
+        WorkManager.getInstance(context)
+            .enqueueUniqueWork(MIGRATION_WORK_NAME, ExistingWorkPolicy.REPLACE, migrationWorkRequest)
     }
 
     suspend fun insertBookPage(page: BookPage): Boolean {
@@ -71,6 +73,10 @@ class DatabaseHelper private constructor(val context: Context) :
             val db = writableDatabase
             try {
                 db.beginTransaction()
+                // Re-indexing a book (re-download / re-import) must not duplicate its pages.
+                pages.map { it.bookId }.distinct().forEach { bookId ->
+                    db.delete(BookPage.TABLE_NAME, "${BookPage.COL_BOOK_ID} = ?", arrayOf(bookId))
+                }
                 val contentValues = ContentValues()
                 for (page in pages) {
                     contentValues.clear()
@@ -99,100 +105,108 @@ class DatabaseHelper private constructor(val context: Context) :
         }
     }
 
-    @SuppressLint("Range")
-    suspend fun searchBook(bookId: String, query: String): List<BookPage> {
+    suspend fun hasPages(bookId: String): Boolean {
         return withContext(Dispatchers.IO) {
-            val results = mutableListOf<BookPage>()
-            val queryNormalized = ArabicNormalizer().normalize(query)
+            readableDatabase.rawQuery(
+                "SELECT 1 FROM ${BookPage.TABLE_NAME} WHERE ${BookPage.COL_BOOK_ID} = ? LIMIT 1",
+                arrayOf(bookId)
+            ).use { it.moveToFirst() }
+        }
+    }
+
+    suspend fun searchBook(bookId: String, query: String): List<BookPage> =
+        search(
+            selection = "${BookPage.COL_BOOK_ID} = ? AND ${BookPage.COL_CONTENT} MATCH ?",
+            args = { phrase -> arrayOf(bookId, phrase) },
+            query = query,
+            withContent = true,
+            limit = null,
+        )
+
+    suspend fun searchCategory(category: String, query: String): List<BookPage> =
+        search(
+            selection = "${BookPage.COL_CATEGORY} = ? AND ${BookPage.COL_CONTENT} MATCH ?",
+            args = { phrase -> arrayOf(category, phrase) },
+            query = query,
+            withContent = true,
+            limit = MAX_SEARCH_RESULTS,
+        )
+
+    suspend fun searchLibrary(query: String): List<BookPage> =
+        search(
+            selection = "${BookPage.COL_CONTENT} MATCH ?",
+            args = { phrase -> arrayOf(phrase) },
+            query = query,
+            withContent = true,
+            limit = MAX_SEARCH_RESULTS,
+        )
+
+    /**
+     * Runs an FTS phrase query. The query is normalized exactly like the indexed content (see
+     * BookPreparationWorker) and escaped, so user input can never break the MATCH syntax.
+     */
+    @SuppressLint("Range")
+    private suspend fun search(
+        selection: String,
+        args: (phrase: String) -> Array<String>,
+        query: String,
+        withContent: Boolean,
+        limit: Int?,
+    ): List<BookPage> {
+        val phrase = FtsQuery.phrase(query)
+        if (phrase == FtsQuery.EMPTY) return emptyList()
+        return withContext(Dispatchers.IO) {
             val columns = arrayOf(
                 BookPage.COL_HREF,
                 BookPage.COL_BOOK_ID,
                 BookPage.COL_CATEGORY,
-                BookPage.COL_BOOK_TITLE
+                BookPage.COL_BOOK_TITLE,
+                BookPage.COL_CONTENT,
             )
-            val cursor = readableDatabase.query(
-                BookPage.TABLE_NAME,
-                columns,
-                "${BookPage.COL_BOOK_ID} = ? AND ${BookPage.COL_CONTENT} MATCH ?",
-                arrayOf(bookId, "\"${queryNormalized}\""),
-                null,
-                null,
-                "rank"
-            )
-            cursor.moveToFirst()
-            while (!cursor.isAfterLast) {
-                val page = BookPage(
-                    href = cursor.getString(cursor.getColumnIndex(BookPage.COL_HREF)),
-                    content = "",
-                    bookId = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_ID)),
-                    category = cursor.getString(cursor.getColumnIndex(BookPage.COL_CATEGORY)),
-                    bookTitle = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_TITLE))
-                )
-                results.add(page)
-                cursor.moveToNext()
+            try {
+                readableDatabase.query(
+                    BookPage.TABLE_NAME,
+                    columns,
+                    selection,
+                    args(phrase),
+                    null,
+                    null,
+                    "rank",
+                    limit?.toString()
+                ).use { cursor ->
+                    val results = ArrayList<BookPage>(cursor.count)
+                    while (cursor.moveToNext()) {
+                        results.add(
+                            BookPage(
+                                href = cursor.getString(cursor.getColumnIndex(BookPage.COL_HREF)),
+                                content = if (withContent)
+                                    cursor.getString(cursor.getColumnIndex(BookPage.COL_CONTENT))
+                                else "",
+                                bookId = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_ID)),
+                                category = cursor.getString(cursor.getColumnIndex(BookPage.COL_CATEGORY)),
+                                bookTitle = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_TITLE))
+                            )
+                        )
+                    }
+                    results
+                }
+            } catch (e: Exception) {
+                Log.e("DatabaseHelper", "search failed for [$query]: ${e.message}")
+                emptyList()
             }
-            cursor.close()
-            return@withContext results
         }
     }
+}
 
-    @SuppressLint("Range")
-    suspend fun searchCategory(category: String, query: String): List<BookPage> {
-        return withContext(Dispatchers.IO) {
-            val results = mutableListOf<BookPage>()
-            val cursor = readableDatabase.query(
-                BookPage.TABLE_NAME,
-                arrayOf("*"),
-                "${BookPage.COL_CATEGORY} = ? AND ${BookPage.COL_CONTENT} MATCH ?",
-                arrayOf(category, "\"${query}\""),
-                null,
-                null,
-                "rank"
-            )
-            cursor.moveToFirst()
-            while (!cursor.isAfterLast) {
-                val page = BookPage(
-                    href = cursor.getString(cursor.getColumnIndex(BookPage.COL_HREF)),
-                    content = cursor.getString(cursor.getColumnIndex(BookPage.COL_CONTENT)),
-                    bookId = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_ID)),
-                    category = cursor.getString(cursor.getColumnIndex(BookPage.COL_CATEGORY)),
-                    bookTitle = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_TITLE))
-                )
-                results.add(page)
-                cursor.moveToNext()
-            }
-            cursor.close()
-            return@withContext results
-        }
-    }
+/** Builds safe FTS5 phrase queries from free user input. */
+object FtsQuery {
+    const val EMPTY = "\"\""
+    private val normalizer = ArabicNormalizer()
 
-    @SuppressLint("Range")
-    suspend fun searchLibrary(query: String): List<BookPage> {
-        return withContext(Dispatchers.IO) {
-            val results = mutableListOf<BookPage>()
-            val cursor = readableDatabase.query(
-                BookPage.TABLE_NAME,
-                arrayOf("*"),
-                "${BookPage.COL_CONTENT} MATCH ?",
-                arrayOf("\"${query}\""),
-                null,
-                null,
-                "rank"
-            )
-            cursor.moveToFirst()
-            while (!cursor.isAfterLast) {
-                val page = BookPage(
-                    href = cursor.getString(cursor.getColumnIndex(BookPage.COL_HREF)),
-                    content = cursor.getString(cursor.getColumnIndex(BookPage.COL_CONTENT)),
-                    bookId = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_ID)),
-                    category = cursor.getString(cursor.getColumnIndex(BookPage.COL_CATEGORY)),
-                    bookTitle = cursor.getString(cursor.getColumnIndex(BookPage.COL_BOOK_TITLE))
-                )
-                results.add(page)
-                cursor.moveToNext()
-            }
-            cursor.close()
-            return@withContext results
-        }
-    }
+    /** Normalizes [query] like the indexed text and wraps it as an FTS5 string, doubling quotes. */
+    fun phrase(query: String): String =
+        "\"" + normalizer.normalize(query.trim()).replace("\"", "\"\"") + "\""
+
+    /** The normalized form of [query], for locating matches inside already-normalized content. */
+    fun normalized(query: String): String = normalizer.normalize(query.trim())
 }

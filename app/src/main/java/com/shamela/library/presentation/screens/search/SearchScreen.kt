@@ -1,6 +1,25 @@
 package com.shamela.library.presentation.screens.search
 
 
+import com.shamela.apptheme.presentation.common.EmptyState
+import com.shamela.apptheme.presentation.common.SettingsSectionTitle
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.InputChip
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import com.shamela.library.presentation.common.sectionDisplayName
+import com.shamela.library.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -55,34 +74,36 @@ fun SearchScreen(
     val context = LocalContext.current
     val localPadding = LocalPaddingValues.current
     LaunchedEffect(key1 = Unit, block = {
-//        if (searchState.allCategories.isEmpty())
         viewModel.onEvent(SearchEvent.GetAllCategories)
     })
+    val canSearch = searchState.searchQuery.isNotBlank() && searchState.selectedCategories.isNotEmpty()
+    val startSearch = {
+        if (canSearch) {
+            val intent = Intent(context, SearchActivity::class.java).apply {
+                putExtra(SearchActivity.Search_Type, SearchActivity.Search_Type_SectionsSearch)
+                putExtra(SearchActivity.Search_Query, searchState.searchQuery)
+                putExtra(
+                    SearchActivity.Search_Categories,
+                    searchState.selectedCategories.map { it.name }.toTypedArray()
+                )
+            }
+            context.startActivity(intent)
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(localPadding),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(localPadding)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
     ) {
-
         SearchTextField(
             value = searchState.searchQuery,
             onValueChanged = { viewModel.onEvent(SearchEvent.OnChangeSearchQuery(it)) },
-            isEnabled = searchState.selectedCategories.isNotEmpty(),
-            onSearch = {
-                val intent = Intent(context, SearchActivity::class.java)
-                intent.apply {
-                    putExtra(SearchActivity.Search_Type, SearchActivity.Search_Type_SectionsSearch)
-                    putExtra(SearchActivity.Search_Query, searchState.searchQuery)
-                    putExtra(
-                        SearchActivity.Search_Categories,
-                        searchState.selectedCategories.map { it.name }.toTypedArray()
-                    )
-                }
-                context.startActivity(intent)
-            },
+            onSearch = startSearch,
             onClear = { viewModel.onEvent(SearchEvent.OnChangeSearchQuery("")) }
         )
+        SettingsSectionTitle(stringResource(R.string.view_sections))
         SelectedSections(
             allCategories = searchState.allCategories,
             selectedCategories = searchState.selectedCategories,
@@ -95,61 +116,78 @@ fun SearchScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp, horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(top = 12.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(imageVector = ShamelaIcons.Info, contentDescription = null)
+                Icon(
+                    imageVector = ShamelaIcons.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Text(
-                    "يجب اختيار قسم واحد أو عدة اقسام ليتم إجراء البحث فيها",
-                    style = AppFonts.textSmallBold
+                    stringResource(R.string.search_select_sections_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-
+        Button(
+            onClick = startSearch,
+            enabled = canSearch,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
+        ) {
+            Icon(ShamelaIcons.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.nav_search))
+        }
     }
     LoadingScreen(visibility = searchState.isLoading && searchState.allCategories.isNotEmpty())
-    EmptyListScreen(
-        visibility = searchState.allCategories.isEmpty(),
-        text = "لا بد من تحميل بعض الكتب قبل التمكن من البحث"
-    )
+    if (searchState.allCategories.isEmpty() && !searchState.isLoading) {
+        EmptyState(
+            icon = ShamelaIcons.Search,
+            title = stringResource(R.string.search_requires_downloads),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+        )
+    }
 }
 
 @Composable
 private fun SearchTextField(
     value: String,
     onValueChanged: (String) -> Unit,
-    hint: String = "كلمة البحث",
-    placeholder: String = "أدخل كلمة البحث..",
-    isEnabled: Boolean = true,
     onSearch: () -> Unit,
     onClear: () -> Unit,
 ) {
     OutlinedTextField(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, top = 24.dp, bottom = 8.dp, end = 16.dp),
+            .padding(top = 16.dp),
         value = value,
         onValueChange = onValueChanged,
-        textStyle = AppFonts.textNormal,
-        enabled = isEnabled,
-        label = { Text(text = hint, style = AppFonts.textNormal) },
-        placeholder = { Text(text = placeholder, style = AppFonts.textNormal) },
+        textStyle = AppFonts.content(MaterialTheme.typography.bodyLarge),
+        singleLine = true,
+        shape = RoundedCornerShape(28.dp),
+        leadingIcon = { Icon(ShamelaIcons.Search, contentDescription = null) },
+        placeholder = { Text(text = stringResource(R.string.search_word_placeholder)) },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = {
-            onSearch()
-        }),
+        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
         trailingIcon = {
             AnimatedVisibility(
                 value.isNotEmpty(),
                 enter = fadeIn(), exit = fadeOut()
             ) {
-                IconButton(
-                    onClick = onClear
-                ) {
+                IconButton(onClick = onClear) {
                     Icon(
                         imageVector = ShamelaIcons.Cancel,
-                        contentDescription = "مسح"
+                        contentDescription = stringResource(R.string.action_clear)
                     )
                 }
             }
@@ -157,6 +195,7 @@ private fun SearchTextField(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectedSections(
     allCategories: List<Category>,
@@ -166,77 +205,94 @@ private fun SelectedSections(
     onDismiss: () -> Unit,
     onItemChecked: (Category) -> Unit,
 ) {
-    LazyColumn() {
-        item {
-            Text(
-                "الأقسام",
-                style = AppFonts.textLarge,
-                modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        selectedCategories.forEach { category ->
+            InputChip(
+                selected = true,
+                onClick = { onItemChecked(category) },
+                label = {
+                    Text(
+                        sectionDisplayName(category.name),
+                        style = AppFonts.content(MaterialTheme.typography.labelLarge),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                trailingIcon = {
+                    Icon(
+                        ShamelaIcons.Cancel,
+                        contentDescription = stringResource(R.string.action_clear),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
             )
-            HorizontalDivider()
-            Spacer(Modifier.height(16.dp))
         }
-        items(selectedCategories) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onItemChecked(it) }
-                    .padding(vertical = 16.dp, horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(it.name, style = AppFonts.textNormal)
-                Icon(imageVector = ShamelaIcons.Cancel, contentDescription = null)
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = .5f))
-
-        }
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
-                    .clickable { onExpandedChange() }
-                    .padding(vertical = 16.dp, horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("إختر قسماً", style = AppFonts.textNormalBold)
-                Icon(imageVector = ShamelaIcons.Add, contentDescription = null)
-            }
-        }
+        AssistChip(
+            onClick = onExpandedChange,
+            label = { Text(stringResource(R.string.choose_section)) },
+            leadingIcon = { Icon(ShamelaIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        )
     }
     if (expanded)
         AlertDialog(
-            title = { Text("إختر قسماً أو أكثر", style = AppFonts.textLarge) },
+            title = { Text(stringResource(R.string.choose_sections)) },
             onDismissRequest = { onDismiss() },
             text = {
-                LazyColumn() {
-                    items(allCategories) { item ->
-                        val isSelected = selectedCategories.contains(item)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onItemChecked(item)
-                                    onDismiss()
-                                }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                LazyColumn {
+                    item {
+                        val allSelected = selectedCategories.size == allCategories.size
+                        CategoryCheckRow(
+                            label = stringResource(R.string.select_all),
+                            checked = allSelected,
+                            emphasized = true,
                         ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { onItemChecked(item) })
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = item.name, style = AppFonts.textNormal)
+                            allCategories
+                                .filter { (it in selectedCategories) == allSelected }
+                                .forEach(onItemChecked)
                         }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    items(allCategories) { item ->
+                        CategoryCheckRow(
+                            label = sectionDisplayName(item.name),
+                            checked = item in selectedCategories,
+                        ) { onItemChecked(item) }
                     }
                 }
             },
             confirmButton = {
-                OutlinedButton(onClick = {
-                    onDismiss()
-                }) {
-                    Text("تم", style = AppFonts.textNormal)
+                TextButton(onClick = { onDismiss() }) {
+                    Text(stringResource(R.string.done))
                 }
             },
         )
+}
+
+@Composable
+private fun CategoryCheckRow(
+    label: String,
+    checked: Boolean,
+    emphasized: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onClick() })
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.padding(12.dp))
+        Text(
+            text = label,
+            style = if (emphasized) MaterialTheme.typography.titleSmall
+            else AppFonts.content(MaterialTheme.typography.bodyLarge),
+        )
+    }
 }

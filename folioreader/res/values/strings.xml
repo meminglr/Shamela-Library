@@ -118,4 +118,13 @@
     <string name="callHighlightSearchLocator" translatable="false">javascript:highlightSearchLocator(\"%s\")</string>
     <string name="callClearSelection" translatable="false">javascript:clearSelection()</string>
 
+    <string name="book_contents">أقسام الكتاب</string>
+    <string name="reader_settings">الإعدادات</string>
+    <string name="reader_index">الفهرس</string>
+    <string name="search_dots">بحث..</string>
+    <string name="results_count">عدد النتائج: %1$d</string>
+    <string name="searching">جار البحث</string>
+    <string name="no_results_found">لم يتم العثور على أي نتائج..</string>
+    <string name="dictionary_not_loaded">القاموس غير محمّل بعد. يمكنك تحميله من الإعدادات ثم إعادة المحاولة.</string>
+    <string name="dictionary_no_results">لا توجد نتائج لكلمة \"%1$s\".</string>
 </resources>

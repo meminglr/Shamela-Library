@@ -1,5 +1,11 @@
 package com.shamela.library.presentation.screens.settings.components
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.OutlinedCard
+import com.shamela.apptheme.presentation.common.SettingsSectionTitle
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -38,20 +44,20 @@ fun ColumnScope.ExternalBooksScreen(
     selectedFileName: String?,
     selectedFileUri: Uri?
 ) {
+    SettingsSectionTitle(stringResource(R.string.add_external_book))
     Text(
-        text = stringResource(R.string.add_external_book), modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 4.dp), style = AppFonts.textNormalBold
+        text = stringResource(R.string.external_book_hint),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 12.dp)
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(0.5f))
     SelectBookButton(selectedFileName, onClickSelectBook)
 
     AnimatedVisibility(visible = selectedFileUri != null) {
-        Button(onClick = onClickAddBookToLibrary) {
-            Text(
-                text = stringResource(R.string.add_to_library),
-                style = AppFonts.textNormal
-            )
+        Button(onClick = onClickAddBookToLibrary, modifier = Modifier.fillMaxWidth()) {
+            Icon(ShamelaIcons.LocalLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(text = stringResource(R.string.add_to_library))
         }
     }
 }
@@ -61,23 +67,29 @@ private fun SelectBookButton(
     selectedFileName: String?,
     onClickSelectBook: () -> Unit,
 ) {
-    Row(
+    OutlinedCard(
+        onClick = onClickSelectBook,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
-            .clickable(onClick = onClickSelectBook)
-            .padding(vertical = 16.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 16.dp),
     ) {
-        Text(
-            modifier = Modifier,
-            text = selectedFileName ?: stringResource(R.string.select_book),
-            style = AppFonts.textNormal
-        )
-        Icon(imageVector = ShamelaIcons.Add, contentDescription = null)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (selectedFileName == null) ShamelaIcons.Add else ShamelaIcons.Book,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = selectedFileName ?: stringResource(R.string.select_book),
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

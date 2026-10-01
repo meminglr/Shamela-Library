@@ -1,9 +1,15 @@
 package com.shamela.library.presentation
 
+import android.content.Context
+import com.shamela.apptheme.presentation.util.AppLocale
 import android.Manifest
 import android.app.DownloadManager
+import android.widget.Toast
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import com.shamela.library.R
+import com.shamela.library.presentation.utils.BooksDownloadManager
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,17 +25,25 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
 import com.shamela.apptheme.presentation.util.RequestPermission
 import com.shamela.library.presentation.navigation.AboutApp
-import com.shamela.library.presentation.reciever.DownloadCompleteReceiver
 import com.shamela.library.presentation.screens.HomeHostScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private val downloadCompleteReceiver = DownloadCompleteReceiver()
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
+    }
+
     private val userPreferences = SharedPreferencesData(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
         handleAboutScreenIntent(intent)
 
         enableEdgeToEdge()
@@ -57,7 +71,8 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     RequestPermission(permission = Manifest.permission.POST_NOTIFICATIONS, onGranted = {})
                 }
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                DownloadErrorToasts()
+                CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(this@MainActivity)) {
                        HomeHostScreen()
                 }
             }
@@ -75,19 +90,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(downloadCompleteReceiver, filter, RECEIVER_EXPORTED)
-        }else{
-            registerReceiver(downloadCompleteReceiver, filter)
+    @Composable
+    private fun DownloadErrorToasts() {
+        LaunchedEffect(Unit) {
+            BooksDownloadManager.downloadErrors.collect { error ->
+                val message = when (error.reason) {
+                    BooksDownloadManager.REASON_NO_LINK ->
+                        getString(R.string.download_link_unavailable, error.bookTitle)
+                    DownloadManager.ERROR_INSUFFICIENT_SPACE ->
+                        getString(R.string.download_failed_no_space, error.bookTitle)
+                    else -> getString(R.string.download_failed, error.bookTitle)
+                }
+                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+            }
         }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        unregisterReceiver(downloadCompleteReceiver)
     }
 
     companion object {

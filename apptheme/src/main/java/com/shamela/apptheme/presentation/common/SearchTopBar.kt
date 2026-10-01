@@ -1,5 +1,6 @@
 package com.shamela.apptheme.presentation.common
 
+import com.shamela.apptheme.presentation.theme.AppFonts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,9 +53,12 @@ fun SearchTopBar(
     onClickClear: () -> Unit = {},
     hint: String,
     focusRequester: FocusRequester,
+    // Screens already padded for the status bar (inside the home Scaffold) pass WindowInsets(0);
+    // standalone activities keep the default so the bar doesn't slide under the status bar.
+    windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
 ) {
     TopAppBar(
-        windowInsets = WindowInsets(0),
+        windowInsets = windowInsets,
         title = {
             SearchTextField(
                 value,
@@ -65,11 +69,11 @@ fun SearchTopBar(
             )
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(ShamelaIcons.ArrowBackIos, contentDescription = null)
+                Icon(ShamelaIcons.NavigateBack, contentDescription = stringResource(R.string.back))
             }
         },
         actions = {
@@ -107,10 +111,8 @@ private fun SearchTextField(
         value = value,
         onValueChange = onValueChanged,
         singleLine = true,
-        textStyle = TextStyle(
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 18.sp
-        ),
+        textStyle = AppFonts.content(MaterialTheme.typography.bodyLarge)
+            .copy(color = MaterialTheme.colorScheme.onSurface),
         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(
             onSearch = {
@@ -118,7 +120,7 @@ private fun SearchTextField(
                 onSearch()
             }
         ),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -127,8 +129,8 @@ private fun SearchTextField(
                 AnimatedVisibility(visible = value.isEmpty(), enter = fadeIn(), exit = fadeOut()) {
                     Text(
                         text = hint,
-                        color = Color.Gray,
-                        fontSize = 18.sp
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 innerTextField()
@@ -145,7 +147,7 @@ private fun SearchTopBarPrev() {
         SearchTopBar(
             value = searchText,
             onValueChanged = { searchText = it },
-            hint = "بحث",
+            hint = stringResource(R.string.search),
             focusRequester = FocusRequester(),
             onNavigateBack = {},
             onClickSearch = {},

@@ -12,6 +12,7 @@ import com.shamela.apptheme.domain.usecases.userPreferences.UpdateUserPreference
 import com.shamela.apptheme.domain.usecases.userPreferences.UserPreferencesUseCases
 import com.shamela.library.data.local.assets.AssetsBooksRepoImpl
 import com.shamela.library.data.local.assets.AssetsRepoImpl
+import com.shamela.library.data.local.backup.LibraryBackup
 import com.shamela.library.data.local.db.BooksDao
 import com.shamela.library.data.local.db.BooksDatabase
 import com.shamela.library.data.local.db.QuotesDao
@@ -48,7 +49,11 @@ object DataModule {
             app.applicationContext,
             BooksDatabase::class.java,
             BooksDatabase.DATABASE_NAME
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(BooksDatabase.MIGRATION_3_4)
+            // Versions 1-2 predate exported schemas; there is no way to migrate them in place.
+            .fallbackToDestructiveMigrationFrom(true, 1, 2)
+            .build()
     }
 
     @Singleton
@@ -88,6 +93,12 @@ object DataModule {
             booksDao = dao,
             context = app.applicationContext
         )
+    }
+
+    @Provides
+    @Singleton
+    fun provideLibraryBackup(booksDao: BooksDao, quotesDao: QuotesDao): LibraryBackup {
+        return LibraryBackup(booksDao, quotesDao)
     }
 
     @Provides

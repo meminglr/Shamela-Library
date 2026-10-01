@@ -4,11 +4,8 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
-import com.shamela.apptheme.presentation.worker.BookPreparationWorker
 import com.shamela.library.ShamelaApp
+import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.model.DownloadStatus
 import kotlinx.coroutines.CoroutineScope
@@ -16,14 +13,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+
+/** A failed book download, reported to the UI so the user isn't left guessing. */
+data class DownloadError(val bookTitle: String, val reason: Int)
 
 class BooksDownloadManager(context: Context) {
 
@@ -36,12 +40,17 @@ class BooksDownloadManager(context: Context) {
         private val _bookIdToDownloadId = ConcurrentHashMap<String, Long>()
         private val _statusMap = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
         val downloadStatusFlow: StateFlow<Map<String, DownloadStatus>> = _statusMap.asStateFlow()
+        private val _downloadErrors = MutableSharedFlow<DownloadError>(extraBufferCapacity = 16)
+        val downloadErrors: SharedFlow<DownloadError> = _downloadErrors.asSharedFlow()
         private val pollerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         private var pollerJob: Job? = null
-        private val subscribers: MutableList<Subscriber> = mutableListOf()
+        private val subscribers = CopyOnWriteArrayList<Subscriber>()
         private lateinit var downManager: DownloadManager
         const val TAG = "BooksDownloadManager"
         const val FILE_ALREADY_EXISTS = -1L
+        /** [DownloadError.reason] when no download link could be built (e.g. BASE_URL missing). */
+        const val REASON_NO_LINK = -100
+        private const val DOWNLOADS_FOLDER = "ShamelaDownloads"
 
         private fun initializeWith(context: Context) {
             if (!::downManager.isInitialized) {
@@ -51,69 +60,94 @@ class BooksDownloadManager(context: Context) {
         }
 
         fun subscribe(subscriber: Subscriber) {
-            if (!subscribers.contains(subscriber)) subscribers.add(subscriber)
+            subscribers.addIfAbsent(subscriber)
         }
 
         fun unsubscribe(subscriber: Subscriber) {
             subscribers.remove(subscriber)
         }
 
-        fun downloadIsDone(downloadId: Long, saveDownloadedBook: (Book) -> Unit) {
-            val book = _downloadIdMap.remove(downloadId) ?: return
-            _bookIdToDownloadId.remove(book.id)
-            // Do NOT update _statusMap here. The Downloading entry stays until Room confirms
-            // the insert via the combine collector in each ViewModel (clearStatus). This avoids
-            // the stale Downloaded entry that would persist through library deletions.
-            saveDownloadedBook(book)
-            Log.d(TAG, "downloadIsDone: book=${book.title}, remaining=${_downloadIdMap.size}")
+        fun notifyBookDownloaded(book: Book) {
+            Log.d(TAG, "notifyBookDownloaded: book=${book.title}, remaining=${_downloadIdMap.size}")
             subscribers.forEach { it.onBookDownloaded(book, _downloadIdMap.isEmpty()) }
+        }
+
+        fun reportLinkUnavailable(bookTitle: String) {
+            _downloadErrors.tryEmit(DownloadError(bookTitle, REASON_NO_LINK))
         }
 
         fun clearStatus(bookId: String) {
             updateStatus(bookId, DownloadStatus.NotDownloaded)
         }
 
-        fun reconcileOnReceive(
-            downloadId: Long,
-            context: Context,
-            workManager: WorkManager,
-            saveBook: suspend (Book) -> Unit,
-            scope: CoroutineScope,
-        ) {
-            if (_downloadIdMap.containsKey(downloadId)) return
-            val dm = context.applicationContext
-                .getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val cursor = dm.query(DownloadManager.Query().setFilterById(downloadId))
-            cursor.use {
-                if (!it.moveToFirst()) return
-                val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                val localUri = it.getString(it.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
-                if (status != DownloadManager.STATUS_SUCCESSFUL || localUri == null) return
-                val file = File(Uri.parse(localUri).path ?: return)
-                val bookTitle = file.nameWithoutExtension
-                val categoryName = file.parentFile?.name ?: return
-                val bookId = UUID.nameUUIDFromBytes((bookTitle + categoryName).toByteArray()).toString()
-                val book = Book(
-                    id = bookId,
-                    title = bookTitle,
-                    author = "",
-                    pageCount = 0,
-                    categoryName = categoryName
-                )
-                scope.launch(Dispatchers.IO) {
-                    saveBook(book)
+        /**
+         * Resolves a finished DownloadManager job to the book it downloaded, or null if it failed or
+         * isn't one of our book downloads (e.g. the app-update APK). Works after process death: the
+         * in-memory id→book map is only a fast path, the file location is the source of truth.
+         * DownloadManager only returns this app's own downloads, so foreign ids resolve to null.
+         */
+        fun resolveCompletedDownload(downloadId: Long, context: Context): Book? {
+            initializeWith(context)
+            val knownBook = _downloadIdMap[downloadId]
+            downManager.query(DownloadManager.Query().setFilterById(downloadId)).use { cursor ->
+                if (!cursor.moveToFirst()) {
+                    knownBook?.let { forget(downloadId, it) }
+                    return null
                 }
-                workManager.enqueue(
-                    OneTimeWorkRequestBuilder<BookPreparationWorker>()
-                        .setInputData(workDataOf(BookPreparationWorker.EPUB_FILE_PATH to file.absolutePath))
-                        .build()
-                )
+                val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                val localUri = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
+                if (status == DownloadManager.STATUS_FAILED) {
+                    val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                    knownBook?.let { reportFailure(downloadId, it, reason) }
+                    return null
+                }
+                if (status != DownloadManager.STATUS_SUCCESSFUL || localUri == null) return null
+
+                val file = File(Uri.parse(localUri).path ?: return null)
+                val booksRoot = File(ShamelaApp.externalMediaDir, DOWNLOADS_FOLDER)
+                if (file.parentFile?.parentFile?.canonicalPath != booksRoot.canonicalPath) return null
+
+                knownBook?.let { forget(downloadId, it) }
+                val categoryName = file.parentFile?.name ?: return null
+                return knownBook ?: placeholderBook(file, categoryName)
             }
+        }
+
+        /** Fills in author/page count for a book recovered without the in-memory metadata. */
+        suspend fun withMetadata(book: Book): Book {
+            if (book.pageCount > 0) return book
+            return FilesBooksRepoImpl.parseBook(File(getBookPath(book)), book.categoryName) ?: book
+        }
+
+        private fun placeholderBook(file: File, categoryName: String): Book {
+            val bookTitle = file.nameWithoutExtension
+            return Book(
+                id = UUID.nameUUIDFromBytes((bookTitle + categoryName).toByteArray()).toString(),
+                title = bookTitle,
+                author = "",
+                pageCount = 0,
+                categoryName = categoryName
+            )
+        }
+
+        private fun forget(downloadId: Long, book: Book) {
+            _downloadIdMap.remove(downloadId)
+            _bookIdToDownloadId.remove(book.id)
+        }
+
+        private fun reportFailure(downloadId: Long, book: Book, reason: Int) {
+            // Whoever removes the entry first (poller or receiver) reports it, so it's reported once.
+            if (_downloadIdMap.remove(downloadId) == null) return
+            _bookIdToDownloadId.remove(book.id)
+            updateStatus(book.id, DownloadStatus.NotDownloaded)
+            downManager.remove(downloadId)
+            Log.w(TAG, "download failed: ${book.title}, reason=$reason")
+            _downloadErrors.tryEmit(DownloadError(book.title, reason))
         }
 
         fun getBookPath(book: Book): String {
             val downloadsFolder = ShamelaApp.externalMediaDir
-            val bookFileSubPath = "ShamelaDownloads/${book.categoryName}/${book.title}.epub"
+            val bookFileSubPath = "$DOWNLOADS_FOLDER/${book.categoryName}/${book.title}.epub"
             return File(downloadsFolder, bookFileSubPath).absolutePath
         }
 
@@ -150,16 +184,16 @@ class BooksDownloadManager(context: Context) {
 
                             when (status) {
                                 DownloadManager.STATUS_RUNNING,
-                                DownloadManager.STATUS_PENDING ->
+                                DownloadManager.STATUS_PENDING,
+                                DownloadManager.STATUS_PAUSED ->
                                     updateStatus(book.id, DownloadStatus.Downloading(progress))
 
                                 DownloadManager.STATUS_SUCCESSFUL ->
                                     updateStatus(book.id, DownloadStatus.Downloading(100))
 
                                 DownloadManager.STATUS_FAILED -> {
-                                    _downloadIdMap.remove(dlId)
-                                    _bookIdToDownloadId.remove(book.id)
-                                    updateStatus(book.id, DownloadStatus.NotDownloaded)
+                                    val reason = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                                    reportFailure(dlId, book, reason)
                                 }
                             }
                         }
@@ -168,25 +202,34 @@ class BooksDownloadManager(context: Context) {
                 }
             }
         }
+
+        private fun enqueue(downloadUri: Uri, book: Book): Long? {
+            val bookFileSubPath = "$DOWNLOADS_FOLDER/${book.categoryName}/${book.title}.epub"
+            val request = DownloadManager.Request(downloadUri)
+                .setTitle(ShamelaApp.appLabel)
+                .setDescription(book.title)
+                .setMimeType("application/epub+zip")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationUri(Uri.fromFile(File(ShamelaApp.externalMediaDir, bookFileSubPath)))
+            return try {
+                val downloadId = downManager.enqueue(request)
+                _downloadIdMap[downloadId] = book
+                _bookIdToDownloadId[book.id] = downloadId
+                updateStatus(book.id, DownloadStatus.Downloading(0))
+                downloadId
+            } catch (e: Exception) {
+                Log.e(TAG, "enqueue failed for ${book.title}", e)
+                _downloadErrors.tryEmit(DownloadError(book.title, DownloadManager.ERROR_UNKNOWN))
+                null
+            }
+        }
     }
 
     fun downloadBook(downloadUri: Uri, book: Book, bookCategory: String): Long {
-        val bookTitle = book.title
-        val downloadsFolder = ShamelaApp.externalMediaDir
-        val bookFileSubPath = "ShamelaDownloads/$bookCategory/$bookTitle.epub"
-        val isFileAlreadyDownloaded = File(downloadsFolder, bookFileSubPath).isFile
-        if (isFileAlreadyDownloaded || _downloadIdMap.values.contains(book)) return FILE_ALREADY_EXISTS
-        val request = DownloadManager.Request(downloadUri)
-        request.setTitle("المكتبة الشاملة")
-        request.setDescription("جار تحميل كتاب ($bookTitle)")
-        request.setMimeType("application/epub+zip")
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-        val destinationFile = File(downloadsFolder, bookFileSubPath)
-        request.setDestinationUri(Uri.fromFile(destinationFile))
-        val downloadId = downManager.enqueue(request)
-        _downloadIdMap[downloadId] = book
-        _bookIdToDownloadId[book.id] = downloadId
-        updateStatus(book.id, DownloadStatus.Downloading(0))
+        val target = book.copy(categoryName = bookCategory)
+        val isFileAlreadyDownloaded = File(getBookPath(target)).isFile
+        if (isFileAlreadyDownloaded || _bookIdToDownloadId.containsKey(book.id)) return FILE_ALREADY_EXISTS
+        val downloadId = enqueue(downloadUri, target) ?: return FILE_ALREADY_EXISTS
         ensurePollerRunning()
         return downloadId
     }
@@ -194,24 +237,8 @@ class BooksDownloadManager(context: Context) {
     fun downloadSection(booksMap: Map<Book, Uri?>) {
         Log.d(TAG, "downloadSection: ${booksMap.size} books")
         booksMap.forEach { (book, uri) ->
-            if (uri != null) {
-                val bookTitle = book.title
-                val downloadsFolder = ShamelaApp.externalMediaDir
-                val bookFileSubPath = "ShamelaDownloads/${book.categoryName}/$bookTitle.epub"
-                if (!File(downloadsFolder, bookFileSubPath).isFile) {
-                    val request = DownloadManager.Request(uri)
-                    request.setTitle("المكتبة الشاملة")
-                    request.setDescription("جار تحميل كتاب ($bookTitle)")
-                    request.setMimeType("application/epub+zip")
-                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    val destinationFile = File(downloadsFolder, bookFileSubPath)
-                    request.setDestinationUri(Uri.fromFile(destinationFile))
-                    val downloadId = downManager.enqueue(request)
-                    Log.d(TAG, "enqueued downloadId=$downloadId for ${book.title}")
-                    _downloadIdMap[downloadId] = book
-                    _bookIdToDownloadId[book.id] = downloadId
-                    updateStatus(book.id, DownloadStatus.Downloading(0))
-                }
+            if (uri != null && !File(getBookPath(book)).isFile && !_bookIdToDownloadId.containsKey(book.id)) {
+                enqueue(uri, book)
             }
         }
         ensurePollerRunning()

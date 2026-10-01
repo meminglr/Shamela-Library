@@ -1,5 +1,7 @@
 package com.folioreader.ui.activity.folioActivity.book
 
+import com.folioreader.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,12 +74,12 @@ fun MeaningBottomSheet(
                         }
 
                         !dictionaryAvailable -> Text(
-                            text = "القاموس غير محمّل بعد. يمكنك تحميله من الإعدادات ثم إعادة المحاولة.",
+                            text = stringResource(R.string.dictionary_not_loaded),
                             style = AppFonts.textNormal,
                         )
 
                         results.isEmpty() -> Text(
-                            text = "لا توجد نتائج لكلمة \"$word\".",
+                            text = stringResource(R.string.dictionary_no_results, word),
                             style = AppFonts.textNormal,
                         )
 

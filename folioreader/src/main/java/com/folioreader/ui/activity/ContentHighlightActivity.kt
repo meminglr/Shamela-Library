@@ -1,5 +1,10 @@
 package com.folioreader.ui.activity
 
+import com.shamela.apptheme.presentation.common.SegmentedTabs
+import com.folioreader.R
+import androidx.compose.ui.res.stringResource
+import android.content.Context
+import com.shamela.apptheme.presentation.util.AppLocale
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
@@ -61,9 +66,14 @@ import org.readium.r2.shared.Link
 import org.readium.r2.streamer.parser.EpubParser
 
 class ContentHighlightActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     val viewmodel : ContentHighlightViewModel by viewModels(factoryProducer = { ContentHighlightViewModel.Factory })
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
@@ -108,12 +118,12 @@ class ContentHighlightActivity : ComponentActivity() {
                     }
                 }
 
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(this@ContentHighlightActivity)) {
                     Scaffold(
                         topBar = {
                             Column {
                                 DefaultTopBar(
-                                    title = bookTitle ?: "الشاملة",
+                                    title = bookTitle ?: stringResource(R.string.app_name),
                                     onNavigateBack = {
                                         if (currentViewType.value == ViewType.Settings) {
                                             onSettingsChanged(uiState.value.hashCode())
@@ -123,10 +133,12 @@ class ContentHighlightActivity : ComponentActivity() {
                                     }
                                 )
 
-                                ViewTypeSection(
-                                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                                    selectedViewType = currentViewType.value
-                                ) { viewType -> currentViewType.value = viewType }
+                                SegmentedTabs(
+                                    options = ViewType.entries,
+                                    selected = currentViewType.value,
+                                    label = { stringResource(it.label) },
+                                    onSelect = { viewType -> currentViewType.value = viewType },
+                                )
                             }
                         }
                     ) {
@@ -162,6 +174,7 @@ class ContentHighlightActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
         viewmodel.refreshPreferences()
     }
 
@@ -187,48 +200,7 @@ class ContentHighlightActivity : ComponentActivity() {
 }
 
 
-private enum class ViewType(val label: String) {
-    TableOfContents(label = "أقسام الكتاب"),
-    Settings(label = "الإعدادات")
-}
-
-@Composable
-private fun ViewTypeSection(
-    modifier: Modifier,
-    selectedViewType: ViewType,
-    onClick: (ViewType) -> Unit,
-) {
-    Row(
-        modifier
-            .fillMaxWidth(0.8f)
-            .padding(vertical = 16.dp)
-            .clip(CircleShape)
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), CircleShape)
-            .height(IntrinsicSize.Min)
-    ) {
-        ViewType.entries.forEach {
-            Text(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        if (selectedViewType == it) MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.4f
-                        ) else androidx.compose.ui.graphics.Color.Transparent
-                    )
-                    .clickable { onClick(it) }
-                    .padding(vertical = 12.dp),
-                text = it.label,
-                style = AppFonts.textNormalBold,
-                textAlign = TextAlign.Center
-            )
-            if (it != ViewType.values().last()) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                )
-            }
-        }
-    }
+private enum class ViewType(@androidx.annotation.StringRes val label: Int) {
+    TableOfContents(label = R.string.book_contents),
+    Settings(label = R.string.reader_settings)
 }

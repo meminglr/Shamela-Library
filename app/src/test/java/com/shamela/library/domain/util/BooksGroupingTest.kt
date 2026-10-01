@@ -67,12 +67,30 @@ class BooksGroupingTest {
     }
 
     @Test
-    fun `book with empty title goes into the dash bucket`() {
+    fun `book with empty title goes into the other bucket`() {
         val books = listOf(book("1", ""))
         val result = BooksGroupingUtil.groupByFirstChar(books)
 
-        assertEquals(setOf('-'), result.keys)
-        assertEquals(1, result['-']?.size)
+        assertEquals(setOf(BooksGroupingUtil.OTHER), result.keys)
+        assertEquals(1, result[BooksGroupingUtil.OTHER]?.size)
+    }
+
+    @Test
+    fun `titles starting with digits or symbols share one bucket listed last`() {
+        val books = listOf(book("1", "48 سؤالا"), book("2", "_علة الحديث"), book("3", "باب"))
+        val result = BooksGroupingUtil.groupByFirstChar(books)
+
+        assertEquals(listOf('ب', BooksGroupingUtil.OTHER), result.keys.toList())
+        assertEquals(2, result[BooksGroupingUtil.OTHER]?.size)
+    }
+
+    @Test
+    fun `alef forms share one bucket`() {
+        val books = listOf(book("1", "آثار البلاد"), book("2", "أصول الفقه"), book("3", "إحياء"), book("4", "الأم"))
+        val result = BooksGroupingUtil.groupByFirstChar(books)
+
+        assertEquals(setOf('ا'), result.keys)
+        assertEquals(4, result['ا']?.size)
     }
 
     @Test
