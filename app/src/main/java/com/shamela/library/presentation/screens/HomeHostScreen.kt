@@ -1,5 +1,14 @@
 package com.shamela.library.presentation.screens
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.ShortNavigationBar
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
 import android.util.Log
@@ -66,6 +75,7 @@ private val destination = listOf(
     Settings,
 )
 val LocalPaddingValues = compositionLocalOf { PaddingValues() }
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeHostScreen() {
     val navController = rememberNavController()
@@ -96,15 +106,19 @@ fun HomeHostScreen() {
 
     var selectedScreen by remember { mutableIntStateOf(0) }
     var menuExpanded by remember { mutableStateOf(false) }
+    // Expressive flexible app bar: large title that collapses as the content scrolls.
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         bottomBar = {
             AnimatedVisibility(
                 visible = screenBarsVisibility.value,
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
             ) {
-                NavigationBar(
+                ShortNavigationBar(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -115,8 +129,7 @@ fun HomeHostScreen() {
                         if (isSelected) {
                             selectedScreen = index
                         }
-
-                        NavigationBarItem(
+                        ShortNavigationBarItem(
                             selected = isSelected,
                             onClick = {
                                 navController.navigate(screen.route) {
@@ -128,7 +141,6 @@ fun HomeHostScreen() {
                                 }
                             },
                             icon = {
-
                                 Icon(
                                     imageVector = if (isSelected) screen.selectedIcon else screen.unSelectedIcon,
                                     contentDescription = null,
@@ -137,12 +149,9 @@ fun HomeHostScreen() {
                             label = {
                                 Text(
                                     text = stringResource(screen.label),
-                                    style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                 )
                             },
-                            // Icons alone (book, download, heart...) are ambiguous; always label them.
-                            alwaysShowLabel = true
                         )
                     }
                 }
@@ -154,12 +163,22 @@ fun HomeHostScreen() {
                 enter = expandVertically(),
                 exit = shrinkVertically(),
             ) {
-                DefaultTopBar(
-                    title = stringResource(destination[selectedScreen].label),
-                    actionIcon = destination[selectedScreen].actionIcon,
-                    onActionClick = { destination[selectedScreen].onActionClick() },
-                    navigationContent = if (selectedScreen == 0) {
-                        {
+                val current = destination[selectedScreen]
+                MediumFlexibleTopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(current.label),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    navigationIcon = {
+                        if (selectedScreen == 0) {
                             Box {
                                 IconButton(onClick = { menuExpanded = true }) {
                                     Icon(ShamelaIcons.MoreVert, contentDescription = stringResource(R.string.about_app))
@@ -179,7 +198,17 @@ fun HomeHostScreen() {
                                 }
                             }
                         }
-                    } else null
+                    },
+                    actions = {
+                        current.actionIcon?.let { icon ->
+                            IconButton(
+                                onClick = { current.onActionClick() },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(icon, contentDescription = stringResource(R.string.nav_search))
+                            }
+                        }
+                    },
                 )
             }
         }

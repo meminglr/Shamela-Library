@@ -1,7 +1,9 @@
 package com.shamela.library.presentation.screens.favorite
 
 
-import com.shamela.apptheme.presentation.common.ListDivider
+import androidx.compose.foundation.layout.Arrangement
+import com.shamela.library.presentation.common.SegmentGap
+import androidx.compose.foundation.lazy.itemsIndexed
 import com.shamela.apptheme.presentation.common.SegmentedTabs
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
@@ -64,6 +66,7 @@ fun FavoriteScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(localPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(SegmentGap),
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
     ) {
         item {
@@ -84,15 +87,16 @@ fun FavoriteScreen(
                             bookName = bookName
                         )
                     }
-                    items(quotes, key = {it.quoteId}){currentQuote->
+                    itemsIndexed(quotes, key = { _, it -> it.quoteId }) { index, currentQuote ->
                         QuoteItem(
                             modifier = Modifier
-                                .clickable {
-                                    viewModel.onEvent(FavoriteEvent.OpenBookForQuote(currentQuote))
-                                }
+                                .padding(horizontal = 16.dp)
                                 .animateItem(),
-                            item = currentQuote)
-                        ListDivider(startInset = 36)
+                            item = currentQuote,
+                            onClick = { viewModel.onEvent(FavoriteEvent.OpenBookForQuote(currentQuote)) },
+                            index = index,
+                            count = quotes.size,
+                        )
                     }
 
                 }
@@ -105,24 +109,26 @@ fun FavoriteScreen(
                 }
             }
             FavoriteViewType.Books -> {
-                items(state.favoriteBooks, key = { it.id }) { currentBook ->
+                itemsIndexed(state.favoriteBooks, key = { _, it -> it.id }) { index, currentBook ->
                     FavoriteBookItem(
                         modifier = Modifier
-                            .clickable {
-                                FilesBooksRepoImpl.openEpub(
-                                    currentBook,
-                                    onAddQuoteToFavorite = {quote ->
-                                        viewModel.onEvent(FavoriteEvent.AddQuoteToFavorite(quote))
-                                    })
-                            }
+                            .padding(horizontal = 16.dp)
                             .animateItem(),
+                        onClick = {
+                            FilesBooksRepoImpl.openEpub(
+                                currentBook,
+                                onAddQuoteToFavorite = { quote ->
+                                    viewModel.onEvent(FavoriteEvent.AddQuoteToFavorite(quote))
+                                })
+                        },
+                        index = index,
+                        count = state.favoriteBooks.size,
                         onFavoriteIconClicked = {
                             viewModel.onEvent(FavoriteEvent.ToggleFavorite(currentBook))
                         },
                         item = currentBook,
                         onInfoClick = { navigateToBookDetails(currentBook) },
                     )
-                    ListDivider(startInset = 72)
                 }
                 item {
                     EmptyListScreen(

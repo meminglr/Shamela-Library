@@ -1,8 +1,13 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.download
 
 
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.foundation.layout.Arrangement
+import com.shamela.library.presentation.common.SegmentGap
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.res.stringResource
-import com.shamela.apptheme.presentation.common.ListDivider
 import com.shamela.apptheme.presentation.common.SegmentedTabs
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -71,6 +76,7 @@ fun DownloadScreen(
     LazyColumn(
         Modifier.fillMaxSize().padding(localPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(SegmentGap),
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
     ) {
         item {
@@ -85,12 +91,14 @@ fun DownloadScreen(
 
         when (downloadState.booksViewType) {
             BooksViewType.Sections -> {
-                items(downloadState.sections, key = { it.id }) {
-                    SectionItem(modifier = Modifier
-                        .clickable {
-                            navigateToSectionBooksScreen(it.name, "remote")
-                        }, item = it)
-                    ListDivider(startInset = 72)
+                itemsIndexed(downloadState.sections, key = { _, it -> it.id }) { index, it ->
+                    SectionItem(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        item = it,
+                        onClick = { navigateToSectionBooksScreen(it.name, "remote") },
+                        index = index,
+                        count = downloadState.sections.size,
+                    )
                 }
             }
 
@@ -103,9 +111,14 @@ fun DownloadScreen(
                             char = initial
                         )
                     }
-                    items(books, key = { it.id }) {
+                    itemsIndexed(books, key = { _, it -> it.id }) { index, it ->
                         BookItem(
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .animateItem(),
+                            index = index,
+                            count = books.size,
+                            onClick = { navigateToBookDetails(it) },
                             icon = {
                                 DownloadIconButton(
                                     bookId = it.id,
@@ -122,9 +135,6 @@ fun DownloadScreen(
                             item = it,
                             onInfoClick = { navigateToBookDetails(it) }
                         )
-                        if (it != books.last()) {
-                            ListDivider(startInset = 72)
-                        }
                     }
                 }
                 if (downloadState.isLoadingBooks) {
@@ -135,7 +145,7 @@ fun DownloadScreen(
                                 .padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            LoadingIndicator()
                         }
                     }
                 }

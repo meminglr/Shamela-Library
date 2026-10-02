@@ -1,6 +1,9 @@
 package com.shamela.apptheme.presentation.settings
 
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
 import com.shamela.apptheme.presentation.theme.colors.AppColors
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import com.shamela.apptheme.presentation.common.SettingsSectionTitle
@@ -190,6 +193,8 @@ private fun ChoiceChips(
     }
 }
 
+/** Font choices as an M3 Expressive segmented list with a live sample of each font. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FontsSection(
     options: List<String>,
@@ -198,36 +203,33 @@ private fun FontsSection(
 ) {
     Column(
         modifier = Modifier
-            .padding(top = 8.dp)
-            .selectableGroup()
+            .padding(top = 12.dp)
+            .selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
-        options.forEach { option ->
+        options.forEachIndexed { index, option ->
             val isSelected = option == selectedOption
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .selectable(selected = isSelected, role = Role.RadioButton) { onOptionClicked(option) }
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+            SegmentedListItem(
+                selected = isSelected,
+                onClick = { onOptionClicked(option) },
+                shapes = ListItemDefaults.segmentedShapes(index = index, count = options.size),
+                colors = ListItemDefaults.segmentedColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
+                leadingContent = { RadioButton(selected = isSelected, onClick = null) },
+                trailingContent = {
+                    // Sample in the font itself, so the choice is visible before applying it.
+                    Text(
+                        text = "بسم الله",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = AppFonts.fontFamilyOf(option),
+                            textDirection = TextDirection.Rtl,
+                        ),
+                    )
+                },
             ) {
-                RadioButton(selected = isSelected, onClick = null)
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = PreferenceLabels.label(option),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f)
-                )
-                // Sample in the font itself, so the choice is visible before applying it.
-                Text(
-                    text = "بسم الله",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = AppFonts.fontFamilyOf(option),
-                        textDirection = TextDirection.Rtl,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(text = PreferenceLabels.label(option), style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

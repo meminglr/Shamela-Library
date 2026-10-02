@@ -19,30 +19,31 @@ fun ListGroupHeader(
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.titleSmall,
 ) {
-    Surface(modifier = modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer) {
+    // Expressive lists: the header sits on the surface above its rounded group, not in a bar.
+    Surface(modifier = modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface) {
         Text(
             text = text,
             style = style,
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 16.dp, bottom = 8.dp)
         )
     }
 }
 
-/** Title + divider that opens a group of controls on settings-like pages. */
+/** Title that opens a group of controls on settings-like pages (emphasized, no divider). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsSectionTitle(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleSmallEmphasized,
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 8.dp)
+            .padding(top = 24.dp, bottom = 4.dp)
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 /** Divider between list rows, inset to line up with the row text. */

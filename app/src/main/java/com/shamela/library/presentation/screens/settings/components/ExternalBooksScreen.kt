@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.settings.components
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,7 +57,7 @@ fun ColumnScope.ExternalBooksScreen(
     SelectBookButton(selectedFileName, onClickSelectBook)
 
     AnimatedVisibility(visible = selectedFileUri != null) {
-        Button(onClick = onClickAddBookToLibrary, modifier = Modifier.fillMaxWidth()) {
+        Button(shapes = ButtonDefaults.shapes(), onClick = onClickAddBookToLibrary, modifier = Modifier.fillMaxWidth()) {
             Icon(ShamelaIcons.LocalLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(text = stringResource(R.string.add_to_library))

@@ -78,8 +78,7 @@ class ContentHighlightActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        controller.isAppearanceLightStatusBars = false
+        // Bar icon colors follow the theme (see AppTheme.SystemBarsAppearance).
         val bookPath = intent.getStringExtra(Constants.EPUB_FILE_PATH)
         val bookTitle = intent.getStringExtra(Constants.BOOK_TITLE)
         val selectedViewType = when (intent.getStringExtra(SELECTED_VIEW_TYPE)) {

@@ -2,6 +2,7 @@ package com.shamela.apptheme.presentation.theme
 
 import android.content.Context
 import android.graphics.Typeface
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -69,6 +70,7 @@ object AppFonts {
     }
 
     /** The full Material 3 type scale in the selected font and size, used by MaterialTheme. */
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     val Typography by derivedStateOf {
         val base = Typography()
         val f = uiFontFamily
@@ -88,6 +90,22 @@ object AppFonts {
             labelLarge = base.labelLarge.scaled(f),
             labelMedium = base.labelMedium.scaled(f),
             labelSmall = base.labelSmall.scaled(f),
+            // M3 Expressive emphasized styles (heavier weights for key moments).
+            displayLargeEmphasized = base.displayLargeEmphasized.scaled(f),
+            displayMediumEmphasized = base.displayMediumEmphasized.scaled(f),
+            displaySmallEmphasized = base.displaySmallEmphasized.scaled(f),
+            headlineLargeEmphasized = base.headlineLargeEmphasized.scaled(f),
+            headlineMediumEmphasized = base.headlineMediumEmphasized.scaled(f),
+            headlineSmallEmphasized = base.headlineSmallEmphasized.scaled(f),
+            titleLargeEmphasized = base.titleLargeEmphasized.scaled(f),
+            titleMediumEmphasized = base.titleMediumEmphasized.scaled(f),
+            titleSmallEmphasized = base.titleSmallEmphasized.scaled(f),
+            bodyLargeEmphasized = base.bodyLargeEmphasized.scaled(f),
+            bodyMediumEmphasized = base.bodyMediumEmphasized.scaled(f),
+            bodySmallEmphasized = base.bodySmallEmphasized.scaled(f),
+            labelLargeEmphasized = base.labelLargeEmphasized.scaled(f),
+            labelMediumEmphasized = base.labelMediumEmphasized.scaled(f),
+            labelSmallEmphasized = base.labelSmallEmphasized.scaled(f),
         )
     }
 
@@ -141,6 +159,7 @@ object AppFonts {
         ScheherazadeFamily = FontFamily(scheherazadeTypeface)
 
         availableFonts.clear()
+        // Keys are stored NFC-normalized (see SharedPreferencesData.nfc) so lookups always match.
         availableFonts[DEFAULT] = Pair(FontFamily.Default, null)
         availableFonts[AMIRI] = Pair(AmiriFamily, amiriTypeface)
         availableFonts[KITAB] = Pair(KitabFamily, kitabTypeface)
@@ -162,7 +181,7 @@ object AppFonts {
     fun getAvailableFontSizes() = setOf("4", "2", "0", "-2", "-4")
 
     fun fontFamilyOf(font: String): FontFamily {
-        return availableFonts[font]?.first ?: availableFonts[NOTO_NASKH]?.first ?: FontFamily.Default
+        return availableFonts[java.text.Normalizer.normalize(font, java.text.Normalizer.Form.NFC)]?.first ?: availableFonts[NOTO_NASKH]?.first ?: FontFamily.Default
     }
 
     private val selectedFontFamily = mutableStateOf<FontFamily>(FontFamily.Default)

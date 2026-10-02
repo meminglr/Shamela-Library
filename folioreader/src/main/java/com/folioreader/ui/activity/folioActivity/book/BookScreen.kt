@@ -1,6 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.folioreader.ui.activity.folioActivity.book
 
 
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.ui.text.style.TextOverflow
 import com.folioreader.R
 import androidx.compose.ui.res.stringResource
@@ -533,10 +536,7 @@ private fun BookPage(
         }
 
         if (!pageLoaded.value) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = MaterialTheme.colorScheme.primary
-            )
+            LoadingIndicator(modifier = Modifier.align(Alignment.Center))
         }
     }
 }

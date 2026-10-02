@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.folioreader.ui.activity.folioActivity.book
 
+import androidx.compose.material3.LoadingIndicator
 import com.folioreader.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
@@ -67,10 +70,7 @@ fun MeaningBottomSheet(
                                 .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(28.dp),
-                                strokeWidth = 2.5.dp
-                            )
+                            LoadingIndicator()
                         }
 
                         !dictionaryAvailable -> Text(

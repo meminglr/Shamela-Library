@@ -4,29 +4,28 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -67,18 +67,44 @@ internal fun buildHighlightedString(text: String, query: String): AnnotatedStrin
     }
 }
 
-/** Rounded tonal tile used as the leading visual of list rows (book "cover", section folder). */
+/**
+ * M3 Expressive segmented-list shapes: the first and last rows of a group get the large corners,
+ * rows in between the small ones, so a run of rows reads as one rounded block.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun segmentShapes(index: Int, count: Int): ListItemShapes =
+    ListItemDefaults.segmentedShapes(index = index, count = count.coerceAtLeast(1))
+
+/**
+ * Filled containers for segmented rows, so each group reads as a rounded tonal block on the
+ * surface (the default segmented colors blend into the background).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun segmentColors() = ListItemDefaults.segmentedColors(
+    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+)
+
+/** Gap between the rows of a segmented list. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+val SegmentGap = ListItemDefaults.SegmentedGap
+
+/** Leading visual of list rows: an icon on an M3 Expressive shape (cookie, clover, ...). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ListLeadingTile(
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    shape: Shape = MaterialShapes.Cookie4Sided.toShape(),
     container: Color = MaterialTheme.colorScheme.primaryContainer,
     content: Color = MaterialTheme.colorScheme.onPrimaryContainer,
 ) {
     Box(
         modifier = modifier
-            .size(width = 40.dp, height = 48.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .size(48.dp)
+            .clip(shape)
             .background(container),
         contentAlignment = Alignment.Center
     ) {
@@ -87,41 +113,39 @@ fun ListLeadingTile(
 }
 
 /**
- * The single book row layout shared by every list: cover tile, title (up to two lines), author and
- * page count, then trailing actions. Callers only add click/animation modifiers.
+ * The single book row shared by every list: an M3 Expressive segmented list item with a shaped
+ * cover tile, the title (up to two lines), "author · N pages" and trailing actions.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BookRow(
+private fun BookListItem(
     item: Book,
     highlightText: String,
+    index: Int,
+    count: Int,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    selected: Boolean = false,
     leading: @Composable () -> Unit = { ListLeadingTile(ShamelaIcons.MenuBook) },
     trailing: @Composable RowScope.() -> Unit,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        leading()
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = buildHighlightedString(item.title, highlightText),
-                style = AppFonts.content(MaterialTheme.typography.titleMedium),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+    SegmentedListItem(
+        selected = selected,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        shapes = segmentShapes(index, count),
+        colors = segmentColors(),
+        modifier = modifier,
+        leadingContent = leading,
+        trailingContent = { Row(verticalAlignment = Alignment.CenterVertically, content = trailing) },
+        supportingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val author = item.author.takeUnless { it.isBlank() || it == "-" }
                 if (author != null) {
                     Text(
                         text = buildHighlightedString(author, highlightText),
                         style = AppFonts.content(MaterialTheme.typography.bodyMedium),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -136,13 +160,18 @@ private fun BookRow(
                     Text(
                         text = stringResource(R.string.book_pages, item.pageCount),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
                 }
             }
-        }
-        trailing()
+        },
+    ) {
+        Text(
+            text = buildHighlightedString(item.title, highlightText),
+            style = AppFonts.content(MaterialTheme.typography.titleMedium),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -159,17 +188,22 @@ private fun InfoIconButton(onInfoClick: (() -> Unit)?) {
     }
 }
 
+/** Favorite toggle that morphs from a circle to a rounded square when checked (Expressive). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FavoriteIconButton(isFavorite: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        val tint by animateColorAsState(
-            targetValue = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            label = "favorite tint"
-        )
+    IconToggleButton(
+        checked = isFavorite,
+        onCheckedChange = { onClick() },
+        shapes = IconButtonDefaults.toggleableShapes(),
+        colors = IconButtonDefaults.iconToggleButtonColors(
+            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+    ) {
         Icon(
             imageVector = if (isFavorite) ShamelaIcons.Favorite else ShamelaIcons.FavoriteBorder,
             contentDescription = stringResource(R.string.nav_favorite),
-            tint = tint
         )
     }
 }
@@ -182,14 +216,24 @@ fun BookItem(
             imageVector = ShamelaIcons.NavigateForward,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier.padding(horizontal = 8.dp)
         )
     },
     item: Book,
     highlightText: String = "",
     onInfoClick: (() -> Unit)? = null,
+    onClick: () -> Unit = {},
+    index: Int = 0,
+    count: Int = 1,
 ) {
-    BookRow(item = item, highlightText = highlightText, modifier = modifier) {
+    BookListItem(
+        item = item,
+        highlightText = highlightText,
+        index = index,
+        count = count,
+        onClick = onClick,
+        modifier = modifier,
+    ) {
         InfoIconButton(onInfoClick)
         icon()
     }
@@ -202,8 +246,18 @@ fun FavoriteBookItem(
     onFavoriteIconClicked: () -> Unit,
     highlightText: String = "",
     onInfoClick: (() -> Unit)? = null,
+    onClick: () -> Unit = {},
+    index: Int = 0,
+    count: Int = 1,
 ) {
-    BookRow(item = item, highlightText = highlightText, modifier = modifier) {
+    BookListItem(
+        item = item,
+        highlightText = highlightText,
+        index = index,
+        count = count,
+        onClick = onClick,
+        modifier = modifier,
+    ) {
         InfoIconButton(onInfoClick)
         FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
     }
@@ -219,6 +273,10 @@ fun LibraryBookItem(
     highlightText: String = "",
     isSelected: Boolean = false,
     onInfoClick: (() -> Unit)? = null,
+    onClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
+    index: Int = 0,
+    count: Int = 1,
 ) {
     val swipeState = rememberSwipeToDismissBoxState(
         confirmValueChange = {
@@ -232,6 +290,7 @@ fun LibraryBookItem(
     )
     SwipeToDismissBox(
         state = swipeState,
+        modifier = modifier,
         backgroundContent = {
             val active = swipeState.targetValue != SwipeToDismissBoxValue.Settled
             val color by animateColorAsState(
@@ -242,6 +301,7 @@ fun LibraryBookItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .clip(MaterialTheme.shapes.large)
                     .background(color)
                     .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.CenterEnd
@@ -257,46 +317,31 @@ fun LibraryBookItem(
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true,
     ) {
-        val rowColor by animateColorAsState(
-            targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-            label = "selection background"
-        )
-        Surface(color = rowColor) {
-            BookRow(
-                item = item,
-                highlightText = highlightText,
-                modifier = modifier,
-                leading = {
-                    AnimatedContent(targetState = isSelected, label = "selection leading") { selected ->
-                        if (selected) {
-                            Box(
-                                modifier = Modifier.size(width = 40.dp, height = 48.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = ShamelaIcons.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            ListLeadingTile(ShamelaIcons.MenuBook)
-                        }
+        BookListItem(
+            item = item,
+            highlightText = highlightText,
+            index = index,
+            count = count,
+            onClick = onClick,
+            onLongClick = onLongClick,
+            selected = isSelected,
+            leading = {
+                AnimatedContent(targetState = isSelected, label = "selection leading") { selected ->
+                    if (selected) {
+                        ListLeadingTile(
+                            icon = ShamelaIcons.Check,
+                            shape = MaterialTheme.shapes.extraLarge,
+                            container = MaterialTheme.colorScheme.primary,
+                            content = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        ListLeadingTile(ShamelaIcons.MenuBook)
                     }
-                },
-            ) {
-                InfoIconButton(onInfoClick)
-                FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
-            }
+                }
+            },
+        ) {
+            InfoIconButton(onInfoClick)
+            FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
         }
     }
 }

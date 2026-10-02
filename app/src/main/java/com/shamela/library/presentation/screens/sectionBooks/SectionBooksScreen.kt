@@ -1,9 +1,19 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.sectionBooks
 
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.foundation.layout.Arrangement
+import com.shamela.library.presentation.common.SegmentGap
+import androidx.compose.foundation.lazy.itemsIndexed
 import com.shamela.library.presentation.common.ConfirmationDialog
 import com.shamela.library.presentation.common.sectionDisplayName
-import com.shamela.apptheme.presentation.common.ListDivider
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +61,7 @@ import com.shamela.library.presentation.common.BookItem
 import com.shamela.library.presentation.common.BookSortMenu
 import com.shamela.library.presentation.common.DownloadIconButton
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SectionBooksScreen(
     viewModel: SectionBooksViewModel = hiltViewModel(),
@@ -104,8 +115,10 @@ fun SectionBooksScreen(
             onDismiss = { confirmSectionDownload = false },
         )
     }
-    Column {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Column(Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)) {
         SectionTopBar(
+            scrollBehavior = scrollBehavior,
             title = categoryName,
             onNavigateBack = navigateBack,
             onSearch = { navigateToSearchResultsScreen(categoryName, sectionBooksState.type) },
@@ -126,22 +139,25 @@ fun SectionBooksScreen(
                 .fillMaxSize()
                 .clipToBounds(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(bottom = 16.dp)
+            verticalArrangement = Arrangement.spacedBy(SegmentGap),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
         ) {
-            items(sortedBooks, key = { it.id }) { currentBook ->
+            itemsIndexed(sortedBooks, key = { _, it -> it.id }) { index, currentBook ->
                 when (sectionBooksState.type) {
                     "local" -> {
                         BookItem(
-                            modifier = Modifier
-                                .clickable {
-                                    FilesBooksRepoImpl.openEpub(
-                                        currentBook,
-                                        onAddQuoteToFavorite = { quote ->
-                                            viewModel.onEvent(
-                                                SectionBooksEvent.AddQuoteToFavorite(quote)
-                                            )
-                                        })
-                                },
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            onClick = {
+                                FilesBooksRepoImpl.openEpub(
+                                    currentBook,
+                                    onAddQuoteToFavorite = { quote ->
+                                        viewModel.onEvent(
+                                            SectionBooksEvent.AddQuoteToFavorite(quote)
+                                        )
+                                    })
+                            },
+                            index = index,
+                            count = sortedBooks.size,
                             item = currentBook,
                             onInfoClick = { navigateToBookDetails(currentBook) }
                         )
@@ -149,7 +165,10 @@ fun SectionBooksScreen(
 
                     "remote" -> {
                         BookItem(
-                            modifier = Modifier,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            onClick = { navigateToBookDetails(currentBook) },
+                            index = index,
+                            count = sortedBooks.size,
                             onInfoClick = { navigateToBookDetails(currentBook) },
                             icon = {
                                 DownloadIconButton(
@@ -172,7 +191,6 @@ fun SectionBooksScreen(
                         )
                     }
                 }
-                ListDivider(startInset = 72)
             }
         }
     }
@@ -183,7 +201,7 @@ fun SectionBooksScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SectionTopBar(
     title: String,
@@ -199,28 +217,28 @@ private fun SectionTopBar(
     availableSortOptions: List<BookSortOption>,
     onSortOptionSelected: (BookSortOption) -> Unit,
     onToggleSortDirection: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    TopAppBar(
+    // Expressive flexible app bar: section name with its book count as subtitle, collapsing on scroll.
+    MediumFlexibleTopAppBar(
         modifier = Modifier,
         title = {
-            Column {
-                Text(
-                    text = sectionDisplayName(title),
-                    style = AppFonts.content(MaterialTheme.typography.titleLarge, naturalAlign = true),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (totalBookCount > 0) {
-                    Text(
-                        text = stringResource(R.string.books_count_label, totalBookCount),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            Text(
+                text = sectionDisplayName(title),
+                style = AppFonts.content(LocalTextStyle.current, naturalAlign = true),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        subtitle = {
+            if (totalBookCount > 0) {
+                Text(text = stringResource(R.string.books_count_label, totalBookCount))
             }
         },
+        scrollBehavior = scrollBehavior,
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
         actions = {
             BookSortMenu(
@@ -243,10 +261,9 @@ private fun SectionTopBar(
                         )
                     }
                     hasActiveDownloads -> {
-                        CircularProgressIndicator(
+                        CircularWavyProgressIndicator(
                             progress = { if (totalBookCount > 0) downloadedBookCount.toFloat() / totalBookCount else 0f },
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(28.dp),
                         )
                     }
                     else -> {

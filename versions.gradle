@@ -15,6 +15,10 @@ versions.kotlin = '2.1.20'
 versions.core_ktx = '1.16.0'
 
 versions.compose_bom = '2025.04.01'
+// Material 3 Expressive components (ButtonGroup, LoadingIndicator, FloatingToolbar, flexible app
+// bars, MaterialExpressiveTheme) only ship in the 1.5 alphas; alpha27 is the newest one that runs on
+// stable Compose (1.12, from the BOM above) and our Kotlin 2.1.20.
+versions.material3 = '1.5.0-alpha14'
 versions.compose_activity = '1.10.1'
 versions.kotlin_bom = '2.1.20'
 versions.lifecycle_runtime_ktx = '2.8.7'

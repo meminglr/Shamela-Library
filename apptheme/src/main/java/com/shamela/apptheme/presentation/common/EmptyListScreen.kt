@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.apptheme.presentation.common
 
+import androidx.compose.material3.toShape
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -60,8 +64,9 @@ fun EmptyState(
         ) {
             Box(
                 modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
+                    .size(112.dp)
+                    // Expressive: a playful 12-sided cookie instead of a plain circle.
+                    .clip(MaterialShapes.Cookie12Sided.toShape())
                     .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center
             ) {
@@ -75,7 +80,7 @@ fun EmptyState(
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.Center),
+                style = MaterialTheme.typography.titleMediumEmphasized.copy(textAlign = TextAlign.Center),
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (message != null) {

@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.common
 
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.size
@@ -36,16 +40,12 @@ fun DownloadIconButton(
         is DownloadStatus.Downloading -> {
             IconButton(onClick = onCancelClick) {
                 if (status.progress > 0) {
-                    CircularProgressIndicator(
+                    CircularWavyProgressIndicator(
                         progress = { status.progress / 100f },
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(28.dp),
                     )
                 } else {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp,
-                    )
+                    LoadingIndicator(modifier = Modifier.size(32.dp))
                 }
             }
         }

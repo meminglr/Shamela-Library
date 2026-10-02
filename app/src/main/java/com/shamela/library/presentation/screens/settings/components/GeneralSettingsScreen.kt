@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.settings.components
 
 import androidx.compose.foundation.layout.width
@@ -67,6 +69,7 @@ fun ColumnScope.GeneralSettingsScreen(
     )
     var confirmDeleteAll by remember { mutableStateOf(false) }
     OutlinedButton(
+        shapes = ButtonDefaults.shapes(),
         onClick = { confirmDeleteAll = true },
         enabled = downloadedBooksCount > 0,
         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -99,10 +102,10 @@ fun ColumnScope.GeneralSettingsScreen(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.padding(top = 8.dp)
     ) {
-        Button(onClick = onExportBackup) {
+        Button(shapes = ButtonDefaults.shapes(), onClick = onExportBackup) {
             Text(stringResource(R.string.backup_export))
         }
-        OutlinedButton(onClick = onImportBackup) {
+        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onImportBackup) {
             Text(stringResource(R.string.backup_import))
         }
     }

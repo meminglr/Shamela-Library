@@ -96,8 +96,7 @@ class SearchActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        controller.isAppearanceLightStatusBars = false
+        // Bar icon colors follow the theme (see AppTheme.SystemBarsAppearance).
         val downloadsFolder = externalMediaDirs.firstOrNull() ?: run {
             File(applicationContext.filesDir, "fallback_directory")
         }

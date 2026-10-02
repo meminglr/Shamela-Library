@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.about
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -98,6 +101,7 @@ fun AboutAppScreen(
                 Spacer(Modifier.height(16.dp))
                 if (state.updateAvailable && !state.isDownloading) {
                     Button(
+                        shapes = ButtonDefaults.shapes(),
                         onClick = { viewModel.onEvent(AboutAppEvent.DownloadAndInstall) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {

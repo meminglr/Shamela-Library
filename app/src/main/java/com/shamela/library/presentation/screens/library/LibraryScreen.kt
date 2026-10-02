@@ -1,6 +1,20 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.library
 
 
+import androidx.compose.material3.LoadingIndicator
+import com.shamela.library.presentation.common.SegmentGap
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -111,10 +125,12 @@ fun LibraryScreen(
     }
     var bookPendingDelete by remember { mutableStateOf<Book?>(null) }
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize().padding(localPadding)) {
     LazyColumn(
-        Modifier.fillMaxSize().padding(localPadding),
+        Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
+        verticalArrangement = Arrangement.spacedBy(SegmentGap),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp)
     ) {
         item {
             SegmentedTabs(
@@ -127,7 +143,7 @@ fun LibraryScreen(
         if (libraryState.isLoading) {
             item {
                 Box(Modifier.fillParentMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             }
         }
@@ -142,76 +158,79 @@ fun LibraryScreen(
         } else {
             when (libraryState.booksViewType) {
             BooksViewType.Sections -> {
-                items(libraryState.sections.values.toList(), key = { it.id }) {
-                    SectionItem(modifier = Modifier
-                        .clickable {
-                            navigateToSectionBooksScreen(it.name, "local")
-                        }, item = it)
-                    ListDivider(startInset = 72)
+                val sections = libraryState.sections.values.toList()
+                itemsIndexed(sections, key = { _, it -> it.id }) { index, it ->
+                    SectionItem(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        item = it,
+                        onClick = { navigateToSectionBooksScreen(it.name, "local") },
+                        index = index,
+                        count = sections.size,
+                    )
                 }
             }
 
             BooksViewType.Books -> {
                 item {
-                    AnimatedContent(
-                        targetState = libraryState.selectedBooks.isNotEmpty(),
-                        label = "library toolbar"
-                    ) { selecting ->
-                        if (selecting) {
-                            SelectionBar(
-                                count = libraryState.selectedBooks.size,
-                                onCancel = { viewModel.onEvent(LibraryEvent.CancelSelection) },
-                                onDelete = { showDeleteSelectedDialog = true },
-                            )
-                        } else {
-                            SortBar(
-                                label = stringResource(R.string.sort_current, stringResource(libraryState.sortOption.label)),
-                            ) {
-                                BookSortMenu(
-                                    sortOption = libraryState.sortOption,
-                                    ascending = libraryState.sortAscending,
-                                    onOptionSelected = { viewModel.onEvent(LibraryEvent.OnChangeSortOption(it)) },
-                                    onToggleDirection = { viewModel.onEvent(LibraryEvent.OnToggleSortDirection) }
-                                )
-                            }
-                        }
+                    SortBar(
+                        label = stringResource(R.string.sort_current, stringResource(libraryState.sortOption.label)),
+                    ) {
+                        BookSortMenu(
+                            sortOption = libraryState.sortOption,
+                            ascending = libraryState.sortAscending,
+                            onOptionSelected = { viewModel.onEvent(LibraryEvent.OnChangeSortOption(it)) },
+                            onToggleDirection = { viewModel.onEvent(LibraryEvent.OnToggleSortDirection) }
+                        )
                     }
                 }
 
-                items(sortedBooks, key = { it.id }) {
-                    LibraryBookItem(modifier = Modifier
-                        .pointerInput(Unit) {
-                            detectTapGestures(onTap = { _ ->
-                                if (viewModel.libraryState.value.selectedBooks.isEmpty()) {
-                                    FilesBooksRepoImpl.openEpub(
-                                        it,
-                                        onAddQuoteToFavorite = { quote ->
-                                            viewModel.onEvent(
-                                                LibraryEvent.AddQuoteToFavorite(
-                                                    quote
-                                                )
-                                            )
-                                        })
-                                } else {
-                                    viewModel.onEvent(LibraryEvent.SelectBook(it))
-                                }
-                            }, onLongPress = { _ ->
-                                viewModel.onEvent(LibraryEvent.SelectBook(it))
-                            })
-                        }
-                        .animateItem(),
+                itemsIndexed(sortedBooks, key = { _, it -> it.id }) { index, it ->
+                    LibraryBookItem(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .animateItem(),
                         item = it,
+                        onClick = {
+                            if (viewModel.libraryState.value.selectedBooks.isEmpty()) {
+                                FilesBooksRepoImpl.openEpub(
+                                    it,
+                                    onAddQuoteToFavorite = { quote ->
+                                        viewModel.onEvent(LibraryEvent.AddQuoteToFavorite(quote))
+                                    })
+                            } else {
+                                viewModel.onEvent(LibraryEvent.SelectBook(it))
+                            }
+                        },
+                        onLongClick = { viewModel.onEvent(LibraryEvent.SelectBook(it)) },
                         onFavoriteIconClicked = { viewModel.onEvent(LibraryEvent.ToggleFavorite(it)) },
                         onSwipeOut = {
                             bookPendingDelete = it
                         },
                         isSelected = libraryState.selectedBooks.contains(it),
-                        onInfoClick = { navigateToBookDetails(it) }
+                        onInfoClick = { navigateToBookDetails(it) },
+                        index = index,
+                        count = sortedBooks.size,
                     )
-                    ListDivider(startInset = 72)
                 }
             }
             }
+        }
+    }
+
+        // M3 Expressive floating toolbar for the selection's actions.
+        AnimatedVisibility(
+            visible = libraryState.selectedBooks.isNotEmpty(),
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp),
+        ) {
+            SelectionToolbar(
+                count = libraryState.selectedBooks.size,
+                onCancel = { viewModel.onEvent(LibraryEvent.CancelSelection) },
+                onDelete = { showDeleteSelectedDialog = true },
+            )
         }
     }
 
@@ -269,37 +288,35 @@ fun SortBar(label: String, menu: @Composable () -> Unit) {
     }
 }
 
-/** Contextual bar replacing the sort row while books are selected. */
+/** Floating toolbar shown while books are selected: close, selected count, delete. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionBar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-    ) {
-        Row(
-            Modifier.padding(start = 4.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+private fun SelectionToolbar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
+    HorizontalFloatingToolbar(
+        expanded = true,
+        colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+        leadingContent = {
             IconButton(onClick = onCancel) {
                 Icon(ShamelaIcons.Cancel, contentDescription = stringResource(R.string.cancel))
             }
-            Text(
-                text = stringResource(R.string.selected_count, count),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(
+        },
+        trailingContent = {
+            FilledIconButton(
                 onClick = onDelete,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                shapes = IconButtonDefaults.shapes(),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
             ) {
-                Icon(ShamelaIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.delete))
+                Icon(ShamelaIcons.Delete, contentDescription = stringResource(R.string.delete_selected_books))
             }
-        }
+        },
+    ) {
+        Text(
+            text = stringResource(R.string.selected_count, count),
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
     }
 }

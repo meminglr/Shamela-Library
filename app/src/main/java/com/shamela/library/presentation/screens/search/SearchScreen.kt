@@ -1,6 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.search
 
 
+import androidx.compose.material3.ButtonDefaults
 import com.shamela.apptheme.presentation.common.EmptyState
 import com.shamela.apptheme.presentation.common.SettingsSectionTitle
 import androidx.compose.ui.text.style.TextOverflow
@@ -136,6 +139,7 @@ fun SearchScreen(
             }
         }
         Button(
+            shapes = ButtonDefaults.shapes(),
             onClick = startSearch,
             enabled = canSearch,
             modifier = Modifier

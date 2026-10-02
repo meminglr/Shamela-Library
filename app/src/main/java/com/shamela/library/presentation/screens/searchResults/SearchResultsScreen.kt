@@ -1,8 +1,10 @@
 package com.shamela.library.presentation.screens.searchResults
 
 
+import androidx.compose.foundation.layout.Arrangement
+import com.shamela.library.presentation.common.SegmentGap
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.WindowInsets
-import com.shamela.apptheme.presentation.common.ListDivider
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
 import android.util.Log
@@ -61,25 +63,27 @@ fun SearchResultsScreen(
         )
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 16.dp)
+                verticalArrangement = Arrangement.spacedBy(SegmentGap),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
             ) {
                 if (state.type == "sections"){
-                    items(state.sectionsResultsList, key = {it.id}){
-                        SectionItem(modifier = Modifier
-                            .clickable {
-                                navigateToSectionBooksScreen(it.name, "remote")
-                            },
+                    itemsIndexed(state.sectionsResultsList, key = { _, it -> it.id }) { index, it ->
+                        SectionItem(
+                            modifier = Modifier.padding(horizontal = 16.dp),
                             item = it,
-                            highlightText = state.lastQuery)
-                        ListDivider(startInset = 72)
+                            highlightText = state.lastQuery,
+                            onClick = { navigateToSectionBooksScreen(it.name, "remote") },
+                            index = index,
+                            count = state.sectionsResultsList.size,
+                        )
                     }
                 }else{
-                    items(state.booksResultsList, key = {it.id}) { currentBook->
+                    itemsIndexed(state.booksResultsList, key = { _, it -> it.id }) { index, currentBook ->
                         when (state.type){
                             "local"->{
-                                BookItem(modifier = Modifier
-                                    .clickable {
-                                        Log.d("SearchResultsScreen", "Item Clicked: ${currentBook.title}")
+                                BookItem(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    onClick = {
                                         FilesBooksRepoImpl.openEpub(
                                             currentBook,
                                             onAddQuoteToFavorite = { quote ->
@@ -88,6 +92,8 @@ fun SearchResultsScreen(
                                                 )
                                             })
                                     },
+                                    index = index,
+                                    count = state.booksResultsList.size,
                                     item = currentBook,
                                     highlightText = state.lastQuery,
                                     onInfoClick = { navigateToBookDetails(currentBook) }
@@ -95,7 +101,10 @@ fun SearchResultsScreen(
                             }
                             "remote"->{
                                 BookItem(
-                                    modifier = Modifier,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    onClick = { navigateToBookDetails(currentBook) },
+                                    index = index,
+                                    count = state.booksResultsList.size,
                                     item = currentBook,
                                     onInfoClick = { navigateToBookDetails(currentBook) },
                                     icon = {
@@ -115,8 +124,6 @@ fun SearchResultsScreen(
                                 )
                             }
                         }
-
-                        ListDivider(startInset = 72)
                     }
                 }
             }

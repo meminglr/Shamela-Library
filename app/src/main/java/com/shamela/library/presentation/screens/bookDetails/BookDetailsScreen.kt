@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.screens.bookDetails
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 import com.shamela.library.presentation.common.sectionDisplayName
 import com.shamela.apptheme.presentation.util.AppLocale
 import androidx.compose.ui.platform.LocalContext
@@ -25,7 +29,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -107,7 +110,7 @@ fun BookDetailsScreen(
                     Column(Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
                         Text(
                             text = book.title,
-                            style = AppFonts.content(MaterialTheme.typography.headlineSmall),
+                            style = AppFonts.content(MaterialTheme.typography.headlineSmallEmphasized),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(12.dp))
@@ -148,11 +151,7 @@ fun BookDetailsScreen(
                 val details = state.details
                 if (state.isLoading) {
                     Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(36.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        LoadingIndicator()
                     }
                 } else if (details == null ||
                     (details.description.isNullOrBlank() && details.topics.isEmpty() &&
@@ -414,6 +413,7 @@ private fun BookActionBottomBar(
     ) {
         Box(modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
             Button(
+                shapes = ButtonDefaults.shapes(),
                 onClick = if (isDownloaded) onOpenClick else onDownloadClick,
                 enabled = !isDownloading,
                 modifier = Modifier
@@ -424,10 +424,9 @@ private fun BookActionBottomBar(
 
                 if (isDownloading) {
                     // Show progress spinner
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
+                    LoadingIndicator(
+                        modifier = Modifier.size(28.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.5.dp
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(text = stringResource(R.string.downloading), style = MaterialTheme.typography.titleMedium)

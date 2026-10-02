@@ -10,16 +10,16 @@ class SharedPreferencesData(private val context: Context) : UserPrefsDataSource 
         val sharedPrefs = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
         var userPrefs = UserPrefs()
         sharedPrefs.getString(PREFERRED_THEME, "تلقائي")?.let {
-            userPrefs = userPrefs.copy(theme = it)
+            userPrefs = userPrefs.copy(theme = it.nfc())
         }
-        sharedPrefs.getString(PREFERRED_FONT_FAMILY, "خط تَجَوَّل")?.let {
-            userPrefs = userPrefs.copy(fontFamily = it)
+        sharedPrefs.getString(PREFERRED_FONT_FAMILY, "خط تَجَوَّل")?.let {
+            userPrefs = userPrefs.copy(fontFamily = it.nfc())
         }
         sharedPrefs.getInt(PREFERRED_FONT_SIZE, -2).let {
             userPrefs = userPrefs.copy(fontSize = it)
         }
         sharedPrefs.getString(PREFERRED_COLOR_SCHEME, null)?.let {
-            userPrefs = userPrefs.copy(colorSchemeName = it)
+            userPrefs = userPrefs.copy(colorSchemeName = it.nfc())
         }
         return userPrefs
     }
@@ -104,3 +104,10 @@ class SharedPreferencesData(private val context: Context) : UserPrefsDataSource 
 
     }
 }
+
+/**
+ * Preference keys are Arabic names with harakat. The same name was typed with its marks in a
+ * different order in different places (e.g. shadda+fatha vs fatha+shadda in "خط تَجَوَّل"), so
+ * keys never matched and the default font silently fell back. NFC puts the marks in canonical order.
+ */
+internal fun String.nfc(): String = java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFC)

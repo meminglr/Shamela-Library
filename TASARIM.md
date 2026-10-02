@@ -44,3 +44,26 @@ Sorunların çoğu tek tek ekranlardan değil, ortak bir tasarım temeli olmamas
 ## Not
 
 - Bazı kitap açıklamaları (yapay zekâ ile üretilmiş veriler, `assets/book-details`) içinde Kiril harfli kelimeler var (ör. "сторон"). Bu veri hatası; tasarımla ilgili değil, ayrıca temizlenmeli.
+
+## M3 Expressive
+
+Uygulama Material 3 Expressive'e taşındı ([building with M3 Expressive](https://m3.material.io/blog/building-with-m3-expressive)).
+
+**Sürüm:** Expressive bileşenleri `material3`'ün kararlı 1.4.0 sürümünde yok (sadece token'lar var). En yeni 1.5 alpha'ları compileSdk 37 ve AGP 9.1 istiyor. Projenin mevcut araçlarıyla (Compose 1.8, AGP 8.9, Kotlin 2.1.20) çalışan `material3 1.5.0-alpha14` kullanılıyor (`versions.gradle`). Bu bir alpha kütüphane; API'leri ileride değişebilir.
+
+| Expressive özelliği | Uygulamadaki karşılığı |
+|---|---|
+| `MaterialExpressiveTheme` + `MotionScheme.expressive()` | Tüm bileşenlerde yaylı (spring) hareket |
+| Vurgulu tipografi (`*Emphasized`) | Seçilen yazı tipi ve boyutla tam emphasized type scale; ayar başlıkları, boş durumlar, kitap başlığı |
+| Birleşik düğme grubu (connected `ToggleButton`) | Segmentli düğmelerin yerine: Kütüphane, İndir, Favoriler, Ayarlar, okuyucu |
+| `ShortNavigationBar` | Alt menü |
+| `MediumFlexibleTopAppBar` | Ana sekmelerde kaydırınca küçülen büyük başlık; bölüm ekranında alt başlıkta kitap sayısı |
+| Gruplu listeler (`SegmentedListItem`) | Kitap, bölüm, alıntı ve yazı tipi listeleri: yuvarlak bloklar, ince boşluklar, basınca şekil değişimi, seçili satır vurgusu |
+| `MaterialShapes` | Kapaklar (Cookie4), bölümler (Clover4Leaf), alıntılar (Sunny), boş durum (Cookie12) |
+| Şekil değiştiren düğmeler (`ButtonDefaults.shapes()`, `IconButtonDefaults.toggleableShapes()`) | Ana eylem düğmeleri; favori düğmesi seçilince daireden yuvarlak kareye dönüşüyor |
+| `HorizontalFloatingToolbar` | Kütüphanede seçim modu (kapat / "N seçildi" / sil) |
+| `LoadingIndicator`, `CircularWavyProgressIndicator` | Yükleniyor göstergeleri; indirme ilerlemesi dalgalı |
+
+Bu aşamada ayrıca:
+- **Durum çubuğu:** İkonların rengi artık temaya göre belirleniyor. Açık temada beyaz kalıp okunmuyordu.
+- **Varsayılan yazı tipi:** Adı iki yerde harekeler farklı sırayla yazıldığı için hiç eşleşmiyordu; uygulama sessizce Noto Naskh'a düşüyordu. Anahtarlar Unicode NFC ile normalize edildi.
