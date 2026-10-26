@@ -73,7 +73,7 @@ fun SourceTile(bookId: String, modifier: Modifier = Modifier) {
                 Modifier
                     .align(AbsoluteAlignment.BottomRight)
                     .offset(x = 4.dp, y = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy((-3).dp),
             ) {
                 sources.sortedBy { it.number }.forEach { CornerBadge(it) }
             }
