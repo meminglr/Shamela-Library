@@ -44,6 +44,7 @@ class ShamelaApp : Application() {
         com.shamela.library.data.remote.shamela.ShamelaHttp.init(this)
         // Book server: remembered route and link form, found in the background if still unknown.
         com.shamela.library.data.local.assets.BookServerWarmup.start(this)
+        com.shamela.library.presentation.common.SourceBadges.init(this)
 
         if (BuildConfig.DEBUG) {
             android.os.StrictMode.setThreadPolicy(

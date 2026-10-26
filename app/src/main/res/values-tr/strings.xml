@@ -202,4 +202,6 @@
     <string name="dl_shamela_preparing">Kitap hazırlanıyor…</string>
     <string name="dl_failed_shamela_verify">shamela.ws doğrulama istiyor</string>
     <string name="search_closest_results">Tam eşleşme yok · en yakın sonuçlar</string>
+    <string name="source_badges_setting">Kütüphane numaraları</string>
+    <string name="source_badges_description">Kitap simgelerinin köşesinde, kitabın hangi kütüphaneden geldiğini (1, 2) gösteren numaraları göster.</string>
 </resources>

@@ -204,4 +204,6 @@
     <string name="dl_shamela_preparing">جار تجهيز الكتاب…</string>
     <string name="dl_failed_shamela_verify">موقع الشاملة يطلب التحقق</string>
     <string name="search_closest_results">لا نتائج مطابقة · أقرب النتائج</string>
+    <string name="source_badges_setting">أرقام المكتبات</string>
+    <string name="source_badges_description">إظهار رقم المكتبة (1، 2) التي جاء منها الكتاب في زاوية أيقونته.</string>
 </resources>

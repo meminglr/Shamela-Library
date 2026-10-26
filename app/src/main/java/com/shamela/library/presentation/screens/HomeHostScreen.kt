@@ -2,7 +2,6 @@ package com.shamela.library.presentation.screens
 
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TopAppBarState
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
 import com.shamela.library.presentation.common.DownloadsBar
@@ -13,8 +12,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.MediumFlexibleTopAppBar
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Row
@@ -28,10 +25,7 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -46,6 +40,13 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DropdownMenu
@@ -140,8 +141,12 @@ fun HomeHostScreen() {
     // tab collapsed too.
     val topBarState = remember(selectedScreen) { TopAppBarState(-Float.MAX_VALUE, 0f, 0f) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(state = topBarState)
+    // The bar's real height (labels make it taller than the default toolbar), for the space lists
+    // leave below their last row.
+    val density = LocalDensity.current
+    var navBarHeight by remember { mutableStateOf(FloatingToolbarDefaults.ContainerSize) }
     val floatingBarInset =
-        if (showBars) FloatingToolbarDefaults.ContainerSize + FloatingToolbarDefaults.ScreenOffset
+        if (showBars) navBarHeight + FloatingToolbarDefaults.ScreenOffset
         else 0.dp
     Scaffold(
         modifier = Modifier
@@ -226,6 +231,7 @@ fun HomeHostScreen() {
                     .padding(bottom = paddingValues.calculateBottomPadding() + FloatingToolbarDefaults.ScreenOffset),
             ) {
                 FloatingNavBar(
+                    modifier = Modifier.onSizeChanged { navBarHeight = with(density) { it.height.toDp() } },
                     selectedIndex = selectedScreen,
                     onSelect = { index ->
                         navController.navigate(destination[index].route) {
@@ -242,18 +248,33 @@ fun HomeHostScreen() {
         }
     }
 }
+/** Size of the navigation bar relative to its full-width design; proportions stay the same. */
+private const val NavBarScale = 0.85f
+
+/** Share of the screen width the bar takes: the full-width design (screen less 32 dp), scaled. */
+private const val NavBarWidthFraction = 0.79f
+
 /**
- * Expressive floating navigation bar: a pill above the content. The selected destination widens
- * into a primary-colored pill with its label; the others show only their icon.
+ * Floating navigation bar: a wide pill above the content, the destinations spread evenly across
+ * it, each an icon with its label right below. The selected one's icon sits in a primary-colored
+ * pill and its label takes the primary color.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FloatingNavBar(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     HorizontalFloatingToolbar(
         expanded = true,
+        // A full pill, everything sized by [NavBarScale] so the bar keeps its proportions; the side
+        // padding keeps the outer items clear of its rounded ends.
+        modifier = modifier
+            .widthIn(max = 560.dp * NavBarScale)
+            .fillMaxWidth(NavBarWidthFraction),
+        shape = CircleShape,
+        contentPadding = PaddingValues(horizontal = 18.dp * NavBarScale, vertical = 14.dp * NavBarScale),
         // Theme color roles only (mixing in raw primary looked muddy): the list cards use
         // surfaceContainer, so the bar takes the highest container tone, the same one as the tab
         // switchers on these screens; the shadow lifts it off the content.
@@ -284,50 +305,51 @@ private fun RowScope.FloatingNavItem(
 ) {
     val colors = MaterialTheme.colorScheme
     val motion = MaterialTheme.motionScheme
-    val container by animateColorAsState(
-        // The selected destination is a dark pill in the theme's primary color.
+    val indicator by animateColorAsState(
+        // The selected destination's icon sits in a pill in the theme's primary color.
         if (selected) colors.primary else colors.primary.copy(alpha = 0f),
         motion.defaultEffectsSpec(),
     )
-    val content by animateColorAsState(
+    val iconTint by animateColorAsState(
         if (selected) colors.onPrimary else colors.onSurfaceVariant,
         motion.defaultEffectsSpec(),
     )
-    Row(
+    val tint by animateColorAsState(
+        if (selected) colors.primary else colors.onSurfaceVariant,
+        motion.defaultEffectsSpec(),
+    )
+    Column(
         modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(CircleShape)
-            .background(container)
+            .weight(1f)
+            .clip(MaterialTheme.shapes.large)
             .selectable(selected = selected, onClick = onClick, role = Role.Tab)
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(vertical = 4.dp * NavBarScale),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = if (selected) null else label, tint = content)
-        AnimatedVisibility(
-            visible = selected,
-            enter = expandHorizontally(motion.defaultSpatialSpec()) + fadeIn(motion.defaultEffectsSpec()),
-            exit = shrinkHorizontally(motion.defaultSpatialSpec()) + fadeOut(motion.defaultEffectsSpec()),
+        Box(
+            Modifier
+                .size(width = 60.dp * NavBarScale, height = 36.dp * NavBarScale)
+                .clip(CircleShape)
+                .background(indicator),
+            contentAlignment = Alignment.Center,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = label,
-                    // The Arabic UI font keeps deep descender room below its letters, so centered
-                    // they sit above the icon; Latin labels (system font) need no nudge.
-                    modifier = if (LocalLayoutDirection.current == LayoutDirection.Rtl) {
-                        Modifier.offset(y = 1.5.dp)
-                    } else Modifier,
-                    // Centered on the line box so Arabic and Latin labels both sit level with the icon.
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        lineHeightStyle = LineHeightStyle(
-                            alignment = LineHeightStyle.Alignment.Center,
-                            trim = LineHeightStyle.Trim.Both,
-                        ),
-                    ),
-                    color = content,
-                    maxLines = 1,
-                )
-            }
+            // The label below names the item, so the icon isn't announced separately.
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(28.dp * NavBarScale))
         }
+        Spacer(Modifier.height(4.dp * NavBarScale))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontSize = MaterialTheme.typography.labelMedium.fontSize * NavBarScale,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both,
+                ),
+            ),
+            color = tint,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }

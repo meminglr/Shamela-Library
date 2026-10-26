@@ -46,6 +46,12 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.util.AppLocale
 import com.shamela.library.R
 import com.shamela.library.presentation.common.ConfirmationDialog
+import com.shamela.library.presentation.common.SourceBadges
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Switch
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun ColumnScope.GeneralSettingsScreen(
@@ -60,6 +66,7 @@ fun ColumnScope.GeneralSettingsScreen(
 ) {
     val context = LocalContext.current
     LanguageSection(context)
+    SourceBadgesSection(context)
 
     SettingsCard(stringResource(R.string.import_library), icon = ShamelaIcons.FileDownload) {
         Text(
@@ -139,6 +146,34 @@ fun ColumnScope.GeneralSettingsScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.backup_import))
             }
+        }
+    }
+}
+
+/** Show or hide the library numbers (1, 2) on book icons. */
+@Composable
+private fun SourceBadgesSection(context: Context) {
+    SettingsCard(stringResource(R.string.source_badges_setting), icon = ShamelaIcons.LocalLibrary) {
+        val visible by SourceBadges.visible.collectAsStateWithLifecycle()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = visible,
+                    role = Role.Switch,
+                    onValueChange = { SourceBadges.setVisible(context, it) },
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.source_badges_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            // The row handles the tap, so the whole line toggles and is read as one switch.
+            Switch(checked = visible, onCheckedChange = null)
         }
     }
 }

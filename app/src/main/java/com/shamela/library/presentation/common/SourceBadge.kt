@@ -2,8 +2,8 @@
 
 package com.shamela.library.presentation.common
 
+import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
@@ -29,6 +29,9 @@ import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import com.shamela.library.R
 import com.shamela.library.data.catalog.BookSource
 import com.shamela.library.data.catalog.CatalogSources
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /** "1", "2" or "1·2": the catalog number(s) of a book. */
 fun sourceNumbers(sources: Set<BookSource>): String =
@@ -54,12 +57,13 @@ fun sourceDescription(sources: Set<BookSource>): String = when {
 /**
  * Leading tile of a book row: the book icon, with the number of each library the book comes from
  * (Kütüphane 1, Kütüphane 2) in small round badges at its bottom-right corner. A book of neither
- * catalog (imported from elsewhere) has no badge.
+ * catalog (imported from elsewhere) has no badge, nor any book when [SourceBadges] are turned off.
  */
 @Composable
 fun SourceTile(bookId: String, modifier: Modifier = Modifier) {
     val index by CatalogSources.index.collectAsStateWithLifecycle()
-    val sources = index.sources[bookId].orEmpty()
+    val shown by SourceBadges.visible.collectAsStateWithLifecycle()
+    val sources = if (shown) index.sources[bookId].orEmpty() else emptySet()
     val description = if (sources.isEmpty()) "" else sourceDescription(sources)
     Box(modifier.semantics { if (description.isNotEmpty()) contentDescription = description }) {
         ListLeadingTile(ShamelaIcons.MenuBook)
@@ -69,7 +73,7 @@ fun SourceTile(bookId: String, modifier: Modifier = Modifier) {
                 Modifier
                     .align(AbsoluteAlignment.BottomRight)
                     .offset(x = 4.dp, y = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy((-4).dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 sources.sortedBy { it.number }.forEach { CornerBadge(it) }
             }
@@ -86,7 +90,6 @@ private fun CornerBadge(source: BookSource) {
     Box(
         Modifier
             .size(18.dp)
-            .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape)
             .clip(CircleShape)
             .background(container),
         contentAlignment = Alignment.Center,
@@ -112,4 +115,25 @@ fun SourceNumberBadge(sources: Set<BookSource>, modifier: Modifier = Modifier) {
     ) {
         Text(text = sourceNumbers(sources), style = MaterialTheme.typography.labelLarge, color = content)
     }
+}
+
+/** Whether book rows show the library number badges: a setting, on by default. */
+object SourceBadges {
+    private const val PREFS = "source_badges"
+    private const val KEY_VISIBLE = "visible"
+
+    private val _visible = MutableStateFlow(true)
+    val visible: StateFlow<Boolean> = _visible.asStateFlow()
+
+    /** Loads the stored choice (at app start). */
+    fun init(context: Context) {
+        _visible.value = prefs(context).getBoolean(KEY_VISIBLE, true)
+    }
+
+    fun setVisible(context: Context, visible: Boolean) {
+        _visible.value = visible
+        prefs(context).edit().putBoolean(KEY_VISIBLE, visible).apply()
+    }
+
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }
