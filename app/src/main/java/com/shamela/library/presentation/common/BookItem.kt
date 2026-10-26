@@ -1,5 +1,11 @@
 package com.shamela.library.presentation.common
 
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.shamela.library.domain.model.DownloadStatus
+import androidx.compose.foundation.layout.Column
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -128,6 +134,7 @@ private fun BookListItem(
     onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
     leading: @Composable () -> Unit = { ListLeadingTile(ShamelaIcons.MenuBook) },
+    downloadStatus: DownloadStatus? = null,
     trailing: @Composable RowScope.() -> Unit,
 ) {
     SegmentedListItem(
@@ -140,6 +147,7 @@ private fun BookListItem(
         leadingContent = leading,
         trailingContent = { Row(verticalAlignment = Alignment.CenterVertically, content = trailing) },
         supportingContent = {
+            Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val author = item.author.takeUnless { it.isBlank() || it == "-" }
                 if (author != null) {
@@ -154,6 +162,8 @@ private fun BookListItem(
                         text = "  ·  ",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.outline,
+                        // Visual separator only: screen readers shouldn't announce it.
+                        modifier = Modifier.clearAndSetSemantics {},
                     )
                 }
                 if (item.pageCount > 0) {
@@ -163,6 +173,8 @@ private fun BookListItem(
                         maxLines = 1,
                     )
                 }
+            }
+            downloadStatus?.let { DownloadStatusLine(it) }
             }
         },
     ) {
@@ -225,6 +237,7 @@ fun BookItem(
     onClick: () -> Unit = {},
     index: Int = 0,
     count: Int = 1,
+    downloadStatus: DownloadStatus? = null,
 ) {
     BookListItem(
         item = item,
@@ -233,6 +246,7 @@ fun BookItem(
         count = count,
         onClick = onClick,
         modifier = modifier,
+        downloadStatus = downloadStatus,
     ) {
         InfoIconButton(onInfoClick)
         icon()
@@ -288,9 +302,13 @@ fun LibraryBookItem(
             false
         },
     )
+    // Swiping isn't available to screen reader users: offer the same delete as an action.
+    val deleteLabel = stringResource(R.string.delete)
     SwipeToDismissBox(
         state = swipeState,
-        modifier = modifier,
+        modifier = modifier.semantics {
+            customActions = listOf(CustomAccessibilityAction(deleteLabel) { onSwipeOut(); true })
+        },
         backgroundContent = {
             val active = swipeState.targetValue != SwipeToDismissBoxValue.Settled
             val color by animateColorAsState(

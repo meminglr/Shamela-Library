@@ -39,6 +39,11 @@ class ShamelaApp : Application() {
         }
         externalBooksDirectory =
             File(externalMediaDir, "ShamelaDownloads/${EXTERNAL_BOOKS_CATEGORY}")
+        // shamela.ws requests (also from download workers started without any screen) use the
+        // WebView's User-Agent, so a browser check passed in the WebView covers them.
+        com.shamela.library.data.remote.shamela.ShamelaHttp.init(this)
+        // Book server: remembered route and link form, found in the background if still unknown.
+        com.shamela.library.data.local.assets.BookServerWarmup.start(this)
 
         if (BuildConfig.DEBUG) {
             android.os.StrictMode.setThreadPolicy(
@@ -68,6 +73,9 @@ class ShamelaApp : Application() {
             saveAvailableColorSchemes(availableColorSchemes)
         }
         setupNotificationChannels(this)
+        // Observes download jobs from the start, so progress and results are reported even when
+        // the process was started by WorkManager in the background.
+        com.shamela.library.presentation.utils.BooksDownloadManager.initializeWith(this)
     }
 
     private fun setupNotificationChannels(context: Context) {

@@ -21,13 +21,7 @@ import com.folioreader.ui.activity.searchActivity.SearchActivity
 import com.folioreader.util.OnHighlightListener
 import com.folioreader.util.ReadLocatorListener
 import com.google.gson.GsonBuilder
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.readium.r2.streamer.parser.EpubParser
@@ -126,11 +120,13 @@ class FolioReader private constructor(private var context: Context) {
     suspend fun parseEpub(file: File): Pair<String, Int>? {
         return withContext(Dispatchers.IO) {
            try {
-               EpubParser().parse(file.path)?.let {
-                   val publication = it.publication
-                   val authorName = publication.metadata.authors.first().name ?: "-"
-                   val pageCount = publication.readingOrder.size
-                   authorName to pageCount
+               com.shamela.apptheme.data.util.parseEpubAndClose(file.path) { box ->
+                   box?.let {
+                       val publication = it.publication
+                       val authorName = publication.metadata.authors.first().name ?: "-"
+                       val pageCount = publication.readingOrder.size
+                       authorName to pageCount
+                   }
                }
            } catch (e: Exception){
                Log.e("Mahmoud", "parseEpub: ${e.message}")
@@ -138,7 +134,13 @@ class FolioReader private constructor(private var context: Context) {
            }
         }
     }
-    private var quote = MutableStateFlow(Triple(0, "", ""))
+    /**
+     * Receives the quotes saved in the book opened last. One field, replaced on every [openBook]:
+     * the previous book's listener (and whatever it captured) is released, and every quote of the
+     * session reaches it (a flow swapped out after the first quote dropped the later ones).
+     */
+    @Volatile
+    private var onQuoteListener: ((pageIndex: Int, pageHref: String, text: String) -> Unit)? = null
 
     fun openBook(
         assetOrSdcardPath: String,
@@ -147,7 +149,7 @@ class FolioReader private constructor(private var context: Context) {
         searchLocator:SearchLocator? = null,
         onAddQuoteToFavorite: (pageIndex: Int, pageHref: String, text: String) -> Unit,
     ): FolioReader? {
-        quote = MutableStateFlow(Triple(0, "", ""))
+        onQuoteListener = onAddQuoteToFavorite
         val intent = getIntentFromUrl(assetOrSdcardPath)
         intent.putExtra(START_PAGE_HREF,startPageHref)
         intent.putExtra(SearchActivity.Book_ID,bookId)
@@ -158,25 +160,13 @@ class FolioReader private constructor(private var context: Context) {
             )
         }
         context.startActivity(intent)
-
-        val scope = CoroutineScope(Dispatchers.Main)
-        scope.launch {
-//            EpubParser().parse(assetOrSdcardPath)?.publication?.metadata?.let{metadata->
-                quote.onEach { (pageIndex, pageHref, text) ->
-                    if (text.isNotBlank() && pageHref.isNotBlank()) {
-                        Log.e("FolioReader", "onAddQuoteToFavorite: collected quote=$quote ")
-                        onAddQuoteToFavorite(pageIndex, pageHref, text)
-                        quote = MutableStateFlow(Triple(0, "", ""))
-                    }
-                }.launchIn(scope)
-//            }
-        }
         return singleton
     }
 
+    /** Called on the main thread by the reader's "add to favorites" selection action. */
     fun onAddQuoteToFavorite(quote: String, pageIndex: Int, pageHref: String) {
-        Log.e("FolioReader", "onAddQuoteToFavorite: quote=$quote ")
-        this.quote.update { Triple(pageIndex, pageHref, quote) }
+        if (quote.isBlank() || pageHref.isBlank()) return
+        onQuoteListener?.invoke(pageIndex, pageHref, quote)
     }
 
     private fun getIntentFromUrl(assetOrSdcardPath: String?): Intent {
@@ -269,6 +259,7 @@ class FolioReader private constructor(private var context: Context) {
                 singleton!!.onHighlightListener = null
                 singleton!!.readLocatorListener = null
                 singleton!!.onClosedListener = null
+                singleton!!.onQuoteListener = null
             }
         }
 

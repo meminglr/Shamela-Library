@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.OutlinedCard
-import com.shamela.apptheme.presentation.common.SettingsSectionTitle
+import com.shamela.apptheme.presentation.common.SettingsCard
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -47,20 +47,20 @@ fun ColumnScope.ExternalBooksScreen(
     selectedFileName: String?,
     selectedFileUri: Uri?
 ) {
-    SettingsSectionTitle(stringResource(R.string.add_external_book))
-    Text(
-        text = stringResource(R.string.external_book_hint),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 12.dp)
-    )
-    SelectBookButton(selectedFileName, onClickSelectBook)
+    SettingsCard(stringResource(R.string.add_external_book), icon = ShamelaIcons.NoteAdd) {
+        Text(
+            text = stringResource(R.string.external_book_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SelectBookButton(selectedFileName, onClickSelectBook)
 
-    AnimatedVisibility(visible = selectedFileUri != null) {
-        Button(shapes = ButtonDefaults.shapes(), onClick = onClickAddBookToLibrary, modifier = Modifier.fillMaxWidth()) {
-            Icon(ShamelaIcons.LocalLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(text = stringResource(R.string.add_to_library))
+        AnimatedVisibility(visible = selectedFileUri != null) {
+            Button(shapes = ButtonDefaults.shapes(), onClick = onClickAddBookToLibrary, modifier = Modifier.fillMaxWidth()) {
+                Icon(ShamelaIcons.LocalLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(text = stringResource(R.string.add_to_library))
+            }
         }
     }
 }
@@ -72,9 +72,7 @@ private fun SelectBookButton(
 ) {
     OutlinedCard(
         onClick = onClickSelectBook,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

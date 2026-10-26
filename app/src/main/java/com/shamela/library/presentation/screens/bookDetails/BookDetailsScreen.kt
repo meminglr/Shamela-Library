@@ -2,8 +2,13 @@
 
 package com.shamela.library.presentation.screens.bookDetails
 
+import com.shamela.apptheme.presentation.common.PillTabs
+import androidx.compose.material3.LeadingIconTab
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.OutlinedButton
+import com.shamela.library.presentation.common.DownloadStatusLine
+import com.shamela.library.domain.model.DownloadStatus
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import com.shamela.library.presentation.common.sectionDisplayName
 import com.shamela.apptheme.presentation.util.AppLocale
 import androidx.compose.ui.platform.LocalContext
@@ -78,10 +83,11 @@ import com.shamela.library.presentation.common.BookDetailsViewModel
 fun BookDetailsScreen(
     book: Book,
     navigateBack: () -> Unit,
+    fromShamela: Boolean = false,
     viewModel: BookDetailsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(book.id) { viewModel.load(book) }
+    LaunchedEffect(book.id) { viewModel.load(book, fromShamela) }
 
     CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(LocalContext.current)) {
         Scaffold(
@@ -89,8 +95,9 @@ fun BookDetailsScreen(
             bottomBar = {
                 BookActionBottomBar(
                     isDownloaded = state.isDownloaded,
-                    isDownloading = state.isDownloading,
+                    downloadStatus = state.downloadStatus,
                     onDownloadClick = { viewModel.downloadBook() },
+                    onCancelClick = { viewModel.cancelDownload() },
                     onOpenClick = { viewModel.openBook() },
                 )
             },
@@ -151,7 +158,7 @@ fun BookDetailsScreen(
                 val details = state.details
                 if (state.isLoading) {
                     Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        LoadingIndicator()
+                        CircularProgressIndicator()
                     }
                 } else if (details == null ||
                     (details.description.isNullOrBlank() && details.topics.isEmpty() &&
@@ -186,36 +193,19 @@ fun BookDetailsScreen(
                     var selected by remember { mutableIntStateOf(0) }
                     val current = selected.coerceIn(0, tabs.lastIndex)
 
-                    // Elegant Tab Row
-                    TabRow(
-                        selectedTabIndex = current,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) },
-                        indicator = { tabPositions ->
-                            if (current < tabPositions.size) {
-                                TabRowDefaults.SecondaryIndicator(
-                                    modifier = Modifier.tabIndicatorOffset(tabPositions[current]),
-                                    height = 3.dp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                    // Same tabs as the rest of the app: icon + label, the selected one in a pill.
+                    PillTabs(
+                        labels = tabs.map { stringResource(it) },
+                        icons = tabs.map {
+                            when (it) {
+                                R.string.tab_description -> ShamelaIcons.Subject
+                                R.string.tab_topics -> ShamelaIcons.FormatListBulleted
+                                else -> ShamelaIcons.Info
                             }
-                        }
-                    ) {
-                        tabs.forEachIndexed { i, title ->
-                            Tab(
-                                selected = current == i,
-                                onClick = { selected = i },
-                                text = {
-                                    Text(
-                                        text = stringResource(title),
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                },
-                                selectedContentColor = MaterialTheme.colorScheme.primary,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                        },
+                        selectedIndex = current,
+                        onSelect = { selected = it },
+                    )
 
                     // Smooth Transition between tabs
                     Crossfade(
@@ -403,51 +393,58 @@ private fun InfoRow(info: BookInfoItem) {
 @Composable
 private fun BookActionBottomBar(
     isDownloaded: Boolean,
-    isDownloading: Boolean,
+    downloadStatus: DownloadStatus?,
     onDownloadClick: () -> Unit,
+    onCancelClick: () -> Unit,
     onOpenClick: () -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Box(modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Button(
-                shapes = ButtonDefaults.shapes(),
-                onClick = if (isDownloaded) onOpenClick else onDownloadClick,
-                enabled = !isDownloading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-
-            ) {
-
-                if (isDownloading) {
-                    // Show progress spinner
-                    LoadingIndicator(
-                        modifier = Modifier.size(28.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
+        Column(modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            if (!isDownloaded && downloadStatus != null) {
+                // Live progress ("45% · 1.2 MB / 2.6 MB · 300 kB/s", "Waiting for connection", ...).
+                DownloadStatusLine(downloadStatus, Modifier.padding(bottom = 12.dp))
+            }
+            val active = !isDownloaded && downloadStatus?.isActive == true
+            if (active) {
+                OutlinedButton(
+                    shapes = ButtonDefaults.shapes(),
+                    onClick = onCancelClick,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Icon(ShamelaIcons.Close, contentDescription = null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(text = stringResource(R.string.downloading), style = MaterialTheme.typography.titleMedium)
-                } else if (isDownloaded) {
-                    // Show Read button
+                    Text(text = stringResource(R.string.dl_cancel), style = MaterialTheme.typography.titleMedium)
+                }
+            } else {
+                Button(
+                    shapes = ButtonDefaults.shapes(),
+                    onClick = if (isDownloaded) onOpenClick else onDownloadClick,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    val failed = downloadStatus is DownloadStatus.Failed
                     Icon(
-                        imageVector = ShamelaIcons.MenuBook,
+                        imageVector = when {
+                            isDownloaded -> ShamelaIcons.MenuBook
+                            failed -> ShamelaIcons.Refresh
+                            else -> ShamelaIcons.FileDownload
+                        },
                         contentDescription = null,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(text = stringResource(R.string.read_book), style = MaterialTheme.typography.titleMedium)
-                } else {
-                    // Show Download button
-                    Icon(
-                        imageVector = ShamelaIcons.FileDownload,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
+                    Text(
+                        text = stringResource(
+                            when {
+                                isDownloaded -> R.string.read_book
+                                failed -> R.string.dl_retry
+                                else -> R.string.download_book
+                            }
+                        ),
+                        style = MaterialTheme.typography.titleMedium
                     )
-                    Spacer(Modifier.width(12.dp))
-                    Text(text = stringResource(R.string.download_book), style = MaterialTheme.typography.titleMedium)
                 }
             }
         }

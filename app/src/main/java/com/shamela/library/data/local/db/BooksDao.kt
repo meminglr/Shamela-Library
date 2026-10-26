@@ -47,6 +47,12 @@ interface BooksDao {
         }
     }
 
+    /** Many books in one transaction: book lists observing the table refresh once, not per book. */
+    @Transaction
+    suspend fun upsertAllKeepingUserData(books: List<Book>) {
+        books.forEach { upsertKeepingUserData(it) }
+    }
+
     @Query("DELETE FROM downloadedBooks WHERE id = :bookId")
     suspend fun delete(bookId: String)
 
@@ -58,6 +64,10 @@ interface BooksDao {
 
     @Query("SELECT * FROM downloadedBooks")
     suspend fun getDownloadedBooksOnce(): List<Book>
+
+    /** One section of the library, from the database (author and page count included, no file parsing). */
+    @Query("SELECT * FROM downloadedBooks WHERE categoryName = :categoryName")
+    fun getBooksInCategory(categoryName: String): Flow<List<Book>>
 
     @Query("SELECT * FROM downloadedBooks WHERE isFavorite = 1  ")
     fun getFavoriteBooks(): Flow<List<Book>>

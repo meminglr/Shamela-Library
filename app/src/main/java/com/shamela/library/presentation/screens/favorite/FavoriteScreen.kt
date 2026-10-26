@@ -4,7 +4,7 @@ package com.shamela.library.presentation.screens.favorite
 import androidx.compose.foundation.layout.Arrangement
 import com.shamela.library.presentation.common.SegmentGap
 import androidx.compose.foundation.lazy.itemsIndexed
-import com.shamela.apptheme.presentation.common.SegmentedTabs
+import com.shamela.apptheme.presentation.common.TabbedPager
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -29,7 +29,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +49,7 @@ import com.shamela.library.presentation.common.FavoriteBookItem
 import com.shamela.library.presentation.common.QuoteItem
 import com.shamela.library.presentation.common.StringHeader
 import com.shamela.library.presentation.screens.LocalPaddingValues
+import com.shamela.library.presentation.screens.LocalFloatingBarInset
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -60,27 +60,24 @@ fun FavoriteScreen(
     val state = viewModel.favoriteState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
 
-    LaunchedEffect(Unit){
-        viewModel.onEvent(FavoriteEvent.LoadFavoriteQuotes)
-    }
-    LazyColumn(
+    val quotesByBook = remember(state.favoriteQuotes) { state.favoriteQuotes.groupBy { it.bookName } }
+    TabbedPager(
+        options = FavoriteViewType.entries,
+        selected = state.viewType,
+        label = { stringResource(it.label) },
+            icon = { it.icon },
+        onSelect = { viewModel.onEvent(FavoriteEvent.OnChangeViewType(it)) },
         modifier = Modifier.fillMaxSize().padding(localPadding),
+    ) { viewType ->
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SegmentGap),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp + LocalFloatingBarInset.current)
     ) {
-        item {
-            SegmentedTabs(
-                options = FavoriteViewType.entries,
-                selected = state.viewType,
-                label = { stringResource(it.label) },
-                onSelect = { viewModel.onEvent(FavoriteEvent.OnChangeViewType(it)) },
-            )
-        }
-        when(state.viewType){
+        when (viewType){
             FavoriteViewType.Quotes -> {
-                val quotesMap = state.favoriteQuotes.groupBy { it.bookName }
-                quotesMap.forEach{ (bookName, quotes) ->
+                quotesByBook.forEach{ (bookName, quotes) ->
                     stickyHeader {
                         StringHeader(
                             modifier = Modifier,
@@ -102,7 +99,7 @@ fun FavoriteScreen(
                 }
                 item {
                     EmptyListScreen(
-                        visibility = state.isListEmpty,
+                        visibility = state.quotesLoaded && state.favoriteQuotes.isEmpty(),
                         text = stringResource(R.string.favorite_quotes_empty),
                         modifier = Modifier.fillParentMaxSize()
                     )
@@ -132,12 +129,13 @@ fun FavoriteScreen(
                 }
                 item {
                     EmptyListScreen(
-                        visibility = state.isListEmpty,
+                        visibility = state.booksLoaded && state.favoriteBooks.isEmpty(),
                         text = stringResource(R.string.favorite_books_empty),
                         modifier = Modifier.fillParentMaxSize())
                 }
             }
         }
 
+    }
     }
 }

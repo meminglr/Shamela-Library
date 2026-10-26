@@ -11,6 +11,8 @@ data class SettingsState(
     val fileName:String? = null,
     val downloadedBooksCount: Int = 0,
     val downloadedBytes: Long = 0L,
+    /** Books copied so far / found, while importing a library folder; null when idle. */
+    val importProgress: Pair<Int, Int>? = null,
 )
 
 /** A one-off message for a Toast, formatted with [args] when shown. */

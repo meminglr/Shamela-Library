@@ -14,8 +14,4 @@ data class Book(
     @ColumnInfo("pageCount") val pageCount: Int,
     @ColumnInfo("categoryName") val categoryName: String,
     @ColumnInfo("isFavorite") val isFavorite: Boolean = false,
-){
-    fun getPath(){
-        return
-    }
-}
+)

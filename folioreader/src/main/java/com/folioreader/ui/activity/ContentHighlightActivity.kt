@@ -92,11 +92,13 @@ class ContentHighlightActivity : ComponentActivity() {
             withContext(Dispatchers.IO) {
                 try {
                     bookPath?.let { filepath ->
-                        EpubParser().parse(filepath, "")?.let { pubBox ->
-                            val list =
-                                pubBox.publication.tableOfContents.ifEmpty { pubBox.publication.readingOrder }
-                            linkItems.addAll(list)
-                            isLoading.value = false
+                        com.shamela.apptheme.data.util.parseEpubAndClose(filepath) { box ->
+                            box?.let { pubBox ->
+                                val list =
+                                    pubBox.publication.tableOfContents.ifEmpty { pubBox.publication.readingOrder }
+                                linkItems.addAll(list)
+                                isLoading.value = false
+                            }
                         }
                     }
                 } catch (e: Exception) {

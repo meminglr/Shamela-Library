@@ -1,6 +1,12 @@
 package com.shamela.library.presentation.screens.settings
 
 
+import com.shamela.library.presentation.utils.LibraryImportWorker
+import android.content.Intent
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import android.app.Application
 import android.content.Context
 import android.database.Cursor
@@ -21,6 +27,7 @@ import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.domain.usecases.books.BooksUseCases
 import com.shamela.library.presentation.utils.BookIndexing
+import com.shamela.library.presentation.utils.ErrorReporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -29,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.shamela.library.presentation.utils.BookDeletionManager
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -54,6 +62,7 @@ class SettingsViewModel @Inject constructor(
     init {
         initializeSettingsOptions()
         refreshPreferences()
+        observeLibraryImport()
     }
 
     fun refreshPreferences() {
@@ -86,7 +95,7 @@ class SettingsViewModel @Inject constructor(
     private suspend fun copyFileToAppFolder(uri: Uri, bookTitle: String): File? {
         return withContext(Dispatchers.IO) {
             ShamelaApp.externalBooksDirectory.run {
-                if (!this.exists()) this.mkdirs()
+                com.shamela.library.data.local.files.StorageDirs.ensure(this)
             }
             val bookFileName = "${bookTitle.removeSuffix(".epub")}.epub"
             val destinationFile = File(ShamelaApp.externalBooksDirectory, bookFileName)
@@ -98,12 +107,12 @@ class SettingsViewModel @Inject constructor(
                 app.applicationContext.contentResolver.openInputStream(uri)?.use { inputStream ->
                     FileOutputStream(destinationFile).use { outputStream ->
                         val size = inputStream.copyTo(outputStream, bufferSize = 8 * 1024)
-                        Log.e("SettingsViewModel", "onEvent: size $size")
+                        Log.d("SettingsViewModel", "copied $size bytes")
                     }
                 }
                 destinationFile
             } catch (e: Exception) {
-                Log.e("SettingsViewModel", "onEvent: Error: ${e.message}")
+                ErrorReporter.report("SettingsViewModel", "copying the picked book failed", e)
                 if (destinationFile.exists()) {
                     destinationFile.delete() // Clean up partially copied file
                 }
@@ -123,18 +132,23 @@ class SettingsViewModel @Inject constructor(
 
             SettingsEvent.RefreshStorage -> refreshStorage()
 
+            is SettingsEvent.ImportLibraryFolder -> importLibraryFolder(event.treeUri)
+
             SettingsEvent.DeleteAllBooks -> {
                 viewModelScope.launch {
-                    _settingsState.update { it.copy(isLoading = true) }
-                    withContext(Dispatchers.IO) {
-                        booksUseCases.booksDao.getDownloadedBooksOnce().forEach { booksUseCases.deleteBook(it) }
-                        // Files that never made it into the database (e.g. interrupted downloads).
-                        File(ShamelaApp.externalMediaDir, "ShamelaDownloads").listFiles()
-                            ?.forEach { it.deleteRecursively() }
-                    }
-                    _settingsState.update { it.copy(isLoading = false) }
-                    refreshStorage()
-                    _toastsChannel.send(ToastMessage(R.string.all_books_deleted))
+                    val books = withContext(Dispatchers.IO) { booksUseCases.booksDao.getDownloadedBooksOnce() }
+                    // In the background with the floating progress bar, like single-section deletes.
+                    BookDeletionManager.delete(
+                        books,
+                        deleteBook = { booksUseCases.deleteBook(it) },
+                        onFinished = { completed ->
+                            // Files that never made it into the database (e.g. interrupted
+                            // downloads). Not when stopped: it would delete the books kept too.
+                            if (completed) File(ShamelaApp.externalMediaDir, "ShamelaDownloads").listFiles()
+                                ?.forEach { it.deleteRecursively() }
+                            withContext(Dispatchers.Main) { refreshStorage() }
+                        },
+                    )
                 }
             }
 
@@ -147,7 +161,7 @@ class SettingsViewModel @Inject constructor(
                                 ?: return@withContext ToastMessage(R.string.backup_failed)
                             ToastMessage(R.string.backup_exported, listOf(count))
                         } catch (e: Exception) {
-                            Log.e("SettingsViewModel", "export failed", e)
+                            ErrorReporter.report("SettingsViewModel", "backup export failed", e)
                             ToastMessage(R.string.backup_failed)
                         }
                     }
@@ -166,7 +180,7 @@ class SettingsViewModel @Inject constructor(
                         } catch (e: LibraryBackup.InvalidBackupException) {
                             ToastMessage(R.string.backup_invalid)
                         } catch (e: Exception) {
-                            Log.e("SettingsViewModel", "import failed", e)
+                            ErrorReporter.report("SettingsViewModel", "backup import failed", e)
                             ToastMessage(R.string.backup_failed)
                         }
                     }
@@ -213,6 +227,52 @@ class SettingsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** Copies the books of a picked folder (e.g. the previous app's library) into this library. */
+    private fun importLibraryFolder(treeUri: Uri) {
+        if (_settingsState.value.importProgress != null) return
+        // Keeps the folder readable for the background job, even if the app is restarted meanwhile.
+        runCatching {
+            app.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        _settingsState.update { it.copy(importProgress = 0 to 0) }
+        LibraryImportWorker.start(app, treeUri)
+    }
+
+    /** Shows the background import's progress here, and its result once it ends. */
+    private fun observeLibraryImport() {
+        var sawRunning = false
+        WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(LibraryImportWorker.WORK_NAME)
+            .onEach { infos ->
+                val info = infos.lastOrNull() ?: return@onEach
+                when (info.state) {
+                    WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING, WorkInfo.State.BLOCKED -> {
+                        sawRunning = true
+                        val done = info.progress.getInt(LibraryImportWorker.KEY_DONE, 0)
+                        val total = info.progress.getInt(LibraryImportWorker.KEY_TOTAL, 0)
+                        _settingsState.update { it.copy(importProgress = done to total) }
+                    }
+                    else -> {
+                        _settingsState.update { it.copy(importProgress = null) }
+                        // Only report an import that ended while this screen was watching it.
+                        if (!sawRunning) return@onEach
+                        sawRunning = false
+                        refreshStorage()
+                        if (info.state == WorkInfo.State.SUCCEEDED) {
+                            val out = info.outputData
+                            val imported = out.getInt(LibraryImportWorker.KEY_IMPORTED, 0)
+                            val existing = out.getInt(LibraryImportWorker.KEY_EXISTING, 0)
+                            val failed = out.getInt(LibraryImportWorker.KEY_FAILED, 0)
+                            _toastsChannel.send(
+                                if (out.getInt(LibraryImportWorker.KEY_TOTAL, 0) == 0) ToastMessage(R.string.import_no_books)
+                                else ToastMessage(R.string.import_done, listOf(imported, existing, failed))
+                            )
+                        }
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun refreshStorage() {

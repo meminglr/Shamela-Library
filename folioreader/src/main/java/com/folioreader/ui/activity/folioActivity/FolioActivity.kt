@@ -1,5 +1,7 @@
 package com.folioreader.ui.activity.folioActivity
 
+import com.folioreader.reader.SearchSession
+import org.json.JSONObject
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.util.AppLocale
 import android.annotation.SuppressLint
@@ -18,6 +20,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.folioreader.reader.ReaderSettingsStore
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowInsetsControllerCompat
@@ -53,7 +61,7 @@ class FolioActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AppFonts.setUiDirection(rtl = true)
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == LayoutDirection.Rtl)
 
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -67,6 +75,8 @@ class FolioActivity : ComponentActivity() {
         val startPageHref = intent.getStringExtra(FolioReader.START_PAGE_HREF) ?:""
         val bookId = intent.getStringExtra(SearchActivity.Book_ID) ?:""
         viewModel.onEvent(FolioActivityEvent.InitializeBook(epubFilePath))
+        // Search results belong to one book; opening another one starts without them.
+        if (SearchSession.state.value.bookId != bookId) SearchSession.start(bookId, "", emptyList(), -1)
         LocalBroadcastManager.getInstance(this).registerReceiver(
             closeBroadcastReceiver,
             IntentFilter(FolioReader.ACTION_CLOSE_FOLIOREADER)
@@ -90,8 +100,25 @@ class FolioActivity : ComponentActivity() {
         setContent {
             val state = viewModel.state.collectAsStateWithLifecycle().value
             AppTheme.ShamelaLibraryTheme {
-                // The reader stays right-to-left in every UI language: page order follows the Arabic book.
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                // One loading screen while the book opens, in the page's color, kept until the first
+                // page is drawn. (Reading the book, preparing the chapters and drawing the page each
+                // showed their own indicator before, one after another.)
+                var firstPageShown by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    // Never leave the book hidden if the page doesn't report back.
+                    kotlinx.coroutines.delay(10_000)
+                    firstPageShown = true
+                }
+                val pageColor = remember {
+                    androidx.compose.ui.graphics.Color(
+                        ReaderSettingsStore.load(this@FolioActivity).let {
+                            ReaderSettingsStore.settings.value.backgroundColor(AppTheme.isDarkTheme(this@FolioActivity))
+                        }
+                    )
+                }
+                // Bars and sheets follow the UI language; BookScreen keeps the pages (and the chapter
+                // scrubber) right-to-left, because page order follows the Arabic book.
+                CompositionLocalProvider(LocalLayoutDirection provides AppLocale.layoutDirection(this@FolioActivity)) {
                     state.publication?.let { publication ->
                         val searchResult = viewModel.searchResult.collectAsStateWithLifecycle().value
                         val selectedChapter = viewModel.selectedChapter.collectAsStateWithLifecycle().value
@@ -122,12 +149,24 @@ class FolioActivity : ComponentActivity() {
                             searchResult = searchResult,
                             selectedChapter = selectedChapter,
                             settingsChanged = settingsChanged,
-                            startPageHref = startPageHref
+                            startPageHref = startPageHref,
+                            onSearchLocator = { locator ->
+                                viewModel.onEvent(
+                                    FolioActivityEvent.OnSearchResult(
+                                        href = locator.href,
+                                        jsCall = highlightSearchLocator(locator)
+                                    )
+                                )
+                            },
+                            onJump = { href, js ->
+                                viewModel.onEvent(FolioActivityEvent.OnSearchResult(href = href, jsCall = js))
+                            },
+                            onFirstPageShown = { firstPageShown = true },
                         )
                     }
 
                 }
-                LoadingScreen(visibility = state.isLoading)
+                LoadingScreen(visibility = state.isLoading || !firstPageShown, background = pageColor)
             }
         }
     }
@@ -191,7 +230,10 @@ class FolioActivity : ComponentActivity() {
         }
 
     private fun highlightSearchLocator(searchLocator: SearchLocator): String {
-        return "javascript:highlightSearchLocator('${searchLocator.text?.hightlight}')"
+        val text = JSONObject.quote(searchLocator.text?.hightlight.orEmpty())
+        val before = JSONObject.quote(searchLocator.text?.before.orEmpty())
+        // Unique each time, so showing the same match again still scrolls to it.
+        return "/*${System.nanoTime()}*/highlightSearchLocator($text, $before)"
     }
 
     private val contentHighlightLauncher =
@@ -235,8 +277,7 @@ class FolioActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // The reader is always right-to-left (Arabic book), whatever the UI language.
-        AppFonts.setUiDirection(rtl = true)
+        AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == LayoutDirection.Rtl)
         Log.v(LOG_TAG, "-> onResume")
         viewModel.onEvent(FolioActivityEvent.OnChangeTopActivity(true))
         val action = intent.action

@@ -9,4 +9,7 @@ sealed class SearchEvent {
     class SearchCategories(val searchQuery: String,  val searchCategories: List<String>, val context: Context) : SearchEvent()
 
     object ClearSearchQuery : SearchEvent()
+
+    /** Shows the results of the previous search in this book again (from the reader's "back to results"). */
+    class RestoreResults(val query: String, val results: List<com.folioreader.model.locators.SearchLocator>) : SearchEvent()
 }

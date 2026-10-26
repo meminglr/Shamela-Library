@@ -50,9 +50,23 @@ class CustomWebView(
      * lookup stays inside the reader's Compose tree (drives the meaning sheet via
      * BookViewModel), rather than leaving the module like the favorite action.
      */
-    var onRequestMeaning: ((String) -> Unit)? = null
+    var onRequestMeaning: ((word: String, context: String) -> Unit)? = null
+
+    /** "Highlight" on a selection: (selected text, text just before it). Called on the UI thread. */
+    var onCreateHighlight: ((String, String) -> Unit)? = null
+
+    /** A tap on an existing highlight (its id). Called on the UI thread. */
+    var onHighlightClicked: ((String) -> Unit)? = null
 
     init {
+        // Pages only scroll vertically (in Compose); never sideways, not even for a frame while
+        // a new chapter is laid out.
+        isHorizontalScrollBarEnabled = false
+        // The page scrolls in Compose; the WebView's own scrollbar only flashed at its edge.
+        isVerticalScrollBarEnabled = false
+        overScrollMode = OVER_SCROLL_NEVER
+        settings.useWideViewPort = true
+        settings.loadWithOverviewMode = false
         density = resources.displayMetrics.density
         uiHandler = Handler()
         initViewTextSelectionNew()
@@ -93,38 +107,70 @@ class CustomWebView(
             loadUrl("javascript:onTextSelectionItemClicked(${it.id})")
             //TODO:) this code must be changed
         }
+        binding.highlightSelection.setOnClickListener {
+            dismissPopupWindow()
+            loadUrl("javascript:highlightSelection()")
+        }
         binding.meaningSelection.setOnClickListener {
             dismissPopupWindow()
-            loadUrl("javascript:onTextSelectionItemClicked(${it.id})")
+            loadUrl("javascript:requestMeaning()")
         }
     }
 
 
-    override fun startActionMode(callback: ActionMode.Callback?, type: Int): ActionMode {
-        actionMode = super.startActionMode(ActionModeCallBack(), type)
-        actionMode?.finish()
-        return actionMode as ActionMode
-    }
+    /**
+     * The system's own floating text-selection toolbar (copy, share, select all, ...), with the
+     * reader's actions added to it: highlight, add to favorites, meaning. Looks and behaves like
+     * text selection everywhere else on the phone, instead of a custom popup.
+     */
+    override fun startActionMode(callback: ActionMode.Callback?, type: Int): ActionMode? =
+        super.startActionMode(ReaderActionModeCallback(callback), ActionMode.TYPE_FLOATING)
 
-    inner class ActionModeCallBack : ActionMode.Callback {
-        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean { return true }
-        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-            evaluateJavascript("javascript:getSelectionRect()") { value ->
-                val rectJson = JSONObject(value)
-                setSelectionRect(
-                    rectJson.getInt("left"), rectJson.getInt("top"),
-                    rectJson.getInt("right"), rectJson.getInt("bottom")
-                )
+    override fun startActionMode(callback: ActionMode.Callback?): ActionMode? =
+        super.startActionMode(ReaderActionModeCallback(callback), ActionMode.TYPE_FLOATING)
+
+    private inner class ReaderActionModeCallback(
+        private val system: ActionMode.Callback?,
+    ) : ActionMode.Callback2() {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val created = system?.onCreateActionMode(mode, menu) ?: true
+            // Before the system items, so the reader's actions are visible without "more".
+            // On the toolbar: highlight and meaning ("always"), then the system's copy / share;
+            // add-to-favorites goes under "more", after the system items.
+            menu.add(Menu.NONE, R.id.highlightSelection, 0, R.string.highlight)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+            menu.add(Menu.NONE, R.id.meaningSelection, 1, R.string.meaning)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+            menu.add(Menu.NONE, R.id.addSelectionToFavirite, 20, R.string.addToFavorite)
+            return created
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean =
+            system?.onPrepareActionMode(mode, menu) ?: false
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            val script = when (item.itemId) {
+                R.id.highlightSelection -> "highlightSelection()"
+                R.id.meaningSelection -> "requestMeaning()"
+                R.id.addSelectionToFavirite -> "onTextSelectionItemClicked(${item.itemId})"
+                else -> return system?.onActionItemClicked(mode, item) ?: false
             }
-            return false
+            // Finishing the action mode clears the WebView's selection, so it must wait until
+            // the script has read it — with loadUrl() + an immediate finish() the two raced and
+            // the action often saw an empty selection (nothing happened until a second try).
+            evaluateJavascript(script) { mode.finish() }
+            return true
         }
 
-        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean { return false }
+        override fun onDestroyActionMode(mode: ActionMode) {
+            system?.onDestroyActionMode(mode)
+        }
 
-        override fun onDestroyActionMode(mode: ActionMode) { dismissPopupWindow() }
-
+        override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) {
+            (system as? ActionMode.Callback2)?.onGetContentRect(mode, view, outRect)
+                ?: super.onGetContentRect(mode, view, outRect)
+        }
     }
-
 
     @JavascriptInterface
     fun setSelectionRect(left: Int, top: Int, right: Int, bottom: Int) {
@@ -138,6 +184,14 @@ class CustomWebView(
 
         computeTextSelectionRect(currentSelectionRect)
         uiHandler.post { showTextSelectionPopup() }
+    }
+
+    /** "المعنى" on a selection (see requestMeaning() in Bridge.js): the word and its surrounding text. */
+    @JavascriptInterface
+    fun onMeaningRequested(selectedText: String?, context: String?) {
+        val word = selectedText?.trim().orEmpty()
+        if (word.isEmpty()) return
+        uiHandler.post { onRequestMeaning?.invoke(word, context.orEmpty()) }
     }
 
     @JavascriptInterface
@@ -171,17 +225,22 @@ class CustomWebView(
                 }
             }
 
-            R.id.meaningSelection -> {
-                Log.v(LOG_TAG, "-> onTextSelectionItemClicked -> meaningSelection -> $selectedText")
-                selectedText?.let { text ->
-                    uiHandler.post { onRequestMeaning?.invoke(text) }
-                }
-            }
-
             else -> {
                 Log.w(LOG_TAG, "-> onTextSelectionItemClicked -> unknown id = $id")
             }
         }
+    }
+
+    @JavascriptInterface
+    fun onHighlightSelection(text: String?, before: String?) {
+        if (text.isNullOrBlank()) return
+        uiHandler.post { onCreateHighlight?.invoke(text, before.orEmpty()) }
+    }
+
+    @JavascriptInterface
+    fun onHighlightClicked(id: String?) {
+        id ?: return
+        uiHandler.post { onHighlightClicked?.invoke(id) }
     }
 
     @JavascriptInterface
@@ -376,6 +435,18 @@ class CustomWebView(
 
         uiHandler.postDelayed(isScrollingRunnable, IS_SCROLLING_CHECK_TIMER.toLong())
     }
+
+    // No horizontal scroll range at all: while a chapter loads, the (right-to-left) page can
+    // measure a few pixels wider than the screen, and the WebView then scrolled it sideways for a
+    // frame, leaving empty strips at the edges.
+    override fun computeHorizontalScrollRange(): Int = width
+
+    override fun computeHorizontalScrollExtent(): Int = width
+
+    override fun overScrollBy(
+        deltaX: Int, deltaY: Int, scrollX: Int, scrollY: Int, scrollRangeX: Int, scrollRangeY: Int,
+        maxOverScrollX: Int, maxOverScrollY: Int, isTouchEvent: Boolean,
+    ): Boolean = super.overScrollBy(0, deltaY, 0, scrollY, 0, scrollRangeY, 0, maxOverScrollY, isTouchEvent)
 
     companion object {
         private const val IS_SCROLLING_CHECK_TIMER = 100

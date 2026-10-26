@@ -68,6 +68,7 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import com.shamela.library.domain.model.Category
 import com.shamela.library.presentation.screens.LocalPaddingValues
+import com.shamela.library.presentation.screens.LocalFloatingBarInset
 
 @Composable
 fun SearchScreen(
@@ -98,7 +99,8 @@ fun SearchScreen(
             .fillMaxSize()
             .padding(localPadding)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .padding(bottom = LocalFloatingBarInset.current),
     ) {
         SearchTextField(
             value = searchState.searchQuery,
@@ -106,7 +108,7 @@ fun SearchScreen(
             onSearch = startSearch,
             onClear = { viewModel.onEvent(SearchEvent.OnChangeSearchQuery("")) }
         )
-        SettingsSectionTitle(stringResource(R.string.view_sections))
+        SettingsSectionTitle(stringResource(R.string.view_sections), icon = ShamelaIcons.LibraryBooks)
         SelectedSections(
             allCategories = searchState.allCategories,
             selectedCategories = searchState.selectedCategories,

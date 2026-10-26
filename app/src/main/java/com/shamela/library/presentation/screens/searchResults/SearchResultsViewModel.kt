@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.shamela.apptheme.data.db.FtsQuery
 import com.shamela.library.data.local.assets.AssetsRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
+import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.model.DownloadStatus
 import com.shamela.library.domain.usecases.books.BooksUseCases
@@ -31,14 +32,14 @@ import javax.inject.Inject
 class SearchResultsViewModel @Inject constructor(
     @AssetsRepoImpl private val remoteBooksUseCases: BooksUseCases,
     @FilesRepoImpl private val localBooksUseCases: BooksUseCases,
+    @ShamelaRepoImpl private val shamelaBooksUseCases: BooksUseCases,
     private val quotesUseCases: QuotesUseCases,
     private val handle: SavedStateHandle,
     private val application: Application,
-) : ViewModel(), BooksDownloadManager.Subscriber {
+) : ViewModel() {
     private val _searchResultsState = MutableStateFlow(SearchResultsState())
     val searchResultsState = _searchResultsState.asStateFlow()
     private var searchJob: Job? = null
-    private val booksDownloadManager = BooksDownloadManager(application.applicationContext)
 
 
     fun onEvent(event: SearchResultsEvent) {
@@ -62,53 +63,52 @@ class SearchResultsViewModel @Inject constructor(
                         val repo = when (type) {
                             "local" -> localBooksUseCases
                             "remote" -> remoteBooksUseCases
-                            "sections" -> remoteBooksUseCases
+                            "shamela" -> shamelaBooksUseCases
                             else -> localBooksUseCases
                         }
-                        if (type == "sections") {
+                        // Download catalogs: matching sections are listed above the matching books.
+                        if (type == "remote" || type == "shamela") {
                             val normalizedQuery = FtsQuery.normalized(query)
-                            val newList = repo.getAllCategories().filter { category ->
+                            val sections = repo.getAllCategories().filter { category ->
                                 FtsQuery.normalized(category.name).contains(normalizedQuery)
                             }.toList()
                             _searchResultsState.update {
                                 it.copy(
-                                    sectionsResultsList = newList,
-                                    lastQuery = if (newList.isNotEmpty()) query else "",
-                                    isLoading = false,
-                                    isListEmpty = newList.isEmpty()
+                                    sectionsResultsList = sections,
+                                    lastQuery = if (sections.isNotEmpty()) query else ""
                                 )
                             }
-                        } else {
-                            repo.searchForABook(categoryName, query).collect { book ->
-                                _searchResultsState.update {
-                                    val newList = it.booksResultsList + book
-                                    it.copy(
-                                        booksResultsList = newList,
-                                        lastQuery = if (newList.isNotEmpty()) query else ""
-                                    )
-                                }
-                            }
+                        }
+                        repo.searchForABook(categoryName, query).collect { book ->
                             _searchResultsState.update {
                                 it.copy(
-                                    isLoading = false,
-                                    isListEmpty = it.booksResultsList.isEmpty()
+                                    booksResultsList = it.booksResultsList + book,
+                                    lastQuery = query
                                 )
                             }
+                        }
+                        _searchResultsState.update {
+                            it.copy(
+                                isLoading = false,
+                                isListEmpty = it.booksResultsList.isEmpty() && it.sectionsResultsList.isEmpty()
+                            )
                         }
                     }
                 }
             }
 
             is SearchResultsEvent.OnClickDownloadBook -> {
+                BooksDownloadManager.markPreparing(event.book.id)
                 viewModelScope.launch {
-                    remoteBooksUseCases.getDownloadUri(event.book.categoryName, event.book.title)
+                    val catalog = if (_searchResultsState.value.type == "shamela") shamelaBooksUseCases else remoteBooksUseCases
+                    catalog.getDownloadUri(event.book.categoryName, event.book.title)
                         ?.let { uri ->
-                            booksDownloadManager.downloadBook(
+                            BooksDownloadManager.downloadBook(
                                 downloadUri = uri,
                                 book = event.book,
                                 bookCategory = event.book.categoryName
                             )
-                        } ?: BooksDownloadManager.reportLinkUnavailable(event.book.title)
+                        } ?: BooksDownloadManager.reportLinkUnavailable(event.book.title, event.book.id)
                 }
             }
 
@@ -127,7 +127,6 @@ class SearchResultsViewModel @Inject constructor(
 
             is SearchResultsEvent.AddQuoteToFavorite -> {
                 viewModelScope.launch {
-                    Log.d("SearchResultsViewModel", "AddQuoteToFavorite ${event.quote}")
                     quotesUseCases.saveQuote(event.quote)
                     Toast.makeText(application, application.getString(R.string.quote_added), Toast.LENGTH_SHORT).show()
                 }
@@ -136,7 +135,6 @@ class SearchResultsViewModel @Inject constructor(
     }
 
     init {
-        BooksDownloadManager.subscribe(this)
         viewModelScope.launch {
             combine(
                 BooksDownloadManager.downloadStatusFlow,
@@ -144,11 +142,6 @@ class SearchResultsViewModel @Inject constructor(
             ) { statusMap, downloadedList ->
                 Pair(statusMap, downloadedList.map { it.id }.toSet())
             }.collect { (statusMap, downloadedIds) ->
-                statusMap.forEach { (bookId, status) ->
-                    if (status is DownloadStatus.Downloading && downloadedIds.contains(bookId)) {
-                        BooksDownloadManager.clearStatus(bookId)
-                    }
-                }
                 _searchResultsState.update {
                     it.copy(downloadStatuses = statusMap, downloadedBookIds = downloadedIds)
                 }
@@ -156,12 +149,5 @@ class SearchResultsViewModel @Inject constructor(
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        BooksDownloadManager.unsubscribe(this)
-    }
 
-    override fun onBookDownloaded(book: Book, isLastBook: Boolean) {
-        // No-op: UI state is driven by the combine collector above
-    }
 }

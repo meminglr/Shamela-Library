@@ -47,7 +47,6 @@ object FilesBooksRepoImpl : BooksRepository {
                 startPageHref = startPageHref,
                 bookId = book.id,
                 onAddQuoteToFavorite = { pageIndex: Int, pageHref: String, text: String ->
-                    Log.e(TAG, "openEpub: onAddQuoteToFavorite title: ${book.title}")
                     onAddQuoteToFavorite(
                         Quote(
                             text = text,
@@ -62,14 +61,14 @@ object FilesBooksRepoImpl : BooksRepository {
             Log.d(TAG, "openEpub: $book is a file, absolute path: ${bookFile.absoluteFile}")
             true
         } else {
-            Log.e(TAG, "openEpub: $book is NOT a file, absolute path: ${bookFile.absoluteFile}")
+            Log.w(TAG, "openEpub: $book is NOT a file, absolute path: ${bookFile.absoluteFile}")
             false
         }
 
     }
 
     override fun getCategories(): Flow<Category> = channelFlow {
-        Log.e(TAG, "Loading ALl Categories")
+        Log.d(TAG, "Loading all categories")
         try {
             if (shamelaBooks.exists() && shamelaBooks.isDirectory) {
                 val categories = shamelaBooks.listFiles(FileFilter { it.isDirectory })
@@ -143,7 +142,7 @@ object FilesBooksRepoImpl : BooksRepository {
     }
 
     override fun getAllBooks(): Flow<Book> = channelFlow {
-        Log.e(TAG, "Loading ALl Books")
+        Log.d(TAG, "Loading all books")
         openShamelaFolder { categories ->
             categories?.forEach { folder ->
                 folder.listFiles()?.forEach { bookFile ->
@@ -189,12 +188,14 @@ object FilesBooksRepoImpl : BooksRepository {
         val baseFolder = shamelaBooks
         val bookFilePath = "${book.categoryName}/${book.title}.epub"
         val fileToBeDeleted = File(baseFolder, bookFilePath)
-        Log.e(TAG, "deleteBookFile: ${fileToBeDeleted.absoluteFile}")
+        Log.d(TAG, "deleteBookFile: ${fileToBeDeleted.absoluteFile}")
 
         return withContext(Dispatchers.IO) {
             val delete = fileToBeDeleted.delete()
+            // The last book of a section: remove its folder too.
+            fileToBeDeleted.parentFile?.takeIf { it.list()?.isEmpty() == true }?.delete()
             if (delete) {
-                Log.e(TAG, "deleteBookFile: Book Deleted Successfully")
+                Log.d(TAG, "deleteBookFile: Book Deleted Successfully")
             } else {
                 Log.e(TAG, "deleteBookFile: Book Deletion Failed")
             }

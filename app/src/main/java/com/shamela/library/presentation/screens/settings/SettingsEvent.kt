@@ -9,6 +9,7 @@ sealed class SettingsEvent {
     class NewFileSelected(val fileUri: Uri) : SettingsEvent()
     class ExportBackup(val uri: Uri) : SettingsEvent()
     class ImportBackup(val uri: Uri) : SettingsEvent()
+    class ImportLibraryFolder(val treeUri: Uri) : SettingsEvent()
     object DeleteAllBooks : SettingsEvent()
     object RefreshStorage : SettingsEvent()
 }

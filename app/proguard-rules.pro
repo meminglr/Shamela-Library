@@ -1,47 +1,43 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# R8 rules for the release build.
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# The app's own code (com.shamela.library, com.shamela.apptheme) is shrunk and optimized: only the
+# classes read or written by reflection are kept below. Room, Hilt, WorkManager, Compose, Gson,
+# Firebase and the other AndroidX libraries bring their own rules.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
-
+# Class and method names stay readable: crash stack traces in logcat need no mapping file.
 -dontobfuscate
--optimizations !code/simplification/arithmetic,!field/*,!class/merging/*,!code/allocation/variable
--keep class org.readium.r2.streamer.** {
-    <init>(...);
-    *;
-}
-#ParametrizedType ClassCastException error fix
+
+# --- Gson -----------------------------------------------------------------------------------
+# Gson reads and writes these classes' fields by name, and builds them without calling a
+# constructor. Generic signatures are needed for List<T> fields (else their items come back as
+# maps and fail with a ClassCastException).
+-keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
+
+# assets/categories and assets/book-details
+-keep class com.shamela.library.data.local.assets.dto.** { <fields>; <init>(...); }
+# Settings > backup file
+-keep class com.shamela.library.data.local.backup.LibraryBackup$Backup* { <fields>; <init>(...); }
+# shamela.ws catalog cache (files/shamela/catalog.json)
+-keep class com.shamela.library.data.remote.shamela.ShamelaCatalogData { <fields>; <init>(...); }
+-keep class com.shamela.library.data.remote.shamela.ShamelaCategory { <fields>; <init>(...); }
+-keep class com.shamela.library.data.remote.shamela.ShamelaBookEntry { <fields>; <init>(...); }
+-keep class com.shamela.library.domain.model.BookInfoItem { <fields>; <init>(...); }
+# The book-details navigation argument
+-keep class com.shamela.library.domain.model.Book { <fields>; <init>(...); }
+
+# --- Reader (folioreader module) ------------------------------------------------------------
+# An older library built on reflection: Jackson/Gson models, Retrofit, JavaScript interfaces of its
+# WebViews, Parcelables. Kept whole.
+-keep class com.folioreader.** { *; }
+-keep class org.readium.r2.streamer.** { *; }
+# Retrofit (used by the reader): keeps generic return types of its API interfaces.
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
--keep,allowobfuscation,allowshrinking class kotlin.coroutines.** { *; }
-
+# Joda-Time (via Readium) optionally references Joda-Convert annotations.
 -dontwarn org.joda.convert.**
--keep class com.shamela.library.data.** {*;}
--keep class com.shamela.library.domain.** {*;}
--keep class com.shamela.library.presentation.** { *; }
--keep class com.shamela.apptheme.** {*;}
--keep class com.folioreader.mediaoverlay.** {*;}
--keep class com.folioreader.model.** {*;}
--keep class com.folioreader.network.** {*;}
--keep class com.folioreader.ui.** {*;}
--keep class com.folioreader.util.** {*;}
--keep class com.folioreader.viewmodels.** {*;}
--keep class com.folioreader.** {*;}
 
-
+# --- TLS (BookServerConnection, DottedSniConnection) ----------------------------------------
+# Conscrypt: native methods and classes looked up by name.
+-keep class org.conscrypt.** { *; }
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**

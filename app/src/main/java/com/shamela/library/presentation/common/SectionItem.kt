@@ -1,6 +1,9 @@
 package com.shamela.library.presentation.common
 
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -64,3 +67,56 @@ fun SectionItem(
 @Composable
 fun sectionDisplayName(name: String): String =
     if (name == ShamelaApp.EXTERNAL_BOOKS_CATEGORY) stringResource(R.string.external_books_section) else name
+
+/**
+ * Sections under subject headings (Fiqh, Hadith, …), alphabetical within each; each group is its
+ * own segmented block.
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.groupedSectionItems(
+    sections: Collection<Category>,
+    onClick: (Category) -> Unit,
+) {
+    com.shamela.library.domain.util.SectionGroup.group(sections).forEach { (group, items) ->
+        item(key = "group-${group.name}") {
+            SectionGroupHeader(
+                title = stringResource(group.label),
+                bookCount = items.sumOf { it.bookCount },
+                modifier = Modifier.animateItem(),
+            )
+        }
+        items(items.size, key = { items[it].id }) { index ->
+            val category = items[index]
+            SectionItem(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .animateItem(),
+                item = category,
+                onClick = { onClick(category) },
+                index = index,
+                count = items.size,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionGroupHeader(title: String, bookCount: Int, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(
+        modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = stringResource(R.string.books_count_label, bookCount),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}

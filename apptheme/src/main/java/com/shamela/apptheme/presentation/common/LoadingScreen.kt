@@ -1,6 +1,5 @@
 package com.shamela.apptheme.presentation.common
 
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.RepeatMode
@@ -27,7 +26,11 @@ import com.shamela.apptheme.presentation.theme.AppTheme
 /** A centered, standard-size progress indicator over the screen background. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun LoadingScreen(visibility: Boolean) {
+fun LoadingScreen(
+    visibility: Boolean,
+    /** Behind the indicator: the screen's own background (e.g. the reader's page color). */
+    background: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surface,
+) {
     AnimatedVisibility(
         visible = visibility,
         enter = fadeIn(),
@@ -36,12 +39,12 @@ fun LoadingScreen(visibility: Boolean) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+                .background(background)
                 .clickable(enabled = false) {},
             contentAlignment = Alignment.Center
         ) {
             // M3 Expressive shape-morphing loading indicator.
-            LoadingIndicator()
+            CircularProgressIndicator()
         }
     }
 }

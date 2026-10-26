@@ -7,7 +7,6 @@
     <string name="nav_favorite">Favoriler</string>
     <string name="nav_search">Ara</string>
     <string name="nav_settings">Ayarlar</string>
-    <string name="about_app">Uygulama hakkında</string>
 
     <!-- Common -->
     <string name="view_sections">Bölümler</string>
@@ -40,8 +39,27 @@
     <string name="selected_count">%1$d seçildi</string>
     <string name="delete_selected_books">Seçili kitapları sil</string>
     <string name="delete_book_title">Kitabı sil</string>
-    <string name="delete_book_message">\"%1$s\" kitabını silmek istediğinize emin misiniz?</string>
-    <string name="delete_selected_books_message">Seçili %1$d kitabı silmek istediğinize emin misiniz?</string>
+    <string name="delete_book_message">\"%1$s\" kitabını silmek istediğinize emin misiniz? Kitaptan kaydettiğiniz alıntılar da silinir.</string>
+    <string name="delete_selected_books_message">Seçili %1$d kitabı silmek istediğinize emin misiniz? Bu kitaplardan kaydettiğiniz alıntılar da silinir.</string>
+    <string name="delete_section">Bölümü sil</string>
+    <string name="delete_section_message">\"%1$s\" bölümündeki %2$d kitap, kaydettiğiniz alıntılarıyla birlikte cihazdan silinecek. Emin misiniz?</string>
+    <string name="deleting_books_title">Kitaplar siliniyor</string>
+    <string name="deleting_books_count">%1$d / %2$d silindi</string>
+    <string name="deleting_books_stop">Durdur</string>
+    <string name="books_deleted">%1$d kitap silindi</string>
+    <string name="group_quran">Kur\'an ve Tefsir</string>
+    <string name="group_hadith">Hadis</string>
+    <string name="group_aqidah">Akaid</string>
+    <string name="group_fiqh">Fıkıh ve Usul</string>
+    <string name="group_history">Tarih ve Biyografi</string>
+    <string name="group_language">Dil ve Edebiyat</string>
+    <string name="group_raqaiq">Rekaik ve Davet</string>
+    <string name="group_scholars">Âlimlerin Eserleri</string>
+    <string name="group_general">Genel ve Kaynaklar</string>
+    <string name="group_other">Diğer</string>
+    <string name="deletion_done_title">Silme tamamlandı</string>
+    <string name="deleting_books_stopped">Durduruldu</string>
+    <string name="close">Kapat</string>
     <string name="library_empty_title">Kütüphanenizde henüz kitap yok</string>
     <string name="library_empty_message">İndir sekmesinden kitap indirebilirsiniz; indirdiğiniz kitaplar istediğiniz zaman okumanız için burada görünür.</string>
 
@@ -86,17 +104,6 @@
     <string name="download_book">Kitabı indir</string>
 
     <!-- About -->
-    <string name="app_description">EPUB biçimindeki İslami kitapları okumak için bir uygulama. Kitapları indirip internet bağlantısı olmadan istediğiniz zaman okuyabilirsiniz.</string>
-    <string name="update_app">Uygulamayı güncelle</string>
-    <string name="update_downloading_progress">İndiriliyor… %%%1$d</string>
-    <string name="whats_new">Yenilikler</string>
-    <string name="current_version">Mevcut sürüm</string>
-    <string name="latest_version">En son sürüm</string>
-    <string name="update_check_failed">Güncellemeler kontrol edilemedi</string>
-    <string name="update_download_failed">İndirme başarısız oldu, lütfen tekrar deneyin</string>
-    <string name="no_releases_found">Henüz yayınlanmış bir sürüm yok</string>
-    <string name="update_notification_title">Şamile Kütüphanesi güncellemesi</string>
-    <string name="update_notification_description">Güncelleme indiriliyor…</string>
 
     <!-- Push notifications -->
     <string name="updates_channel_name">Uygulama güncellemeleri</string>
@@ -133,4 +140,61 @@
     <string name="backup_imported">%1$d öğe içe aktarıldı, indirilmemiş kitaplara ait %2$d öğe atlandı</string>
     <string name="backup_invalid">Geçersiz yedek dosyası</string>
     <string name="backup_failed">İşlem başarısız oldu, lütfen tekrar deneyin</string>
+    <string name="import_library">Eski uygulamadan kitapları aktar</string>
+    <string name="import_library_description">Önceki Shamela uygulamasında indirdiğiniz kitapları bu uygulamaya kopyalayın. Eski uygulamayı kaldırmadan önce yapın; kaldırınca kitapları da silinir. ShamelaDownloads klasörünü (Android/media/com.shamela.library) seçip “Bu klasörü kullan” düğmesine dokunun.</string>
+    <string name="import_choose_folder">Klasör seç</string>
+    <string name="import_progress">Aktarılıyor: %1$d / %2$d</string>
+    <string name="import_scanning">Kitaplar aranıyor…</string>
+    <string name="import_done">%1$d kitap aktarıldı, %2$d kitap zaten vardı, %3$d kitap aktarılamadı</string>
+    <string name="import_no_books">Bu klasörde kitap bulunamadı</string>
+    <string name="dl_channel_name">Kitap indirmeleri</string>
+    <string name="tasks_channel_name">Kitap aktarma ve arama hazırlığı</string>
+    <string name="tasks_channel_description">Kitaplar aktarılırken ve arama için hazırlanırken ilerlemeyi gösterir</string>
+    <string name="import_notif_title">Kitaplar aktarılıyor</string>
+    <string name="index_notif_title">Kitaplar arama için hazırlanıyor</string>
+    <string name="dl_channel_description">İndirilen kitapların ilerlemesi</string>
+    <string name="dl_queued">Sırada</string>
+    <string name="dl_connecting">Bağlanıyor…</string>
+    <string name="dl_progress">%1$d%% · %2$s / %3$s</string>
+    <string name="dl_progress_unknown">%1$s indirildi</string>
+    <string name="dl_speed">%1$s/sn</string>
+    <string name="dl_waiting_network">Bağlantı bekleniyor · bağlanınca kaldığı yerden devam edecek</string>
+    <string name="dl_waiting_retry">Bağlantı kesildi · birazdan kaldığı yerden yeniden denenecek</string>
+    <string name="dl_failed">İndirilemedi · tekrar denemek için dokunun</string>
+    <string name="dl_failed_not_found">Kitap sunucuda bulunamadı</string>
+    <string name="dl_failed_no_space">Yeterli depolama alanı yok</string>
+    <string name="dl_failed_storage">Cihaz depolamasına kaydedilemedi. Telefonu yeniden başlatıp tekrar deneyin</string>
+    <string name="dl_failed_corrupt">İndirilen dosya bozuk</string>
+    <string name="dl_retry">Tekrar dene</string>
+    <string name="dl_retry_now">Şimdi dene</string>
+    <string name="dl_cancel">İndirmeyi iptal et</string>
+    <string name="dl_panel_title">İndirmeler</string>
+    <string name="dl_panel_empty">Şu an indirilen kitap yok</string>
+    <string name="dl_cancel_all">Tümünü iptal et</string>
+    <string name="dl_retry_failed">Başarısızları tekrar dene</string>
+    <string name="dl_clear_failed">Başarısızları temizle</string>
+    <string name="dl_bar_active">%1$d kitap indiriliyor</string>
+    <string name="dl_bar_waiting">%1$d kitap bağlantı bekliyor</string>
+    <string name="dl_bar_failed">%1$d kitap indirilemedi</string>
+    <string name="dl_notif_progress_title">Kitaplar indiriliyor (%1$d)</string>
+    <string name="dl_notif_progress_text">%1$d / %2$d kitap tamamlandı</string>
+    <string name="dl_notif_waiting">Bağlantı bekleniyor · bağlanınca devam edecek</string>
+    <string name="dl_notif_done_title">İndirme tamamlandı</string>
+    <string name="dl_notif_done_text">%1$d kitap indirildi</string>
+    <string name="dl_notif_done_with_failures">%1$d kitap indirildi, %2$d kitap indirilemedi</string>
+    <string name="dl_started">“%1$s” indirme sırasına eklendi</string>
+    <!-- Şamile (shamela.ws) source -->
+    <string name="source_library">Kütüphane 1</string>
+    <string name="source_shamela">Kütüphane 2</string>
+    <string name="shamela_refresh_catalog">Kataloğu yenile</string>
+    <string name="shamela_catalog_loading_start">Şamile kataloğu indiriliyor…</string>
+    <string name="shamela_catalog_loading">Şamile kataloğu indiriliyor: %1$d / %2$d bölüm</string>
+    <string name="shamela_catalog_failed">Şamile kataloğu indirilemedi. Bağlantıyı kontrol edip tekrar dene.</string>
+    <string name="shamela_catalog_needs_verify">shamela.ws tarayıcı doğrulaması istiyor.</string>
+    <string name="shamela_verify_action">Doğrula</string>
+    <string name="shamela_verify_title">shamela.ws doğrulaması</string>
+    <string name="shamela_verify_hint">Site doğrulama isterse tamamla; sayfa kendiliğinden kapanacak.</string>
+    <string name="dl_progress_pages">%1$d%% · \u2066%2$d / %3$d\u2069 sayfa</string>
+    <string name="dl_shamela_preparing">Kitap hazırlanıyor…</string>
+    <string name="dl_failed_shamela_verify">shamela.ws doğrulama istiyor</string>
 </resources>

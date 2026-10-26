@@ -1,6 +1,7 @@
 package com.shamela.library.presentation.screens.searchResults
 
 
+import com.shamela.library.presentation.common.downloadStatusOf
 import androidx.compose.foundation.layout.Arrangement
 import com.shamela.library.presentation.common.SegmentGap
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shamela.apptheme.presentation.common.EmptyListScreen
+import com.shamela.apptheme.presentation.common.ListGroupHeader
 import com.shamela.apptheme.presentation.common.LoadingScreen
 import com.shamela.apptheme.presentation.common.SearchTopBar
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
@@ -39,6 +41,7 @@ import com.shamela.library.presentation.common.BookItem
 import com.shamela.library.presentation.common.DownloadIconButton
 import com.shamela.library.presentation.common.SectionItem
 import com.shamela.library.presentation.screens.LocalPaddingValues
+import com.shamela.library.presentation.screens.LocalFloatingBarInset
 
 @Composable
 fun SearchResultsScreen(
@@ -64,65 +67,73 @@ fun SearchResultsScreen(
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(SegmentGap),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp + LocalFloatingBarInset.current)
             ) {
-                if (state.type == "sections"){
-                    itemsIndexed(state.sectionsResultsList, key = { _, it -> it.id }) { index, it ->
+                val sections = state.sectionsResultsList
+                if (sections.isNotEmpty()) {
+                    item(key = "sections-header") {
+                        ListGroupHeader(text = stringResource(R.string.view_sections) + " (${sections.size})")
+                    }
+                    itemsIndexed(sections, key = { _, it -> "section-${it.id}" }) { index, it ->
                         SectionItem(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             item = it,
                             highlightText = state.lastQuery,
-                            onClick = { navigateToSectionBooksScreen(it.name, "remote") },
+                            onClick = { navigateToSectionBooksScreen(it.name, state.type) },
                             index = index,
-                            count = state.sectionsResultsList.size,
+                            count = sections.size,
                         )
                     }
-                }else{
-                    itemsIndexed(state.booksResultsList, key = { _, it -> it.id }) { index, currentBook ->
-                        when (state.type){
-                            "local"->{
-                                BookItem(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    onClick = {
-                                        FilesBooksRepoImpl.openEpub(
-                                            currentBook,
-                                            onAddQuoteToFavorite = { quote ->
-                                                viewModel.onEvent(
-                                                    SearchResultsEvent.AddQuoteToFavorite(quote)
-                                                )
-                                            })
-                                    },
-                                    index = index,
-                                    count = state.booksResultsList.size,
-                                    item = currentBook,
-                                    highlightText = state.lastQuery,
-                                    onInfoClick = { navigateToBookDetails(currentBook) }
-                                )
-                            }
-                            "remote"->{
-                                BookItem(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    onClick = { navigateToBookDetails(currentBook) },
-                                    index = index,
-                                    count = state.booksResultsList.size,
-                                    item = currentBook,
-                                    onInfoClick = { navigateToBookDetails(currentBook) },
-                                    icon = {
-                                        DownloadIconButton(
-                                            bookId = currentBook.id,
-                                            downloadStatuses = state.downloadStatuses,
-                                            downloadedBookIds = state.downloadedBookIds,
-                                            onDownloadClick = {
-                                                viewModel.onEvent(SearchResultsEvent.OnClickDownloadBook(currentBook))
-                                            },
-                                            onCancelClick = {
-                                                viewModel.onEvent(SearchResultsEvent.OnClickCancelDownload(currentBook.id))
-                                            },
-                                        )
-                                    },
-                                    highlightText = state.lastQuery
-                                )
-                            }
+                    if (state.booksResultsList.isNotEmpty()) {
+                        item(key = "books-header") {
+                            ListGroupHeader(text = stringResource(R.string.view_books) + " (${state.booksResultsList.size})")
+                        }
+                    }
+                }
+                itemsIndexed(state.booksResultsList, key = { _, it -> it.id }) { index, currentBook ->
+                    when (state.type){
+                        "local"->{
+                            BookItem(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                onClick = {
+                                    FilesBooksRepoImpl.openEpub(
+                                        currentBook,
+                                        onAddQuoteToFavorite = { quote ->
+                                            viewModel.onEvent(
+                                                SearchResultsEvent.AddQuoteToFavorite(quote)
+                                            )
+                                        })
+                                },
+                                index = index,
+                                count = state.booksResultsList.size,
+                                item = currentBook,
+                                highlightText = state.lastQuery,
+                                onInfoClick = { navigateToBookDetails(currentBook) }
+                            )
+                        }
+                        "remote", "shamela" -> {
+                            val rowStatus = downloadStatusOf(currentBook.id, state.downloadStatuses, state.downloadedBookIds)
+                            BookItem(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                onClick = { navigateToBookDetails(currentBook) },
+                                index = index,
+                                count = state.booksResultsList.size,
+                                item = currentBook,
+                                onInfoClick = { navigateToBookDetails(currentBook) },
+                                icon = {
+                                    DownloadIconButton(
+                                    status = rowStatus,
+                                        onDownloadClick = {
+                                            viewModel.onEvent(SearchResultsEvent.OnClickDownloadBook(currentBook))
+                                        },
+                                        onCancelClick = {
+                                            viewModel.onEvent(SearchResultsEvent.OnClickCancelDownload(currentBook.id))
+                                        },
+                                    )
+                                },
+                                highlightText = state.lastQuery,
+                                downloadStatus = rowStatus,
+                            )
                         }
                     }
                 }

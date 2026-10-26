@@ -18,3 +18,6 @@ keys.env
 # macOS & Python junk
 .DS_Store
 __pycache__/
+
+# Release signing key (never commit)
+*.jks

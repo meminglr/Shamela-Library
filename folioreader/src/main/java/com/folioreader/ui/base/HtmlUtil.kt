@@ -1,5 +1,8 @@
 package com.folioreader.ui.base
 
+import com.folioreader.reader.Harakat
+import com.folioreader.reader.ReaderSettingsStore
+
 import android.content.Context
 import com.folioreader.R
 
@@ -40,21 +43,28 @@ object HtmlUtil {
         )
 
         val metaTag =
-            "<meta name=\"viewport\" content=\"height=device-height, user-scalable=no\" />"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no\" />"
+
+        val settings = ReaderSettingsStore.settings.value
+        // Reader settings go right after Style.css so they override its defaults; open pages get the
+        // same block replaced live (ReaderSettings.applyCssJs).
+        val readerStyle = "<style id=\"shamela-reader\">${settings.css(isNightMode)}</style>"
 
         val toInject = """
     |$cssPath
+    |$readerStyle
     |$scriptTags
     |$methodCallScriptTag
     |$metaTag
     |</head>
 """.trimMargin()
 
-        val nightModeCssClass = if (isNightMode) "nightMode" else ""
-        val cssClasses = listOf(fontFamilyCssClass, fontSizeCssClass, nightModeCssClass)
-            .joinToString(separator =" ")
+        // Colors, size and font now come from the "reader" style block; the app font class is the
+        // fallback when no reader-specific font is chosen.
+        val cssClasses = listOf("reader", fontFamilyCssClass).joinToString(separator = " ")
+        val body = if (settings.hideHarakat) Harakat.strip(content) else content
 
-        return StringBuilder(content).replaceFirst(
+        return StringBuilder(body).replaceFirst(
             "<html".toRegex(),
             "<html class=\"$cssClasses\" onclick=\"onClickHtml()\""
         ).replace("</head>", toInject)

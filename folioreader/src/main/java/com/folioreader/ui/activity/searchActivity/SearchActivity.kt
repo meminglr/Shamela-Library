@@ -1,5 +1,6 @@
 package com.folioreader.ui.activity.searchActivity
 
+import com.folioreader.reader.SearchSession
 import androidx.compose.ui.text.font.FontWeight
 import com.folioreader.R
 import androidx.compose.ui.res.stringResource
@@ -45,6 +46,8 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
@@ -77,6 +80,9 @@ class SearchActivity : ComponentActivity() {
 
     private val viewModel: SearchViewModel by viewModels()
     private val focusRequester = FocusRequester()
+    private var currentBookId: String = ""
+    /** Back from the reader with the previous results: show them without popping the keyboard. */
+    private var restoredResults = false
 
     companion object {
         val LOG_TAG: String = SearchActivity::class.java.simpleName
@@ -103,6 +109,7 @@ class SearchActivity : ComponentActivity() {
         val searchType = intent.getStringExtra(Search_Type) ?: ""
         val epubFilePath = intent.getStringExtra(Constants.EPUB_FILE_PATH)
         val bookId = intent.getStringExtra(Book_ID) ?: ""
+        currentBookId = bookId
         val searchQuery = intent.getStringExtra(Search_Query) ?: ""
         val searchCategories =
             intent.getStringArrayExtra(Search_Categories)?.toList() ?: emptyList()
@@ -110,6 +117,13 @@ class SearchActivity : ComponentActivity() {
         viewModel.onEven(SearchEvent.OnSearchQueryChanged(searchQuery))
         if (searchType == Search_Type_SingleBookSearch) {
             viewModel.onEven(SearchEvent.InitEpub(epubFilePath))
+            // Coming back from a result: show the same results instead of an empty search.
+            if (savedInstanceState == null) {
+                SearchSession.resultsFor(bookId)?.let {
+                    viewModel.onEven(SearchEvent.RestoreResults(it.query, it.results))
+                    restoredResults = true
+                }
+            }
         } else {
             Log.e(LOG_TAG, "onCreate: searchQuery = $searchQuery")
             Log.e(LOG_TAG, "onCreate: searchCategories = $searchCategories")
@@ -130,7 +144,8 @@ class SearchActivity : ComponentActivity() {
                             isLoading = state.isLoading,
                             searchProgress = state.searchProgress,
                             searchResults = state.searchResults,
-                            isListEmpty = state.isListEmpty
+                            isListEmpty = state.isListEmpty,
+                            chapterByHref = state.chapterByHref,
                         )
 
                     } else {
@@ -192,11 +207,12 @@ class SearchActivity : ComponentActivity() {
         searchProgress: Float = 0f,
         searchResults: List<SearchLocator> = emptyList(),
         isListEmpty: Boolean = false,
+        chapterByHref: Map<String, String> = emptyMap(),
     ) {
         Column(Modifier.fillMaxSize()) {
             SearchTopBar(
-                onNavigateBack = /*navigateBack*/ { finish() },
-                hint = stringResource(R.string.search_dots),
+                onNavigateBack = { finish() },
+                hint = stringResource(R.string.search_hint),
                 focusRequester = focusRequester,
                 value = query,
                 onValueChanged = { viewModel.onEven(SearchEvent.OnSearchQueryChanged(it)) },
@@ -206,7 +222,7 @@ class SearchActivity : ComponentActivity() {
             AnimatedVisibility(visible = isLoading) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
-                    progress = searchProgress,
+                    progress = { searchProgress },
                 )
             }
             Box(
@@ -247,12 +263,34 @@ class SearchActivity : ComponentActivity() {
                         }
 
                     }
-                    items(searchResults) {
+                    // Results come in reading order; group consecutive ones under their chapter.
+                    val groups = mutableListOf<Pair<String?, MutableList<SearchLocator>>>()
+                    searchResults.forEach { locator ->
+                        val chapter = chapterByHref[SearchViewModel.hrefKey(locator.href)]
+                        // The chapter is null until the book's table of contents is read (slow for a
+                        // large book, while restored results show at once). Comparing against
+                        // lastOrNull() then matched null == null on an empty list, and last() crashed.
+                        val last = groups.lastOrNull()
+                        if (last != null && last.first == chapter) last.second += locator
+                        else groups += chapter to mutableListOf(locator)
+                    }
+                    groups.forEach { (chapter, results) ->
+                    if (chapter != null) {
+                        stickyHeader { Header(chapter) }
+                    }
+                    items(results) {
                         it.text?.let { locatorText ->
                             SearchResult(
                                 modifier = Modifier.animateItem(),
-                                locatorText
+                                locator = locatorText,
                             ) {
+                                // Hand the whole result list to the reader for previous / next.
+                                SearchSession.start(
+                                    bookId = currentBookId,
+                                    query = query,
+                                    results = searchResults,
+                                    index = searchResults.indexOf(it),
+                                )
                                 val intent = Intent()
                                 intent.putExtra(
                                     FolioActivity.EXTRA_SEARCH_ITEM,
@@ -263,6 +301,7 @@ class SearchActivity : ComponentActivity() {
                             }
                         }
                     }
+                    }
                 }
 
                 EmptyListScreen(
@@ -272,7 +311,7 @@ class SearchActivity : ComponentActivity() {
             }
         }
         DisposableEffect(Unit) {
-            focusRequester.requestFocus()
+            if (!restoredResults) focusRequester.requestFocus()
             onDispose { }
         }
     }
@@ -301,7 +340,7 @@ class SearchActivity : ComponentActivity() {
             AnimatedVisibility(visible = isLoading) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
-                    progress = searchProgress,
+                    progress = { searchProgress },
                 )
             }
             Box(
@@ -379,13 +418,20 @@ class SearchActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun SearchResult(modifier: Modifier, locator: LocatorText, onItemClicked: () -> Unit) {
+    private fun SearchResult(
+        modifier: Modifier,
+        locator: LocatorText,
+        chapter: String? = null,
+        onItemClicked: () -> Unit,
+    ) {
         val text = buildAnnotatedString {
-            val before = locator.before
+            // Snippets cut through the middle of words and lines: collapse whitespace and mark the cuts.
+            fun clean(s: String?) = s.orEmpty().replace(Regex("\\s+"), " ")
+            val before = clean(locator.before).trimStart('.', '…', ' ')
             val highlightedText = locator.hightlight
-            val after = locator.after
+            val after = clean(locator.after).trimEnd('.', '…', ' ')
 
-            append("$before")
+            append("… $before")
             withStyle(
                 style = SpanStyle(
                     fontWeight = FontWeight.Bold,
@@ -395,18 +441,37 @@ class SearchActivity : ComponentActivity() {
             ) {
                 append("$highlightedText")
             }
-            append("$after")
+            append("$after …")
         }
 
         Column(
             modifier = modifier
                 .clickable { onItemClicked() }
         ) {
+            if (!chapter.isNullOrBlank()) {
+                Text(
+                    text = chapter,
+                    style = AppFonts.content(MaterialTheme.typography.labelLarge, naturalAlign = true),
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                )
+            }
+            // Book text is Arabic: lay the snippet out right-to-left whatever the UI language.
             Text(
                 text = text,
-                style = AppFonts.content(MaterialTheme.typography.bodyLarge),
+                style = AppFonts.content(MaterialTheme.typography.bodyLarge)
+                    .copy(textDirection = TextDirection.Rtl, textAlign = TextAlign.Start),
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 16.dp, end = 16.dp, bottom = 12.dp,
+                        top = if (chapter.isNullOrBlank()) 12.dp else 4.dp
+                    )
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
@@ -426,14 +491,16 @@ class SearchActivity : ComponentActivity() {
             Text(
                 text = text,
                 style = AppFonts.content(
-                    if (largeText) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall
+                    if (largeText) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
+                    naturalAlign = true,
                 ),
                 maxLines = 1,
                 color = MaterialTheme.colorScheme.primary,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
+                    .fillMaxWidth()
                     .align(Alignment.CenterStart)
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .padding(vertical = 10.dp)
             )
         }
     }

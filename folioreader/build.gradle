@@ -30,6 +30,15 @@ ext {
     allLicenses = ["FreeBSD"]
 }
 
+// 9router (OpenAI-compatible) gateway for the reader's "meaning" action — from the
+// gitignored local.properties so the key never lands in git.
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+def aiConfig = { String key -> "\"${localProperties.getProperty(key, "")}\"" }
+
 android {
     useLibrary 'org.apache.http.legacy'
     compileSdkVersion versions.androidCompileSdk
@@ -38,6 +47,7 @@ android {
     buildFeatures {
         viewBinding true
         compose true
+        buildConfig true
     }
     buildTypes {
         release {
@@ -56,6 +66,9 @@ android {
         minSdkVersion versions.androidMinSdk
         targetSdkVersion versions.androidTargetSdk
         vectorDrawables.useSupportLibrary = true
+        buildConfigField "String", "AI_BASE_URL", aiConfig("AI_BASE_URL")
+        buildConfigField "String", "AI_API_KEY", aiConfig("AI_API_KEY")
+        buildConfigField "String", "AI_MODEL", aiConfig("AI_MODEL")
     }
 
     sourceSets {
@@ -123,6 +136,10 @@ dependencies {
     implementation "com.fasterxml.jackson.core:jackson-databind:$versions.jackson"
     implementation "com.fasterxml.jackson.module:jackson-module-kotlin:$versions.jackson"
     implementation "com.google.code.gson:gson:$versions.gson"
+
+    // Markdown answers in the reader's "meaning" sheet. 0.34.0 is the last release built with
+    // Kotlin 2.1.20 (ours); newer ones need a newer Kotlin compiler.
+    implementation "com.mikepenz:multiplatform-markdown-renderer-m3:0.34.0"
 
     implementation "com.squareup.retrofit2:retrofit:$versions.retrofit"
     implementation "com.squareup.retrofit2:converter-jackson:$versions.retrofit"

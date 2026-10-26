@@ -29,6 +29,8 @@ class FolioActivityViewModel : ViewModel() {
     private val _settingsChanged = MutableStateFlow(0)
     val settingsChanged: StateFlow<Int> = _settingsChanged.asStateFlow()
     private var server = Server(Constants.DEFAULT_PORT_NUMBER)
+    /** The open book's zip file, served while reading; closed with the reader (see [onCleared]). */
+    private var openContainer: org.readium.r2.streamer.container.Container? = null
     var streamUrl = ""
     fun onEvent(event: FolioActivityEvent) {
         when (event) {
@@ -71,6 +73,8 @@ class FolioActivityViewModel : ViewModel() {
         return try{
             withContext(Dispatchers.IO) {
                 EpubParser().parse(filePath, "")?.let {
+                    closeContainer()
+                    openContainer = it.container
                     val publication = it.publication
                     val portNumber = AppUtil.getAvailablePortNumber(Constants.DEFAULT_PORT_NUMBER)
                     try {
@@ -107,5 +111,11 @@ class FolioActivityViewModel : ViewModel() {
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping server on cleared", e)
         }
+        closeContainer()
+    }
+
+    private fun closeContainer() {
+        runCatching { (openContainer as? org.readium.r2.streamer.container.ZipArchiveContainer)?.zipFile?.close() }
+        openContainer = null
     }
 }

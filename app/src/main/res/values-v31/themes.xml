@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ splash screen: the icon's own brown fills the screen, so the icon's circle
+         disappears into it and only the book and "المكتبة" show. -->
+    <style name="Theme.ShamelaLibrary" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
+    </style>
+</resources>

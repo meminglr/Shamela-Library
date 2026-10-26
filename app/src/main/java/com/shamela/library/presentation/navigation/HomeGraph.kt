@@ -10,7 +10,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
-import com.shamela.library.presentation.screens.about.AboutAppScreen
 import com.shamela.library.presentation.screens.download.DownloadScreen
 import com.shamela.library.presentation.screens.favorite.FavoriteScreen
 import com.shamela.library.presentation.screens.library.LibraryScreen
@@ -93,7 +92,7 @@ object Search : HomeHostDestination {
 
 object Settings : HomeHostDestination {
     override val route = "SETTINGS_SCREEN"
-    override val unSelectedIcon = ShamelaIcons.Settings
+    override val unSelectedIcon = ShamelaIcons.SettingsOutlined
     override val selectedIcon = ShamelaIcons.Settings
     override val label = R.string.nav_settings
     override val actionIcon = null
@@ -113,22 +112,8 @@ object SectionBooks : HomeHostDestination {
     }
 
     fun createRoute(categoryName: String, type: String): String {
-        return "SECTION_BOOKS/$categoryName/$type"
+        return "SECTION_BOOKS/${Uri.encode(categoryName)}/$type"
     }
-}
-
-object AboutApp : HomeHostDestination {
-    override val route = "ABOUT_APP_SCREEN"
-    override val unSelectedIcon = ShamelaIcons.Info
-    override val selectedIcon = ShamelaIcons.Info
-    override val label = R.string.about_app
-    override val actionIcon = null
-    override val onActionClick = { false }
-
-    private val _pendingOpen = MutableStateFlow(false)
-    val pendingOpen: StateFlow<Boolean> = _pendingOpen.asStateFlow()
-    fun requestOpen() { _pendingOpen.value = true }
-    fun consumeOpen() { _pendingOpen.value = false }
 }
 
 object SearchResults : HomeHostDestination {
@@ -142,20 +127,25 @@ object SearchResults : HomeHostDestination {
     }
 
     fun createRoute(categoryName: String, type: String): String {
-        return "SEARCH_RESULTS/$categoryName/$type"
+        return "SEARCH_RESULTS/${Uri.encode(categoryName)}/$type"
     }
 }
 
 object BookDetails : HomeHostDestination {
-    override val route = "BOOK_DETAILS/{book}"
+    /** `source` is [SOURCE_SHAMELA] for a book of the shamela.ws catalog, empty otherwise. */
+    override val route = "BOOK_DETAILS/{book}?source={source}"
+    const val SOURCE_SHAMELA = "shamela"
     override val unSelectedIcon = ShamelaIcons.Book
     override val selectedIcon = ShamelaIcons.Book
     override val label = 0
     override val actionIcon = null
     override val onActionClick = { false }
 
-    fun createRoute(book: Book): String =
-        "BOOK_DETAILS/${Uri.encode(Gson().toJson(book))}"
+    fun createRoute(book: Book, source: String = ""): String =
+        "BOOK_DETAILS/${Uri.encode(Gson().toJson(book))}?source=$source"
+
+    /** The details source for books listed by a screen of this `type` (see SectionBooks). */
+    fun sourceOf(type: String?): String = if (type == SOURCE_SHAMELA) SOURCE_SHAMELA else ""
 }
 
 
@@ -205,7 +195,9 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                         )
                     )
                 },
-                navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book)) }
+                navigateToBookDetails = { book, type ->
+                    navController.navigate(BookDetails.createRoute(book, BookDetails.sourceOf(type)))
+                }
             )
         }
         composable(Favorite.route) {
@@ -215,9 +207,6 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
         }
         composable(Search.route) { SearchScreen() }
         composable(Settings.route) { SettingsScreen() }
-        composable(AboutApp.route) {
-            AboutAppScreen(navigateBack = { navController.popBackStack() })
-        }
 
         composable(
             SectionBooks.route,
@@ -226,6 +215,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                 navArgument("type") { type = NavType.StringType },
             )
         ) {
+            val source = BookDetails.sourceOf(it.arguments?.getString("type"))
             it.arguments?.getString("categoryName")?.let { categoryName ->
                 SectionBooksScreen(
                     categoryName = categoryName,
@@ -238,7 +228,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                         )
                     },
                     navigateBack = { navController.popBackStack() },
-                    navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book)) }
+                    navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book, source)) }
                 )
             }
         }
@@ -250,7 +240,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                 navArgument("type") { type = NavType.StringType },
             )
         ) {
-
+            val source = BookDetails.sourceOf(it.arguments?.getString("type"))
             SearchResultsScreen(
                 navigateToSectionBooksScreen = { categoryName: String, type: String ->
                     navController.navigate(
@@ -260,13 +250,16 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                     }
                 },
                 navigateBack = { navController.popBackStack() },
-                navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book)) },
+                navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book, source)) },
             )
         }
 
         composable(
             BookDetails.route,
-            arguments = listOf(navArgument("book") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("book") { type = NavType.StringType },
+                navArgument("source") { type = NavType.StringType; defaultValue = "" },
+            )
         ) { entry ->
             val raw = entry.arguments?.getString("book")
             val book = raw?.let { arg ->
@@ -277,6 +270,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
             if (book != null) {
                 BookDetailsScreen(
                     book = book,
+                    fromShamela = entry.arguments?.getString("source") == BookDetails.SOURCE_SHAMELA,
                     navigateBack = { navController.popBackStack() },
                 )
             } else {

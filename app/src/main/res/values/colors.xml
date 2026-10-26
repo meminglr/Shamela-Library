@@ -2,4 +2,6 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- App icon background; the splash screen uses it too so the icon blends into it. -->
+    <color name="ic_launcher_background">#FF7C5410</color>
 </resources>

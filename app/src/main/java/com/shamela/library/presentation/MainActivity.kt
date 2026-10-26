@@ -24,7 +24,6 @@ import com.shamela.apptheme.domain.usecases.userPreferences.ReadUserPreferences
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
 import com.shamela.apptheme.presentation.util.RequestPermission
-import com.shamela.library.presentation.navigation.AboutApp
 import com.shamela.library.presentation.screens.HomeHostScreen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -44,7 +43,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppFonts.setUiDirection(rtl = AppLocale.layoutDirection(this) == androidx.compose.ui.unit.LayoutDirection.Rtl)
-        handleAboutScreenIntent(intent)
 
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -78,17 +76,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleAboutScreenIntent(intent)
-    }
-
-    private fun handleAboutScreenIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra(EXTRA_OPEN_ABOUT_SCREEN, false) == true) {
-            AboutApp.requestOpen()
-        }
-    }
-
     @Composable
     private fun DownloadErrorToasts() {
         LaunchedEffect(Unit) {
@@ -98,14 +85,18 @@ class MainActivity : ComponentActivity() {
                         getString(R.string.download_link_unavailable, error.bookTitle)
                     DownloadManager.ERROR_INSUFFICIENT_SPACE ->
                         getString(R.string.download_failed_no_space, error.bookTitle)
+                    BooksDownloadManager.REASON_STORAGE ->
+                        "${error.bookTitle}: ${getString(R.string.dl_failed_storage)}"
+                    BooksDownloadManager.REASON_NOT_FOUND ->
+                        "${error.bookTitle}: ${getString(R.string.dl_failed_not_found)}"
+                    BooksDownloadManager.REASON_CORRUPT ->
+                        "${error.bookTitle}: ${getString(R.string.dl_failed_corrupt)}"
+                    BooksDownloadManager.REASON_SHAMELA_VERIFY ->
+                        "${error.bookTitle}: ${getString(R.string.dl_failed_shamela_verify)}"
                     else -> getString(R.string.download_failed, error.bookTitle)
                 }
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
             }
         }
-    }
-
-    companion object {
-        const val EXTRA_OPEN_ABOUT_SCREEN = "OPEN_ABOUT_SCREEN"
     }
 }

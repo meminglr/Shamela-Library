@@ -1,11 +1,17 @@
 package com.shamela.apptheme.presentation.settings
 
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.SegmentedListItem
 import com.shamela.apptheme.presentation.theme.colors.AppColors
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
+import com.shamela.apptheme.presentation.common.SettingsCard
 import com.shamela.apptheme.presentation.common.SettingsSectionTitle
 import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextDirection
@@ -56,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shamela.apptheme.R
@@ -72,6 +79,8 @@ fun PreferenceSettingsUI(
     modifier: Modifier = Modifier,
     uiState: PreferenceSettingsState,
     onEvent: (PreferenceSettingsEvent) -> Unit,
+    /** Extra space after the last setting, e.g. for a navigation bar floating over the content. */
+    bottomInset: Dp = 0.dp,
 ) {
     val isSystemDark = isSystemInDarkTheme()
     val context = LocalContext.current
@@ -81,82 +90,73 @@ fun PreferenceSettingsUI(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(bottom = 24.dp),
+            .padding(bottom = 24.dp + bottomInset),
     ) {
-        SettingsSectionTitle(stringResource(R.string.change_theme))
-        ChoiceChips(
-            options = uiState.availableThemes,
-            selected = uiState.userPrefs.theme,
-            leading = { theme ->
-                val icon = when (theme) {
-                    AppTheme.LIGHT -> ShamelaIcons.LightMode
-                    AppTheme.DARK -> ShamelaIcons.DarkMode
-                    else -> ShamelaIcons.AutoMode
-                }
-                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            },
-        ) {
-            onEvent(
-                PreferenceSettingsEvent.OnChangeAppTheme(
-                    colorScheme = AppTheme.themeOf(
-                        theme = it,
-                        colorScheme = uiState.userPrefs.colorSchemeName,
-                        isSystemInDarkTheme = isSystemDark,
-                        context = context
-                    ),
-                    uiState.userPrefs.copy(theme = it)
-                )
-            )
-        }
-
-        SettingsSectionTitle(stringResource(R.string.change_color))
-        ChoiceChips(
-            options = uiState.availableColorSchemes,
-            selected = uiState.userPrefs.colorSchemeName,
-            leading = { name ->
-                val swatch = remember(name) {
-                    AppColors.colorSchemeOf(name, context).lightColorScheme.primary
-                }
-                Box(
-                    Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(swatch)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                )
-            },
-        ) {
-            onEvent(
-                PreferenceSettingsEvent.OnChangeAppTheme(
-                    colorScheme = AppTheme.themeOf(
-                        theme = uiState.userPrefs.theme,
-                        colorScheme = it,
-                        isSystemInDarkTheme = isSystemDark,
-                        context = context
-                    ),
-                    userPrefs = uiState.userPrefs.copy(colorSchemeName = it)
-                )
-            )
-        }
-
-        SettingsSectionTitle(stringResource(R.string.font_size))
-        FontSizeSelector(
-            sliderPosition = uiState.sliderPosition,
-            onSliderPositionChanged = {
-                onEvent(PreferenceSettingsEvent.OnChangeSliderPosition(it))
-            },
-            list = uiState.availableFontSizes,
-            onValueChangeFinished = { finalPosition ->
-                val index = finalPosition.roundToInt().coerceIn(0, uiState.availableFontSizes.lastIndex)
+        SettingsCard(stringResource(R.string.change_theme), icon = ShamelaIcons.AutoMode) {
+            ChoiceChips(
+                options = uiState.availableThemes,
+                selected = uiState.userPrefs.theme,
+                leading = { theme ->
+                    val icon = when (theme) {
+                        AppTheme.LIGHT -> ShamelaIcons.LightMode
+                        AppTheme.DARK -> ShamelaIcons.DarkMode
+                        else -> ShamelaIcons.AutoMode
+                    }
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                },
+            ) {
                 onEvent(
-                    PreferenceSettingsEvent.OnChangeAppFontSize(
-                        uiState.userPrefs.copy(fontSize = uiState.availableFontSizes[index])
+                    PreferenceSettingsEvent.OnChangeAppTheme(
+                        colorScheme = AppTheme.themeOf(
+                            theme = it,
+                            colorScheme = uiState.userPrefs.colorSchemeName,
+                            isSystemInDarkTheme = isSystemDark,
+                            context = context
+                        ),
+                        uiState.userPrefs.copy(theme = it)
                     )
                 )
             }
-        )
+        }
 
-        SettingsSectionTitle(stringResource(R.string.font_family))
+        SettingsCard(stringResource(R.string.change_color), icon = ShamelaIcons.Palette) {
+            ColorSwatches(
+                options = uiState.availableColorSchemes,
+                selected = uiState.userPrefs.colorSchemeName,
+            ) {
+                onEvent(
+                    PreferenceSettingsEvent.OnChangeAppTheme(
+                        colorScheme = AppTheme.themeOf(
+                            theme = uiState.userPrefs.theme,
+                            colorScheme = it,
+                            isSystemInDarkTheme = isSystemDark,
+                            context = context
+                        ),
+                        userPrefs = uiState.userPrefs.copy(colorSchemeName = it)
+                    )
+                )
+            }
+        }
+
+        SettingsCard(stringResource(R.string.font_size), icon = ShamelaIcons.FormatSize) {
+            FontSizeSelector(
+                sliderPosition = uiState.sliderPosition,
+                onSliderPositionChanged = {
+                    onEvent(PreferenceSettingsEvent.OnChangeSliderPosition(it))
+                },
+                list = uiState.availableFontSizes,
+                onValueChangeFinished = { finalPosition ->
+                    val index = finalPosition.roundToInt().coerceIn(0, uiState.availableFontSizes.lastIndex)
+                    onEvent(
+                        PreferenceSettingsEvent.OnChangeAppFontSize(
+                            uiState.userPrefs.copy(fontSize = uiState.availableFontSizes[index])
+                        )
+                    )
+                }
+            )
+        }
+
+        SettingsSectionTitle(stringResource(R.string.font_family), icon = ShamelaIcons.FontDownload)
         FontsSection(
             options = uiState.availableFontFamilies,
             selectedOption = uiState.userPrefs.fontFamily,
@@ -177,9 +177,7 @@ private fun ChoiceChips(
     onOptionClicked: (String) -> Unit,
 ) {
     FlowRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         options.forEach { option ->
@@ -193,6 +191,58 @@ private fun ChoiceChips(
     }
 }
 
+/**
+ * Color schemes as a horizontally scrolling row of round swatches; the selected one gets a ring
+ * and a check, and its name is shown underneath.
+ */
+@Composable
+private fun ColorSwatches(
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Start scrolled so the selected color is visible.
+        val listState = rememberLazyListState(
+            initialFirstVisibleItemIndex = (options.indexOf(selected) - 2).coerceAtLeast(0)
+        )
+        LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(options) { name ->
+                val isSelected = name == selected
+                val swatch = remember(name) {
+                    AppColors.colorSchemeOf(name, context).lightColorScheme.primary
+                }
+                val label = PreferenceLabels.label(name)
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(swatch)
+                        .border(
+                            width = if (isSelected) 3.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                            shape = CircleShape
+                        )
+                        .selectable(selected = isSelected, role = Role.RadioButton) { onSelect(name) }
+                        .semantics { contentDescription = label },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(ShamelaIcons.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                }
+            }
+        }
+        Text(
+            text = PreferenceLabels.label(selected),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** Font choices as an M3 Expressive segmented list with a live sample of each font. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -202,9 +252,7 @@ private fun FontsSection(
     onOptionClicked: (String) -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .padding(top = 12.dp)
-            .selectableGroup(),
+        modifier = Modifier.selectableGroup(),
         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
         options.forEachIndexed { index, option ->
@@ -256,11 +304,11 @@ private fun FontSizeSelector(
         stringResource(R.string.xLarge),
     )
     val index = currentValue.roundToInt().coerceIn(0, max(list.lastIndex, 0))
-    Column(modifier = Modifier.padding(top = 12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = labels.getOrElse(index) { "" },
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("A", style = MaterialTheme.typography.labelMedium)
@@ -290,7 +338,7 @@ private fun FontSizeSelector(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(16.dp),
         )
     }

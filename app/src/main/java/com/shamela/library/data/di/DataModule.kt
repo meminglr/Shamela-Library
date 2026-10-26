@@ -18,6 +18,9 @@ import com.shamela.library.data.local.db.BooksDatabase
 import com.shamela.library.data.local.db.QuotesDao
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
+import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
+import com.shamela.library.data.remote.shamela.ShamelaCatalog
+import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.usecases.books.BooksUseCases
 import com.shamela.library.domain.usecases.quotes.QuotesUseCases
 import dagger.Module
@@ -40,6 +43,12 @@ object DataModule {
     @Provides
     fun provideFilesBooksRepository(): FilesBooksRepoImpl {
         return FilesBooksRepoImpl
+    }
+
+    @Singleton
+    @Provides
+    fun provideShamelaBooksRepository(app: Application): ShamelaBooksRepoImpl {
+        return ShamelaBooksRepoImpl(ShamelaCatalog(app.applicationContext))
     }
 
     @Singleton
@@ -88,6 +97,17 @@ object DataModule {
     @Singleton
     @Provides
     fun provideFilesBooksUseCases(repo: FilesBooksRepoImpl, dao: BooksDao, app: Application): BooksUseCases {
+        return BooksUseCases(
+            repository = repo,
+            booksDao = dao,
+            context = app.applicationContext
+        )
+    }
+
+    @ShamelaRepoImpl
+    @Singleton
+    @Provides
+    fun provideShamelaBooksUseCases(repo: ShamelaBooksRepoImpl, dao: BooksDao, app: Application): BooksUseCases {
         return BooksUseCases(
             repository = repo,
             booksDao = dao,

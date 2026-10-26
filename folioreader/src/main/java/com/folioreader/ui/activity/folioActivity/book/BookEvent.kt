@@ -22,7 +22,10 @@ sealed class BookEvent {
     object DismissMenu : BookEvent()
     object ClearCachedPages : BookEvent()
 
-    /** User tapped "المعنى" on a text selection — look the word up in the offline dictionary. */
-    class ShowMeaningSheet(val selectedText: String, val context: Context) : BookEvent()
+    /** User tapped "المعنى" on a text selection — ask the AI what the word means in [passage]. */
+    class ShowMeaningSheet(val selectedText: String, val passage: String, val context: Context) : BookEvent()
+    /** A follow-up question about the answer in the meaning sheet. */
+    class AskMeaningQuestion(val question: String) : BookEvent()
+    object RetryMeaning : BookEvent()
     object DismissMeaningSheet : BookEvent()
 }

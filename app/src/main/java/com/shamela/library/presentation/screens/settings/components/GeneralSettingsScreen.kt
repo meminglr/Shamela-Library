@@ -2,12 +2,13 @@
 
 package com.shamela.library.presentation.screens.settings.components
 
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
-import com.shamela.apptheme.presentation.common.SettingsSectionTitle
+import com.shamela.apptheme.presentation.common.SettingsCard
 import androidx.compose.material3.FilterChip
 import android.app.Activity
 import android.content.Context
@@ -53,60 +54,91 @@ fun ColumnScope.GeneralSettingsScreen(
     onDeleteAllBooks: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
+    importProgress: Pair<Int, Int>? = null,
+    onImportLibrary: () -> Unit = {},
+    externalBooks: @Composable ColumnScope.() -> Unit = {},
 ) {
     val context = LocalContext.current
     LanguageSection(context)
 
-    SettingsSectionTitle(stringResource(R.string.storage))
-    Text(
-        text = stringResource(
-            R.string.storage_usage,
-            downloadedBooksCount,
-            Formatter.formatShortFileSize(context, downloadedBytes)
-        ),
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.padding(top = 12.dp)
-    )
-    var confirmDeleteAll by remember { mutableStateOf(false) }
-    OutlinedButton(
-        shapes = ButtonDefaults.shapes(),
-        onClick = { confirmDeleteAll = true },
-        enabled = downloadedBooksCount > 0,
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-        modifier = Modifier.padding(top = 8.dp)
-    ) {
-        Icon(ShamelaIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.delete_all_books))
-    }
-    if (confirmDeleteAll) {
-        ConfirmationDialog(
-            title = stringResource(R.string.delete_all_books),
-            message = stringResource(R.string.delete_all_books_message),
-            onConfirm = {
-                confirmDeleteAll = false
-                onDeleteAllBooks()
-            },
-            onDismiss = { confirmDeleteAll = false },
+    SettingsCard(stringResource(R.string.import_library), icon = ShamelaIcons.FileDownload) {
+        Text(
+            text = stringResource(R.string.import_library_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (importProgress == null) {
+            Button(shapes = ButtonDefaults.shapes(), onClick = onImportLibrary) {
+                Icon(ShamelaIcons.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.import_choose_folder))
+            }
+        } else {
+            val (done, total) = importProgress
+            Text(
+                text = if (total == 0) stringResource(R.string.import_scanning)
+                else stringResource(R.string.import_progress, done, total),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (total == 0) LinearProgressIndicator(Modifier.fillMaxWidth())
+            else LinearProgressIndicator(progress = { done.toFloat() / total }, modifier = Modifier.fillMaxWidth())
+        }
     }
 
-    SettingsSectionTitle(stringResource(R.string.backup))
-    Text(
-        text = stringResource(R.string.backup_description),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 12.dp)
-    )
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(top = 8.dp)
-    ) {
-        Button(shapes = ButtonDefaults.shapes(), onClick = onExportBackup) {
-            Text(stringResource(R.string.backup_export))
+    externalBooks()
+
+    SettingsCard(stringResource(R.string.storage), icon = ShamelaIcons.Storage) {
+        Text(
+            text = stringResource(
+                R.string.storage_usage,
+                downloadedBooksCount,
+                Formatter.formatShortFileSize(context, downloadedBytes)
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        var confirmDeleteAll by remember { mutableStateOf(false) }
+        OutlinedButton(
+            shapes = ButtonDefaults.shapes(),
+            onClick = { confirmDeleteAll = true },
+            enabled = downloadedBooksCount > 0,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        ) {
+            Icon(ShamelaIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.delete_all_books))
         }
-        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onImportBackup) {
-            Text(stringResource(R.string.backup_import))
+        if (confirmDeleteAll) {
+            ConfirmationDialog(
+                title = stringResource(R.string.delete_all_books),
+                message = stringResource(R.string.delete_all_books_message),
+                onConfirm = {
+                    confirmDeleteAll = false
+                    onDeleteAllBooks()
+                },
+                onDismiss = { confirmDeleteAll = false },
+            )
+        }
+    }
+
+    SettingsCard(stringResource(R.string.backup), icon = ShamelaIcons.Backup) {
+        Text(
+            text = stringResource(R.string.backup_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Button(shapes = ButtonDefaults.shapes(), onClick = onExportBackup) {
+                Icon(ShamelaIcons.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.backup_export))
+            }
+            OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onImportBackup) {
+                Icon(ShamelaIcons.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.backup_import))
+            }
         }
     }
 }
@@ -114,29 +146,29 @@ fun ColumnScope.GeneralSettingsScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LanguageSection(context: Context) {
-    SettingsSectionTitle(stringResource(R.string.language))
-    val selected = remember { AppLocale.selected(context) }
-    FlowRow(
-        modifier = Modifier.padding(top = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        AppLocale.supported.forEach { language ->
-            FilterChip(
-                selected = language == selected,
-                onClick = { context.findActivity()?.let { AppLocale.select(it, language) } },
-                label = {
-                    Text(
-                        text = stringResource(
-                            when (language) {
-                                AppLocale.ARABIC -> R.string.language_arabic
-                                AppLocale.TURKISH -> R.string.language_turkish
-                                else -> R.string.language_system
-                            }
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                },
-            )
+    SettingsCard(stringResource(R.string.language), icon = ShamelaIcons.Language) {
+        val selected = remember { AppLocale.selected(context) }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            AppLocale.supported.forEach { language ->
+                FilterChip(
+                    selected = language == selected,
+                    onClick = { context.findActivity()?.let { AppLocale.select(it, language) } },
+                    label = {
+                        Text(
+                            text = stringResource(
+                                when (language) {
+                                    AppLocale.ARABIC -> R.string.language_arabic
+                                    AppLocale.TURKISH -> R.string.language_turkish
+                                    else -> R.string.language_system
+                                }
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    },
+                )
+            }
         }
     }
 }

@@ -7,7 +7,6 @@
     <string name="nav_favorite">المفضلة</string>
     <string name="nav_search">البحث</string>
     <string name="nav_settings">الإعدادات</string>
-    <string name="about_app">حول التطبيق</string>
 
     <!-- Common -->
     <string name="view_sections">الأقسام</string>
@@ -40,8 +39,27 @@
     <string name="selected_count">تم تحديد %1$d</string>
     <string name="delete_selected_books">حذف الكتب المحددة</string>
     <string name="delete_book_title">حذف الكتاب</string>
-    <string name="delete_book_message">هل أنت متأكد من حذف كتاب \"%1$s\"؟</string>
-    <string name="delete_selected_books_message">هل أنت متأكد من حذف %1$d كتاب محدد؟</string>
+    <string name="delete_book_message">هل أنت متأكد من حذف كتاب \"%1$s\"؟ ستُحذف معه الاقتباسات المحفوظة منه.</string>
+    <string name="delete_selected_books_message">هل أنت متأكد من حذف %1$d كتاب محدد؟ ستُحذف معها الاقتباسات المحفوظة منها.</string>
+    <string name="delete_section">حذف القسم</string>
+    <string name="delete_section_message">سيُحذف من الجهاز %2$d كتاب من قسم \"%1$s\" مع الاقتباسات المحفوظة منها. هل أنت متأكد؟</string>
+    <string name="deleting_books_title">جار حذف الكتب</string>
+    <string name="deleting_books_count">حُذف %1$d من %2$d</string>
+    <string name="deleting_books_stop">إيقاف</string>
+    <string name="books_deleted">حُذف %1$d كتاب</string>
+    <string name="group_quran">القرآن وعلومه</string>
+    <string name="group_hadith">الحديث وعلومه</string>
+    <string name="group_aqidah">العقيدة</string>
+    <string name="group_fiqh">الفقه وأصوله</string>
+    <string name="group_history">التاريخ والتراجم</string>
+    <string name="group_language">اللغة والأدب</string>
+    <string name="group_raqaiq">الرقائق والدعوة</string>
+    <string name="group_scholars">كتب الأعلام</string>
+    <string name="group_general">عامة ومراجع</string>
+    <string name="group_other">أخرى</string>
+    <string name="deletion_done_title">اكتمل الحذف</string>
+    <string name="deleting_books_stopped">تم الإيقاف</string>
+    <string name="close">إغلاق</string>
     <string name="library_empty_title">لا توجد كتب في مكتبتك بعد</string>
     <string name="library_empty_message">يمكنك تحميل الكتب من تبويب التحميل، وستظهر هنا لتقرأها في أي وقت.</string>
 
@@ -86,17 +104,6 @@
     <string name="download_book">تحميل الكتاب</string>
 
     <!-- About -->
-    <string name="app_description">تطبيق لقراءة الكتب الإسلامية بصيغة EPUB، يتيح لك تحميل الكتب وتصفّحها في أي وقت دون الحاجة إلى اتصال بالإنترنت.</string>
-    <string name="update_app">تحديث التطبيق</string>
-    <string name="update_downloading_progress">جارٍ التحميل… %1$d%%</string>
-    <string name="whats_new">ما الجديد</string>
-    <string name="current_version">الإصدار الحالي</string>
-    <string name="latest_version">أحدث إصدار</string>
-    <string name="update_check_failed">تعذّر التحقق من التحديثات</string>
-    <string name="update_download_failed">فشل التحميل، يرجى المحاولة مرة أخرى</string>
-    <string name="no_releases_found">لا توجد إصدارات منشورة بعد</string>
-    <string name="update_notification_title">تحديث المكتبة الشاملة</string>
-    <string name="update_notification_description">جارٍ تحميل التحديث…</string>
 
     <!-- Push notifications -->
     <string name="updates_channel_name">تحديثات التطبيق</string>
@@ -135,4 +142,61 @@
     <string name="backup_imported">تم استيراد %1$d عنصر، وتم تخطي %2$d لكتب غير محملة</string>
     <string name="backup_invalid">ملف النسخة الاحتياطية غير صالح</string>
     <string name="backup_failed">تعذرت العملية، حاول مرة أخرى</string>
+    <string name="import_library">نقل الكتب من التطبيق القديم</string>
+    <string name="import_library_description">انسخ الكتب التي نزّلتها في تطبيق الشاملة السابق إلى هذا التطبيق. افعل ذلك قبل حذف التطبيق القديم، لأن كتبه تُحذف معه. اختر مجلد ShamelaDownloads (Android/media/com.shamela.library) ثم اضغط «استخدام هذا المجلد».</string>
+    <string name="import_choose_folder">اختيار المجلد</string>
+    <string name="import_progress">جار النقل: %1$d / %2$d</string>
+    <string name="import_scanning">جار البحث عن الكتب…</string>
+    <string name="import_done">نُقل %1$d كتاب، %2$d موجود مسبقًا، %3$d تعذّر نقله</string>
+    <string name="import_no_books">لم يُعثر على كتب في هذا المجلد</string>
+    <string name="dl_channel_name">تحميل الكتب</string>
+    <string name="tasks_channel_name">نقل الكتب وتحضيرها للبحث</string>
+    <string name="tasks_channel_description">يعرض التقدم أثناء نقل الكتب وتحضيرها للبحث</string>
+    <string name="import_notif_title">جار نقل الكتب</string>
+    <string name="index_notif_title">جار تحضير الكتب للبحث</string>
+    <string name="dl_channel_description">تقدم تحميل الكتب</string>
+    <string name="dl_queued">في الانتظار</string>
+    <string name="dl_connecting">جار الاتصال…</string>
+    <string name="dl_progress">%1$d%% · %2$s / %3$s</string>
+    <string name="dl_progress_unknown">تم تحميل %1$s</string>
+    <string name="dl_speed">%1$s/ث</string>
+    <string name="dl_waiting_network">بانتظار الاتصال · سيُستأنف التحميل من حيث توقف</string>
+    <string name="dl_waiting_retry">انقطع الاتصال · ستُعاد المحاولة قريبًا من حيث توقف</string>
+    <string name="dl_failed">تعذّر التحميل · اضغط لإعادة المحاولة</string>
+    <string name="dl_failed_not_found">الكتاب غير موجود على الخادم</string>
+    <string name="dl_failed_no_space">لا توجد مساحة تخزين كافية</string>
+    <string name="dl_failed_storage">تعذر الحفظ في ذاكرة الجهاز. أعد تشغيل الهاتف ثم حاول مجددًا</string>
+    <string name="dl_failed_corrupt">الملف المحمّل تالف</string>
+    <string name="dl_retry">إعادة المحاولة</string>
+    <string name="dl_retry_now">حاول الآن</string>
+    <string name="dl_cancel">إلغاء التحميل</string>
+    <string name="dl_panel_title">التحميلات</string>
+    <string name="dl_panel_empty">لا توجد كتب قيد التحميل</string>
+    <string name="dl_cancel_all">إلغاء الكل</string>
+    <string name="dl_retry_failed">إعادة محاولة الفاشلة</string>
+    <string name="dl_clear_failed">مسح الفاشلة</string>
+    <string name="dl_bar_active">جار تحميل %1$d كتاب</string>
+    <string name="dl_bar_waiting">%1$d كتاب بانتظار الاتصال</string>
+    <string name="dl_bar_failed">تعذّر تحميل %1$d كتاب</string>
+    <string name="dl_notif_progress_title">جار تحميل الكتب (%1$d)</string>
+    <string name="dl_notif_progress_text">اكتمل %1$d من %2$d</string>
+    <string name="dl_notif_waiting">بانتظار الاتصال · سيُستأنف التحميل</string>
+    <string name="dl_notif_done_title">اكتمل التحميل</string>
+    <string name="dl_notif_done_text">تم تحميل %1$d كتاب</string>
+    <string name="dl_notif_done_with_failures">تم تحميل %1$d كتاب، وتعذّر تحميل %2$d</string>
+    <string name="dl_started">أُضيف «%1$s» إلى قائمة التحميل</string>
+    <!-- Şamile (shamela.ws) source -->
+    <string name="source_library">المكتبة 1</string>
+    <string name="source_shamela">المكتبة 2</string>
+    <string name="shamela_refresh_catalog">تحديث الفهرس</string>
+    <string name="shamela_catalog_loading_start">جار تحميل فهرس الشاملة…</string>
+    <string name="shamela_catalog_loading">جار تحميل فهرس الشاملة: %1$d / %2$d قسم</string>
+    <string name="shamela_catalog_failed">تعذّر تحميل فهرس الشاملة. تحقق من الاتصال وحاول مرة أخرى.</string>
+    <string name="shamela_catalog_needs_verify">موقع الشاملة يطلب التحقق من المتصفح.</string>
+    <string name="shamela_verify_action">تحقق</string>
+    <string name="shamela_verify_title">التحقق من موقع الشاملة</string>
+    <string name="shamela_verify_hint">إن طلب الموقع التحقق فأكمله، وستُغلق الصفحة تلقائيًا.</string>
+    <string name="dl_progress_pages">%1$d%% · \u2066%2$d / %3$d\u2069 صفحة</string>
+    <string name="dl_shamela_preparing">جار تجهيز الكتاب…</string>
+    <string name="dl_failed_shamela_verify">موقع الشاملة يطلب التحقق</string>
 </resources>

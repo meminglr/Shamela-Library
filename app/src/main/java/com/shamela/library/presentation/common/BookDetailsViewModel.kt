@@ -1,12 +1,13 @@
 package com.shamela.library.presentation.common
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shamela.library.data.local.assets.AssetsBooksRepoImpl
 import com.shamela.library.data.local.assets.AssetsRepoImpl
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
+import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
+import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.model.BookDetails
 import com.shamela.library.domain.model.DownloadStatus
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import com.shamela.library.presentation.utils.ErrorReporter
 import javax.inject.Inject
 
 /**
@@ -32,9 +35,10 @@ import javax.inject.Inject
 class BookDetailsViewModel @Inject constructor(
     private val assetsBooksRepo: AssetsBooksRepoImpl,
     @AssetsRepoImpl private val remoteBooksUseCases: BooksUseCases,
+    private val shamelaBooksRepo: ShamelaBooksRepoImpl,
+    @ShamelaRepoImpl private val shamelaBooksUseCases: BooksUseCases,
     @FilesRepoImpl private val localBooksUseCases: BooksUseCases,
     private val quotesUseCases: QuotesUseCases,
-    application: Application,
 ) : ViewModel() {
 
     data class State(
@@ -42,21 +46,35 @@ class BookDetailsViewModel @Inject constructor(
         val details: BookDetails? = null,
         val isDownloaded: Boolean = false,
         val isDownloading: Boolean = false,
+        /** Live download state (queued, progress, waiting, failed), null when idle. */
+        val downloadStatus: DownloadStatus? = null,
     )
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
-    private val booksDownloadManager = BooksDownloadManager(application.applicationContext)
     private var book: Book? = null
+    /** The book is from the shamela.ws catalog: its card and download come from there. */
+    private var fromShamela = false
 
-    fun load(book: Book) {
+    fun load(book: Book, fromShamela: Boolean = false) {
         if (this.book?.id == book.id) return   // already bound (guards recomposition)
         this.book = book
+        this.fromShamela = fromShamela
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val details = assetsBooksRepo.getBookDetails(book.categoryName, book.title)
+            // A malformed detail file (JsonSyntaxException isn't an IOException) shows "no details"
+            // instead of crashing the screen.
+            val details = try {
+                if (fromShamela) shamelaBooksRepo.getBookDetails(book.categoryName, book.title)
+                else assetsBooksRepo.getBookDetails(book.categoryName, book.title)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ErrorReporter.report("BookDetailsViewModel", "details of ${book.title} failed", e)
+                null
+            }
             _state.update { it.copy(isLoading = false, details = details) }
         }
 
@@ -67,12 +85,14 @@ class BookDetailsViewModel @Inject constructor(
                 localBooksUseCases.getDownloadedBooks(),
             ) { statusMap, downloadedList ->
                 val downloaded = downloadedList.any { it.id == book.id }
-                val downloading = statusMap[book.id] is DownloadStatus.Downloading
-                downloaded to downloading
-            }.collect { (downloaded, downloading) ->
-                if (downloaded && downloading) BooksDownloadManager.clearStatus(book.id)
+                downloaded to statusMap[book.id]
+            }.collect { (downloaded, status) ->
                 _state.update {
-                    it.copy(isDownloaded = downloaded, isDownloading = downloading && !downloaded)
+                    it.copy(
+                        isDownloaded = downloaded,
+                        isDownloading = !downloaded && status?.isActive == true,
+                        downloadStatus = if (downloaded) null else status,
+                    )
                 }
             }
         }
@@ -83,15 +103,21 @@ class BookDetailsViewModel @Inject constructor(
         // Optimistic: disable the button immediately so a double-tap can't fire two downloads
         // during the (suspend) download-uri lookup, before the Downloading status arrives.
         _state.update { it.copy(isDownloading = true) }
+        BooksDownloadManager.markPreparing(book.id)
         viewModelScope.launch {
-            val uri = remoteBooksUseCases.getDownloadUri(book.categoryName, book.title)
+            val useCases = if (fromShamela) shamelaBooksUseCases else remoteBooksUseCases
+            val uri = useCases.getDownloadUri(book.categoryName, book.title)
             if (uri != null) {
-                booksDownloadManager.downloadBook(uri, book, book.categoryName)
+                BooksDownloadManager.downloadBook(uri, book, book.categoryName)
             } else {
                 _state.update { it.copy(isDownloading = false) }
-                BooksDownloadManager.reportLinkUnavailable(book.title)
+                BooksDownloadManager.reportLinkUnavailable(book.title, book.id)
             }
         }
+    }
+
+    fun cancelDownload() {
+        book?.let { BooksDownloadManager.cancelDownload(it.id) }
     }
 
     fun openBook() {

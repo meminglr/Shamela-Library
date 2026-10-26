@@ -2,8 +2,10 @@
 
 package com.shamela.library.presentation.screens.library
 
+import com.shamela.library.presentation.common.groupedSectionItems
 
-import androidx.compose.material3.LoadingIndicator
+
+
 import com.shamela.library.presentation.common.SegmentGap
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
@@ -23,7 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.animation.AnimatedContent
 import com.shamela.apptheme.presentation.common.EmptyState
 import com.shamela.apptheme.presentation.common.ListDivider
-import com.shamela.apptheme.presentation.common.SegmentedTabs
+import com.shamela.apptheme.presentation.common.TabbedPager
 import com.shamela.library.R
 import androidx.compose.ui.res.stringResource
 import android.util.Log
@@ -63,6 +65,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,13 +84,15 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.domain.model.Book
-import com.shamela.library.domain.util.BookSorter
+import androidx.activity.compose.BackHandler
 import com.shamela.library.presentation.common.BookSortMenu
 import com.shamela.library.presentation.common.ConfirmationDialog
 import com.shamela.library.presentation.common.LibraryBookItem
 import com.shamela.library.presentation.common.SectionItem
 import com.shamela.library.presentation.navigation.Library
 import com.shamela.library.presentation.screens.LocalPaddingValues
+import com.shamela.library.presentation.screens.LocalFloatingBarInset
+import com.shamela.library.presentation.screens.LocalHideNavBar
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -110,40 +115,36 @@ fun LibraryScreen(
     })
     val libraryState = viewModel.libraryState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
-    val sortedBooks = remember(
-        libraryState.books,
-        libraryState.sortOption,
-        libraryState.sortAscending,
-        libraryState.downloadTimes,
-    ) {
-        BookSorter.sortBooks(
-            books = libraryState.books.values.toList(),
-            option = libraryState.sortOption,
-            ascending = libraryState.sortAscending,
-            downloadTimes = libraryState.downloadTimes,
-        )
+    val sortedBooks = libraryState.sortedBooks
+    // The selection toolbar takes the floating navigation bar's place while books are selected.
+    val hideNavBar = LocalHideNavBar.current
+    val selecting = libraryState.selectedIds.isNotEmpty()
+    DisposableEffect(selecting) {
+        hideNavBar.value = selecting
+        onDispose { hideNavBar.value = false }
     }
+    // Back clears the selection first, like the section screen.
+    BackHandler(enabled = selecting) { viewModel.onEvent(LibraryEvent.CancelSelection) }
     var bookPendingDelete by remember { mutableStateOf<Book?>(null) }
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize().padding(localPadding)) {
+    TabbedPager(
+        options = BooksViewType.entries,
+        selected = libraryState.booksViewType,
+        label = { stringResource(it.label) },
+            icon = { it.icon },
+        onSelect = { viewModel.onEvent(LibraryEvent.OnChangeViewType(it)) },
+    ) { viewType ->
     LazyColumn(
         Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SegmentGap),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp + LocalFloatingBarInset.current)
     ) {
-        item {
-            SegmentedTabs(
-                options = BooksViewType.entries,
-                selected = libraryState.booksViewType,
-                label = { stringResource(it.label) },
-                onSelect = { viewModel.onEvent(LibraryEvent.OnChangeViewType(it)) },
-            )
-        }
         if (libraryState.isLoading) {
             item {
                 Box(Modifier.fillParentMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    LoadingIndicator()
+                    CircularProgressIndicator()
                 }
             }
         }
@@ -156,17 +157,10 @@ fun LibraryScreen(
                 )
             }
         } else {
-            when (libraryState.booksViewType) {
+            when (viewType) {
             BooksViewType.Sections -> {
-                val sections = libraryState.sections.values.toList()
-                itemsIndexed(sections, key = { _, it -> it.id }) { index, it ->
-                    SectionItem(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        item = it,
-                        onClick = { navigateToSectionBooksScreen(it.name, "local") },
-                        index = index,
-                        count = sections.size,
-                    )
+                groupedSectionItems(libraryState.sections.values) {
+                    navigateToSectionBooksScreen(it.name, "local")
                 }
             }
 
@@ -191,22 +185,22 @@ fun LibraryScreen(
                             .animateItem(),
                         item = it,
                         onClick = {
-                            if (viewModel.libraryState.value.selectedBooks.isEmpty()) {
+                            if (viewModel.libraryState.value.selectedIds.isEmpty()) {
                                 FilesBooksRepoImpl.openEpub(
                                     it,
                                     onAddQuoteToFavorite = { quote ->
                                         viewModel.onEvent(LibraryEvent.AddQuoteToFavorite(quote))
                                     })
                             } else {
-                                viewModel.onEvent(LibraryEvent.SelectBook(it))
+                                viewModel.onEvent(LibraryEvent.SelectBook(it.id))
                             }
                         },
-                        onLongClick = { viewModel.onEvent(LibraryEvent.SelectBook(it)) },
+                        onLongClick = { viewModel.onEvent(LibraryEvent.SelectBook(it.id)) },
                         onFavoriteIconClicked = { viewModel.onEvent(LibraryEvent.ToggleFavorite(it)) },
                         onSwipeOut = {
                             bookPendingDelete = it
                         },
-                        isSelected = libraryState.selectedBooks.contains(it),
+                        isSelected = it.id in libraryState.selectedIds,
                         onInfoClick = { navigateToBookDetails(it) },
                         index = index,
                         count = sortedBooks.size,
@@ -216,20 +210,22 @@ fun LibraryScreen(
             }
         }
     }
+    }
 
         // M3 Expressive floating toolbar for the selection's actions.
         AnimatedVisibility(
-            visible = libraryState.selectedBooks.isNotEmpty(),
+            visible = selecting,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
+                .padding(bottom = FloatingToolbarDefaults.ScreenOffset),
         ) {
             SelectionToolbar(
-                count = libraryState.selectedBooks.size,
+                count = libraryState.selectedIds.size,
                 onCancel = { viewModel.onEvent(LibraryEvent.CancelSelection) },
                 onDelete = { showDeleteSelectedDialog = true },
+                onSelectAll = { viewModel.onEvent(LibraryEvent.SelectAll) },
             )
         }
     }
@@ -237,7 +233,7 @@ fun LibraryScreen(
     bookPendingDelete?.let { book ->
         ConfirmationDialog(
             title = stringResource(R.string.delete_book_title),
-            message = stringResource(R.string.delete_book_message, book.title),
+            message = stringResource(R.string.delete_book_message, isolate(book.title)),
             onConfirm = {
                 viewModel.onEvent(LibraryEvent.DeleteBook(book))
                 bookPendingDelete = null
@@ -249,7 +245,7 @@ fun LibraryScreen(
     if (showDeleteSelectedDialog) {
         ConfirmationDialog(
             title = stringResource(R.string.delete_selected_books),
-            message = stringResource(R.string.delete_selected_books_message, libraryState.selectedBooks.size),
+            message = stringResource(R.string.delete_selected_books_message, libraryState.selectedIds.size),
             onConfirm = {
                 viewModel.onEvent(LibraryEvent.DeleteSelectedBooks)
                 showDeleteSelectedDialog = false
@@ -288,16 +284,21 @@ fun SortBar(label: String, menu: @Composable () -> Unit) {
     }
 }
 
-/** Floating toolbar shown while books are selected: close, selected count, delete. */
+/** Floating toolbar shown while books are selected: close, select all, selected count, delete. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionToolbar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
+fun SelectionToolbar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit, onSelectAll: (() -> Unit)? = null) {
     HorizontalFloatingToolbar(
         expanded = true,
         colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
         leadingContent = {
             IconButton(onClick = onCancel) {
                 Icon(ShamelaIcons.Cancel, contentDescription = stringResource(R.string.cancel))
+            }
+            onSelectAll?.let {
+                IconButton(onClick = it) {
+                    Icon(ShamelaIcons.SelectAll, contentDescription = stringResource(R.string.select_all))
+                }
             }
         },
         trailingContent = {
@@ -320,3 +321,9 @@ private fun SelectionToolbar(count: Int, onCancel: () -> Unit, onDelete: () -> U
         )
     }
 }
+
+/**
+ * Keeps an Arabic name in a Turkish sentence from reordering the sentence around it (Unicode
+ * first-strong isolate), e.g. in "\"<name>\" bölümündeki 175 kitap…".
+ */
+fun isolate(text: String): String = "\u2068$text\u2069"

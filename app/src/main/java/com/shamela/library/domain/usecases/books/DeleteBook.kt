@@ -5,12 +5,10 @@ import com.shamela.apptheme.data.db.DatabaseHelper
 import com.shamela.library.data.local.db.BooksDao
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.domain.model.Book
-import com.shamela.library.presentation.utils.BookIndexing
 
 class DeleteBook(private val dao: BooksDao, private val context: Context) {
     suspend operator fun invoke(book: Book): Boolean {
-        // Stop a still-running indexing job first, or it would re-insert the pages we delete below.
-        BookIndexing.cancel(context, book.id)
+        // A book being indexed right now is cleaned up by the indexer once it sees the file is gone.
         deleteBookFromLocalDB(book.id, dao)
         deleteBookPages(book.id)
         return deleteBookFromLocalStorage(book)

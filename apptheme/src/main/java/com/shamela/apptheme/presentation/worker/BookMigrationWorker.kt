@@ -49,19 +49,20 @@ class BookMigrationWorker(
             val databaseHelper = DatabaseHelper.getInstance(appContext)
             val database = databaseHelper.writableDatabase
             val normalizer = ArabicNormalizer()
-            val cursor = database.query(BookPage.TABLE_NAME, arrayOf(BookPage.COL_ID, BookPage.COL_CONTENT), null, null, null, null, null)
+            val cursor = database.query(BookPage.TABLE_NAME, arrayOf("rowid", BookPage.COL_CONTENT), null, null, null, null, null)
             try {
                 database.beginTransaction()
                 val contentValues = ContentValues()
                 while (cursor.moveToNext()) {
-                    val id = cursor.getString(cursor.getColumnIndex(BookPage.COL_ID))
+                    val id = cursor.getLong(0)
                     val content = cursor.getString(cursor.getColumnIndex(BookPage.COL_CONTENT))
                     val normalizedContent = normalizer.normalize(content)
 
                     contentValues.clear()
                     contentValues.put(BookPage.COL_CONTENT, normalizedContent)
 
-                    database.update(BookPage.TABLE_NAME, contentValues, "${BookPage.COL_ID}=?", arrayOf(id))
+                    // By rowid: matching the unindexed id column scanned the whole table for every page.
+                    database.update(BookPage.TABLE_NAME, contentValues, "rowid=?", arrayOf(id.toString()))
                 }
                 database.setTransactionSuccessful()
             } finally {

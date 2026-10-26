@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- Only the app's own update folder is shared (with the package installer). -->
-    <external-files-path name="updates" path="updates/" />
-</paths>

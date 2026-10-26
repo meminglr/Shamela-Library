@@ -3,7 +3,6 @@ package com.shamela.library.presentation.screens.favorite
 
 import com.shamela.library.R
 import android.app.Application
-import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,25 +28,20 @@ class FavoriteViewModel @Inject constructor(
     private val _favoriteState = MutableStateFlow<FavoriteState>(FavoriteState())
     val favoriteState = _favoriteState.asStateFlow()
 
+    init {
+        // Both lists are observed once for the screen's lifetime; the pager shows both tabs at once.
+        viewModelScope.launch {
+            booksUseCases.getFavoriteBooks().collect { books ->
+                _favoriteState.update { it.copy(favoriteBooks = books, booksLoaded = true) }
+            }
+        }
+        quotesUseCases.getAllQuotes().onEach { quotes ->
+            _favoriteState.update { it.copy(favoriteQuotes = quotes, quotesLoaded = true) }
+        }.launchIn(viewModelScope)
+    }
+
     fun onEvent(event: FavoriteEvent) {
         when (event) {
-            is FavoriteEvent.LoadFavoriteBooks -> {
-                viewModelScope.launch {
-                    Log.e("FavoriteViewModel", "onEvent: LoadFavoriteBooks ", )
-                    booksUseCases.getFavoriteBooks().onEach { books ->
-                        _favoriteState.update { it.copy(favoriteBooks = books, isListEmpty = books.isEmpty()) }
-                    }.launchIn(this@launch)
-                }
-            }
-            FavoriteEvent.LoadFavoriteQuotes ->{
-                viewModelScope.launch {
-                    Log.e("FavoriteViewModel", "onEvent: LoadFavoriteQuotes ", )
-                    quotesUseCases.getAllQuotes().onEach { quotes ->
-                        _favoriteState.update { it.copy(favoriteQuotes = quotes, isListEmpty = quotes.isEmpty()) }
-                    }.launchIn(this@launch)
-                }
-            }
-
             is FavoriteEvent.ToggleFavorite -> {
                 val book = event.book
                 val newState = !book.isFavorite
@@ -58,7 +52,6 @@ class FavoriteViewModel @Inject constructor(
 
             is FavoriteEvent.AddQuoteToFavorite -> {
                 viewModelScope.launch {
-                    Log.e("FavoriteViewModel", "AddQuoteToFavorite ${event.quote}")
                     quotesUseCases.saveQuote(event.quote)
                     Toast.makeText(application, application.getString(R.string.quote_added), Toast.LENGTH_SHORT).show()
                 }
@@ -66,10 +59,6 @@ class FavoriteViewModel @Inject constructor(
 
             is FavoriteEvent.OnChangeViewType -> {
                 _favoriteState.update { it.copy(viewType = event.newViewType) }
-                when(event.newViewType){
-                    FavoriteViewType.Quotes -> onEvent(FavoriteEvent.LoadFavoriteQuotes)
-                    FavoriteViewType.Books -> onEvent(FavoriteEvent.LoadFavoriteBooks)
-                }
             }
 
             is FavoriteEvent.OpenBookForQuote ->{

@@ -1,7 +1,8 @@
 package com.shamela.library.presentation.screens.settings
 
 
-import com.shamela.apptheme.presentation.common.SegmentedTabs
+import com.shamela.library.presentation.utils.LibraryImport
+import com.shamela.apptheme.presentation.common.TabbedPager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +46,7 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
 import com.shamela.apptheme.presentation.theme.colors.Green
 import com.shamela.apptheme.presentation.util.ShamelaPrev
+import com.shamela.library.presentation.screens.LocalFloatingBarInset
 import com.shamela.library.presentation.screens.LocalPaddingValues
 import com.shamela.library.presentation.screens.settings.components.ExternalBooksScreen
 import com.shamela.library.presentation.screens.settings.components.GeneralSettingsScreen
@@ -79,6 +81,10 @@ fun SettingsScreen(
         contract = ActivityResultContracts.CreateDocument("application/json"),
         onResult = { uri -> uri?.let { viewModel.onEvent(SettingsEvent.ExportBackup(it)) } }
     )
+    val importLibraryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+        onResult = { uri -> uri?.let { viewModel.onEvent(SettingsEvent.ImportLibraryFolder(it)) } }
+    )
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri -> uri?.let { viewModel.onEvent(SettingsEvent.ImportBackup(it)) } }
@@ -106,6 +112,7 @@ fun SettingsScreen(
         onDeleteAllBooks = { viewModel.onEvent(SettingsEvent.DeleteAllBooks) },
         onExportBackup = { exportLauncher.launch("shamela-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
+        onImportLibrary = { importLibraryLauncher.launch(LibraryImport.OLD_APP_FOLDER) },
     )
 }
 
@@ -120,6 +127,7 @@ private fun SettingsScreenUI(
     onDeleteAllBooks: () -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
+    onImportLibrary: () -> Unit = {},
 ) {
     val localPadding = LocalPaddingValues.current
     Column(
@@ -127,23 +135,25 @@ private fun SettingsScreenUI(
             .fillMaxSize()
             .padding(localPadding)
     ) {
-        SegmentedTabs(
+        TabbedPager(
             options = SettingsViewType.entries,
             selected = uiState.selectedViewType,
             label = { stringResource(it.label) },
+            icon = { it.icon },
             onSelect = onChangeViewType,
-        )
-        LoadingScreen(visibility = uiState.isLoading)
-        when (uiState.selectedViewType) {
+        ) { viewType ->
+        when (viewType) {
             SettingsViewType.Preferences -> PreferenceSettingsUI(
                 uiState = preferenceUiState,
-                onEvent = onPreferenceEvent
+                onEvent = onPreferenceEvent,
+                bottomInset = LocalFloatingBarInset.current,
             )
 
             SettingsViewType.General -> Column(
                 Modifier
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
+                    .padding(bottom = LocalFloatingBarInset.current)
             ) {
                 GeneralSettingsScreen(
                     downloadedBooksCount = uiState.downloadedBooksCount,
@@ -151,20 +161,24 @@ private fun SettingsScreenUI(
                     onDeleteAllBooks = onDeleteAllBooks,
                     onExportBackup = onExportBackup,
                     onImportBackup = onImportBackup,
-                )
-            }
-
-            SettingsViewType.ExternalBooks -> Column(Modifier.padding(horizontal = 16.dp)) {
-                ExternalBooksScreen(
-                onClickSelectBook = onClickSelectBook,
-                onClickAddBookToLibrary = onClickAddBookToLibrary,
-                selectedFileName = uiState.fileName,
-                selectedFileUri = uiState.fileUri
+                    importProgress = uiState.importProgress,
+                    onImportLibrary = onImportLibrary,
+                    // Adding a single EPUB from the device sits with the other library actions.
+                    externalBooks = {
+                        ExternalBooksScreen(
+                            onClickSelectBook = onClickSelectBook,
+                            onClickAddBookToLibrary = onClickAddBookToLibrary,
+                            selectedFileName = uiState.fileName,
+                            selectedFileUri = uiState.fileUri,
+                        )
+                    },
                 )
             }
 
         }
+        }
     }
+    LoadingScreen(visibility = uiState.isLoading)
 }
 
 @ShamelaPrev
@@ -183,22 +197,6 @@ private fun SettingScreenPrev_Preferences() {
                 availableFontSizes = listOf(12, 14, 16, 18, 20),
                 availableThemes = listOf("theme1", "theme2", "theme3"),
             )
-        )
-    }
-}
-
-@ShamelaPrev
-@Composable
-private fun SettingScreenPrev_ExternalBooks() {
-    AppTheme.ShamelaLibraryTheme {
-        AppTheme.changeColorScheme(Green.lightColorScheme, Green.name)
-        SettingsScreenUI(
-            uiState = SettingsState(selectedViewType = SettingsViewType.ExternalBooks),
-            onClickSelectBook = { },
-            onChangeViewType = { },
-            onClickAddBookToLibrary = {},
-            onPreferenceEvent = {},
-            preferenceUiState = PreferenceSettingsState()
         )
     }
 }

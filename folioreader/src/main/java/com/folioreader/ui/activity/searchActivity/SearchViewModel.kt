@@ -1,5 +1,6 @@
 package com.folioreader.ui.activity.searchActivity
 
+import com.folioreader.ui.activity.folioActivity.book.chapterTitles
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -122,6 +123,17 @@ class SearchViewModel : ViewModel() {
                 }
             }
 
+            is SearchEvent.RestoreResults -> {
+                _state.update {
+                    it.copy(
+                        searchQuery = event.query,
+                        searchResults = event.results,
+                        isLoading = false,
+                        isListEmpty = event.results.isEmpty(),
+                    )
+                }
+            }
+
             SearchEvent.ClearSearchQuery -> {
                 _state.update { it.copy(searchQuery = "", isLoading = false) }
                 searchJob?.cancel()
@@ -132,10 +144,17 @@ class SearchViewModel : ViewModel() {
                     withContext(Dispatchers.IO) {
                         event.epubFilePath?.let {
                             publication = try {
-                                EpubParser().parse(it)?.publication
+                                com.shamela.apptheme.data.util.parseEpubAndClose(it) { box -> box?.publication }
                             }catch (e: Exception){
                                 Log.e("SearchViewModel", "parseEpub: ${e.message}")
                                 null
+                            }
+                            publication?.let { pub ->
+                                val chapters = pub.readingOrder.map { link -> hrefKey(link.href) }
+                                    .zip(chapterTitles(pub))
+                                    .mapNotNull { (href, title) -> if (href != null && title != null) href to title else null }
+                                    .toMap()
+                                _state.update { it.copy(chapterByHref = chapters) }
                             }
                         }
                     }
@@ -206,5 +225,10 @@ class SearchViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
+    }
+
+    companion object {
+        /** Normalizes a resource href for chapter lookup. */
+        fun hrefKey(href: String?): String? = href?.substringBefore('#')?.removePrefix("/")
     }
 }

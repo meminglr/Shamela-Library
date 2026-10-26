@@ -22,7 +22,6 @@ class ShamelaFirebaseMessagingService : FirebaseMessagingService() {
         val body = message.data["body"] ?: message.notification?.body ?: getString(R.string.new_version_available)
 
         val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra(MainActivity.EXTRA_OPEN_ABOUT_SCREEN, true)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val pendingIntent = PendingIntent.getActivity(

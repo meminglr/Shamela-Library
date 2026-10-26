@@ -1,17 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="512"
-    android:viewportHeight="512">
-  <group>
-    <clip-path
-        android:pathData="M0,0h512v512h-512z"/>
+    android:viewportWidth="108"
+    android:viewportHeight="108">
     <path
-        android:pathData="M0,0h512v512h-512z"
-        android:fillColor="#B08D57"/>
-    <path
-        android:pathData="M794.6,237.76L231.55,797.14L-25.88,538.03L536,-24L794.6,237.76Z"
-        android:fillColor="#000000"
-        android:fillAlpha="0.25"/>
-  </group>
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M0,0h108v108h-108z" />
 </vector>

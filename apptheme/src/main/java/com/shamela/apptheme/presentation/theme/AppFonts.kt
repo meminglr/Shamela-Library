@@ -1,13 +1,13 @@
 package com.shamela.apptheme.presentation.theme
 
 import android.content.Context
-import android.graphics.Typeface
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -132,45 +132,38 @@ object AppFonts {
     private lateinit var NotoNaskhFamily: FontFamily
     private lateinit var ScheherazadeFamily: FontFamily
 
-    private val availableFonts = mutableMapOf<String, Pair<FontFamily, Typeface?>>()
+    private val availableFonts = mutableMapOf<String, FontFamily>()
 
+    /**
+     * Declares the bundled fonts without reading them: Compose loads an asset font the first time
+     * text uses it, so app start no longer reads all nine font files (2.8 MB) on the main thread.
+     */
     fun init(context: Context) {
         val assets = context.assets
-        fun typeface(file: String) = Typeface.createFromAsset(assets, "fonts/$file")
+        fun family(file: String) = FontFamily(Font(path = "fonts/$file", assetManager = assets))
 
-        val amiriTypeface = typeface("amiri_regular.ttf")
-        val kitabTypeface = typeface("kitab_regular.ttf")
-        val tajawalTypeface = typeface("tajawal_regular.ttf")
-        val messiriTypeface = typeface("messiri_regular.ttf")
-        val kufiTypeface = typeface("kufi_regular.ttf")
-        val cairoTypeface = typeface("cairo_regular.ttf")
-        val ibmPlexTypeface = typeface("ibm_plex_arabic_regular.ttf")
-        val notoNaskhTypeface = typeface("noto_naskh_arabic_regular.ttf")
-        val scheherazadeTypeface = typeface("scheherazade_regular.ttf")
-
-        AmiriFamily = FontFamily(amiriTypeface)
-        KitabFamily = FontFamily(kitabTypeface)
-        TajawalFamily = FontFamily(tajawalTypeface)
-        MessiriFamily = FontFamily(messiriTypeface)
-        KufiFamily = FontFamily(kufiTypeface)
-        CairoFamily = FontFamily(cairoTypeface)
-        IbmPlexFamily = FontFamily(ibmPlexTypeface)
-        NotoNaskhFamily = FontFamily(notoNaskhTypeface)
-        ScheherazadeFamily = FontFamily(scheherazadeTypeface)
+        AmiriFamily = family("amiri_regular.ttf")
+        KitabFamily = family("kitab_regular.ttf")
+        TajawalFamily = family("tajawal_regular.ttf")
+        MessiriFamily = family("messiri_regular.ttf")
+        KufiFamily = family("kufi_regular.ttf")
+        CairoFamily = family("cairo_regular.ttf")
+        IbmPlexFamily = family("ibm_plex_arabic_regular.ttf")
+        NotoNaskhFamily = family("noto_naskh_arabic_regular.ttf")
+        ScheherazadeFamily = family("scheherazade_regular.ttf")
 
         availableFonts.clear()
         // Keys are stored NFC-normalized (see SharedPreferencesData.nfc) so lookups always match.
-        availableFonts[DEFAULT] = Pair(FontFamily.Default, null)
-        availableFonts[AMIRI] = Pair(AmiriFamily, amiriTypeface)
-        availableFonts[KITAB] = Pair(KitabFamily, kitabTypeface)
-        availableFonts[TAJAWAL] = Pair(TajawalFamily, tajawalTypeface)
-        availableFonts[MESSIRI] = Pair(MessiriFamily, messiriTypeface)
-        availableFonts[KUFI] = Pair(KufiFamily, kufiTypeface)
-        availableFonts[CAIRO] = Pair(CairoFamily, cairoTypeface)
-        availableFonts[IBM_PLEX] = Pair(IbmPlexFamily, ibmPlexTypeface)
-        availableFonts[NOTO_NASKH] = Pair(NotoNaskhFamily, notoNaskhTypeface)
-        availableFonts[SCHEHERAZADE] = Pair(ScheherazadeFamily, scheherazadeTypeface)
-
+        availableFonts[DEFAULT] = FontFamily.Default
+        availableFonts[AMIRI] = AmiriFamily
+        availableFonts[KITAB] = KitabFamily
+        availableFonts[TAJAWAL] = TajawalFamily
+        availableFonts[MESSIRI] = MessiriFamily
+        availableFonts[KUFI] = KufiFamily
+        availableFonts[CAIRO] = CairoFamily
+        availableFonts[IBM_PLEX] = IbmPlexFamily
+        availableFonts[NOTO_NASKH] = NotoNaskhFamily
+        availableFonts[SCHEHERAZADE] = ScheherazadeFamily
         selectedFontFamily.value = TajawalFamily
     }
 
@@ -181,7 +174,7 @@ object AppFonts {
     fun getAvailableFontSizes() = setOf("4", "2", "0", "-2", "-4")
 
     fun fontFamilyOf(font: String): FontFamily {
-        return availableFonts[java.text.Normalizer.normalize(font, java.text.Normalizer.Form.NFC)]?.first ?: availableFonts[NOTO_NASKH]?.first ?: FontFamily.Default
+        return availableFonts[java.text.Normalizer.normalize(font, java.text.Normalizer.Form.NFC)] ?: availableFonts[NOTO_NASKH] ?: FontFamily.Default
     }
 
     private val selectedFontFamily = mutableStateOf<FontFamily>(FontFamily.Default)
@@ -243,12 +236,14 @@ object AppFonts {
         ).directional()
     }
 
-    fun selectedFontTypeFace(context: Context): Typeface? {
-        return availableFonts.entries.find { it.value.first == selectedFontFamily.value }?.value?.second
-    }
+    /** CSS class of the reader font for a stored font key (see Style.css), "" for the system font. */
+    fun cssClassOf(fontKey: String): String =
+        cssClassFor(availableFonts[java.text.Normalizer.normalize(fontKey, java.text.Normalizer.Form.NFC)])
 
-    fun selectedFontFamilyCssClass(): String {
-        return when (selectedFontFamily.value) {
+    fun selectedFontFamilyCssClass(): String = cssClassFor(selectedFontFamily.value)
+
+    private fun cssClassFor(family: FontFamily?): String {
+        return when (family) {
             AmiriFamily -> "amiri"
             KitabFamily -> "kitab"
             KufiFamily -> "kufi"

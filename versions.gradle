@@ -4,8 +4,6 @@ versions.folioreaderSdk = "0.5.4"
 versions.r2SharedKotlin = "1.0.4-2"
 versions.r2StreamerKotlin = "1.0.4-2"
 
-versions.projectVersionCode = 1
-versions.projectVersionName = "1.0"
 
 versions.androidMinSdk = 26
 versions.androidCompileSdk = 35
@@ -21,7 +19,7 @@ versions.compose_bom = '2025.04.01'
 versions.material3 = '1.5.0-alpha14'
 versions.compose_activity = '1.10.1'
 versions.kotlin_bom = '2.1.20'
-versions.lifecycle_runtime_ktx = '2.8.7'
+versions.lifecycle_runtime_ktx = '2.9.0'
 versions.navigation_compose = '2.9.0'
 
 versions.hilt_version = '2.56.2'

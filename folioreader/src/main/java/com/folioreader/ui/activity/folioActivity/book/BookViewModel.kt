@@ -8,8 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.folioreader.ui.activity.folioActivity.FolioActivity
 import com.folioreader.ui.base.HtmlUtil
 import com.folioreader.util.AppUtil
-import com.shamela.apptheme.data.db.DictionaryDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
@@ -60,38 +60,54 @@ class BookViewModel : ViewModel() {
                 _state.update { it.copy(pagesMap = emptyMap()) }
             }
 
-            is BookEvent.ShowMeaningSheet -> lookUpMeaning(event)
+            is BookEvent.ShowMeaningSheet -> {
+                val selection = event.selectedText.trim()
+                // Answer in the app's language: Turkish UI → Turkish, otherwise Arabic.
+                val turkish = event.context.resources.configuration.locales[0].language == "tr"
+                conversation = listOf(ChatMessage(fromUser = true, MeaningApi.firstPrompt(selection, event.passage, turkish)))
+                _state.update { it.copy(showMeaningSheet = true, meaningQuery = selection, meaningMessages = emptyList()) }
+                requestReply()
+            }
 
-            BookEvent.DismissMeaningSheet -> _state.update {
-                it.copy(showMeaningSheet = false)
+            is BookEvent.AskMeaningQuestion -> {
+                val question = event.question.trim()
+                if (question.isEmpty() || _state.value.meaningLoading) return
+                val message = ChatMessage(fromUser = true, question)
+                conversation = conversation + message
+                _state.update { it.copy(meaningMessages = it.meaningMessages + message) }
+                requestReply()
+            }
+
+            // The conversation still ends with the unanswered message; just send it again.
+            BookEvent.RetryMeaning -> requestReply()
+
+            BookEvent.DismissMeaningSheet -> {
+                meaningJob?.cancel()
+                _state.update { it.copy(showMeaningSheet = false) }
             }
         }
     }
 
-    private fun lookUpMeaning(event: BookEvent.ShowMeaningSheet) {
-        val term = event.selectedText.trim()
-        _state.update {
-            it.copy(
-                showMeaningSheet = true,
-                meaningQuery = term,
-                meaningLoading = true,
-                meaningResults = emptyList(),
-                dictionaryAvailable = true,
-            )
-        }
-        val appContext = event.context.applicationContext
-        viewModelScope.launch {
-            val dictionary = DictionaryDatabase.getInstance(appContext)
-            if (!dictionary.isAvailable()) {
-                _state.update { it.copy(meaningLoading = false, dictionaryAvailable = false) }
-            } else {
-                val results = dictionary.search(term)
-                _state.update {
-                    it.copy(meaningLoading = false, dictionaryAvailable = true, meaningResults = results)
-                }
+    private var meaningJob: Job? = null
+
+    /** Everything sent to the AI so far, starting with the opening prompt. */
+    private var conversation: List<ChatMessage> = emptyList()
+
+    private fun requestReply() {
+        val messages = conversation
+        _state.update { it.copy(meaningLoading = true, meaningError = null) }
+        meaningJob?.cancel()
+        meaningJob = viewModelScope.launch {
+            try {
+                val answer = ChatMessage(fromUser = false, MeaningApi.reply(messages))
+                conversation = messages + answer
+                _state.update { it.copy(meaningLoading = false, meaningMessages = it.meaningMessages + answer) }
+            } catch (e: MeaningApi.Failure) {
+                _state.update { it.copy(meaningLoading = false, meaningError = e.error) }
             }
         }
     }
+
     private fun clearOldWebViews(currentIndex: Int) {
         val maxCacheDistance = 5
 //        cachedWebViews.keys.toList().forEach { key ->

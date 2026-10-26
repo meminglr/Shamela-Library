@@ -21,7 +21,19 @@ class DatabaseHelper private constructor(val context: Context) :
     companion object {
         const val DATABASE_NAME = "AppDatabase"
         // v3: ArabicNormalizer.VERSION 2 (more characters unified) — indexed content is re-normalized.
-        const val DATABASE_VERSION = 3
+        // v4: BookPageRows, an indexed book id -> page row map (see there).
+        const val DATABASE_VERSION = 4
+
+        /**
+         * Which FTS rows belong to which book. The FTS table can't look up its book id column (it's
+         * not indexed), so deleting or checking one book scanned every page of the library: ~3 s
+         * per book with 1000 books. This plain indexed table makes those lookups instant.
+         */
+        private const val ROWS_TABLE = "BookPageRows"
+        private const val CREATE_ROWS_TABLE =
+            "CREATE TABLE IF NOT EXISTS $ROWS_TABLE (book_id TEXT NOT NULL, page_rowid INTEGER NOT NULL)"
+        private const val CREATE_ROWS_INDEX =
+            "CREATE INDEX IF NOT EXISTS idx_${ROWS_TABLE}_book ON $ROWS_TABLE(book_id)"
 
         /** Upper bound on rows returned by section/library searches, which carry full page text. */
         private const val MAX_SEARCH_RESULTS = 300
@@ -37,14 +49,30 @@ class DatabaseHelper private constructor(val context: Context) :
         }
     }
 
+    init {
+        // Searches and the reader keep reading while books are being indexed in the background.
+        setWriteAheadLoggingEnabled(true)
+    }
+
     override fun onCreate(database: SQLiteDatabase) {
         Log.e("DatabaseHelper", "onCreate: isCalled")
         database.execSQL(BookPage.CREATE_TABLE)
+        database.execSQL(CREATE_ROWS_TABLE)
+        database.execSQL(CREATE_ROWS_INDEX)
     }
 
 
     override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         Log.d("DatabaseHelper", "onUpgrade: $oldVersion -> $newVersion")
+        if (oldVersion < 4) {
+            database.execSQL(CREATE_ROWS_TABLE)
+            database.execSQL(CREATE_ROWS_INDEX)
+            // One scan to map the pages indexed so far.
+            database.execSQL(
+                "INSERT INTO $ROWS_TABLE (book_id, page_rowid) SELECT ${BookPage.COL_BOOK_ID}, rowid FROM ${BookPage.TABLE_NAME}"
+            )
+        }
+        if (oldVersion >= 3) return
         // Every version so far keeps the same FTS table; only the normalization rules changed.
         // Re-normalizing is idempotent, so one pass brings any older index up to date without
         // dropping it (dropping would silently disable search for every downloaded book).
@@ -74,9 +102,8 @@ class DatabaseHelper private constructor(val context: Context) :
             try {
                 db.beginTransaction()
                 // Re-indexing a book (re-download / re-import) must not duplicate its pages.
-                pages.map { it.bookId }.distinct().forEach { bookId ->
-                    db.delete(BookPage.TABLE_NAME, "${BookPage.COL_BOOK_ID} = ?", arrayOf(bookId))
-                }
+                pages.map { it.bookId }.distinct().forEach { bookId -> deletePages(db, bookId) }
+                val rowValues = ContentValues()
                 val contentValues = ContentValues()
                 for (page in pages) {
                     contentValues.clear()
@@ -86,7 +113,13 @@ class DatabaseHelper private constructor(val context: Context) :
                     contentValues.put(BookPage.COL_HREF, page.href)
                     contentValues.put(BookPage.COL_CATEGORY, page.category)
                     contentValues.put(BookPage.COL_CONTENT, page.content)
-                    db.insert(BookPage.TABLE_NAME, null, contentValues)
+                    val rowId = db.insert(BookPage.TABLE_NAME, null, contentValues)
+                    if (rowId > 0) {
+                        rowValues.clear()
+                        rowValues.put("book_id", page.bookId)
+                        rowValues.put("page_rowid", rowId)
+                        db.insert(ROWS_TABLE, null, rowValues)
+                    }
                 }
                 db.setTransactionSuccessful()
                 true
@@ -101,14 +134,36 @@ class DatabaseHelper private constructor(val context: Context) :
 
     suspend fun deleteBookPages(bookId: String) {
         withContext(Dispatchers.IO) {
-            writableDatabase.delete(BookPage.TABLE_NAME, "${BookPage.COL_BOOK_ID} = ?", arrayOf(bookId))
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                deletePages(db, bookId)
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
         }
+    }
+
+    /** Deletes one book's pages through the row map (no scan of the whole FTS table). */
+    private fun deletePages(db: SQLiteDatabase, bookId: String) {
+        db.execSQL(
+            "DELETE FROM ${BookPage.TABLE_NAME} WHERE rowid IN (SELECT page_rowid FROM $ROWS_TABLE WHERE book_id = ?)",
+            arrayOf(bookId)
+        )
+        db.delete(ROWS_TABLE, "book_id = ?", arrayOf(bookId))
+    }
+
+    /** Ids of every book that has pages in the index. */
+    suspend fun indexedBookIds(): Set<String> = withContext(Dispatchers.IO) {
+        readableDatabase.rawQuery("SELECT DISTINCT book_id FROM $ROWS_TABLE", null)
+            .use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
     }
 
     suspend fun hasPages(bookId: String): Boolean {
         return withContext(Dispatchers.IO) {
             readableDatabase.rawQuery(
-                "SELECT 1 FROM ${BookPage.TABLE_NAME} WHERE ${BookPage.COL_BOOK_ID} = ? LIMIT 1",
+                "SELECT 1 FROM $ROWS_TABLE WHERE book_id = ? LIMIT 1",
                 arrayOf(bookId)
             ).use { it.moveToFirst() }
         }
