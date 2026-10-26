@@ -37,6 +37,9 @@ class ShamelaBooksRepoImpl(private val catalog: ShamelaCatalog) : BooksRepositor
         catalog.get()
     }
 
+    /** The catalog if it is on the device already (see [ShamelaCatalog.peek]). */
+    suspend fun peekCatalog(): ShamelaCatalogData? = catalog.peek()
+
     override fun getCategories(): Flow<Category> = flow {
         val data = catalog.get() ?: return@flow
         val counts = data.books.groupingBy { it.category }.eachCount()

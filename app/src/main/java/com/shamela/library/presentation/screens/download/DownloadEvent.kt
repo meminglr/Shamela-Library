@@ -6,7 +6,6 @@ import com.shamela.library.presentation.screens.library.BooksViewType
 
 sealed class DownloadEvent{
     class OnChangeViewType(val newBooksViewType: BooksViewType): DownloadEvent()
-    class OnChangeSource(val source: DownloadSource): DownloadEvent()
     object LoadUserBooks: DownloadEvent()
     object LoadUserSections: DownloadEvent()
     /** Fetch the shamela.ws catalog again (menu, or retry after a failure). */

@@ -79,6 +79,18 @@ class ShamelaCatalog(context: Context) {
         }
     }
 
+    /**
+     * The catalog if it is already on the device, without going to shamela.ws. Doesn't wait for a
+     * download in progress, so a list can be shown from the other catalog meanwhile.
+     */
+    suspend fun peek(): ShamelaCatalogData? {
+        cached?.let { return it }
+        return readFromDisk()?.also {
+            cached = it
+            if (_state.value is ShamelaCatalogState.Idle) _state.value = ShamelaCatalogState.Ready
+        }
+    }
+
     private suspend fun download(): ShamelaCatalogData = coroutineScope {
         _state.value = ShamelaCatalogState.Loading(0, 0)
         val categories = ShamelaCatalogParser.parseCategories(ShamelaHttp.get("${ShamelaHttp.BASE}/"))

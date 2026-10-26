@@ -9,7 +9,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shamela.apptheme.data.db.FtsQuery
-import com.shamela.library.data.local.assets.AssetsRepoImpl
+import com.shamela.library.data.catalog.CatalogRepoImpl
+import com.shamela.library.data.catalog.CatalogSources
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
@@ -30,7 +31,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SearchResultsViewModel @Inject constructor(
-    @AssetsRepoImpl private val remoteBooksUseCases: BooksUseCases,
+    @CatalogRepoImpl private val remoteBooksUseCases: BooksUseCases,
     @FilesRepoImpl private val localBooksUseCases: BooksUseCases,
     @ShamelaRepoImpl private val shamelaBooksUseCases: BooksUseCases,
     private val quotesUseCases: QuotesUseCases,
@@ -138,9 +139,10 @@ class SearchResultsViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 BooksDownloadManager.downloadStatusFlow,
-                localBooksUseCases.getDownloadedBooks()
-            ) { statusMap, downloadedList ->
-                Pair(statusMap, downloadedList.map { it.id }.toSet())
+                localBooksUseCases.getDownloadedBooks(),
+                CatalogSources.index,
+            ) { statusMap, downloadedList, _ ->
+                Pair(statusMap, CatalogSources.withListedIds(downloadedList.map { it.id }.toSet()))
             }.collect { (statusMap, downloadedIds) ->
                 _searchResultsState.update {
                     it.copy(downloadStatuses = statusMap, downloadedBookIds = downloadedIds)

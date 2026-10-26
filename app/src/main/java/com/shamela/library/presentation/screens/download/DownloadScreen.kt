@@ -3,7 +3,6 @@
 package com.shamela.library.presentation.screens.download
 
 
-import androidx.compose.foundation.layout.heightIn
 import com.shamela.library.presentation.common.downloadStatusOf
 import androidx.compose.foundation.layout.Arrangement
 import com.shamela.library.presentation.common.SegmentGap
@@ -11,22 +10,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.res.stringResource
 import com.shamela.apptheme.presentation.common.TabbedPager
 import android.util.Log
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,8 +55,6 @@ import com.shamela.library.presentation.common.BookItem
 import com.shamela.library.presentation.common.CharacterHeader
 import com.shamela.library.presentation.common.DownloadIconButton
 import com.shamela.library.presentation.common.groupedSectionItems
-import com.shamela.library.presentation.common.menuItemShapes
-import com.shamela.library.presentation.common.menuSelectableItemColors
 import com.shamela.library.presentation.navigation.Download
 import com.shamela.library.presentation.screens.LocalPaddingValues
 import com.shamela.library.presentation.screens.LocalFloatingBarInset
@@ -79,19 +68,17 @@ fun DownloadScreen(
     viewModel: DownloadViewModel = hiltViewModel(),
     navigateToSectionBooksScreen: (categoryName: String, type: String) -> Unit,
     navigateToSearchResultsScreen: (categoryName: String, type: String) -> Unit,
-    /** The second argument is the screen `type` the book was listed under ("remote", "shamela"). */
+    /** The second argument is the screen `type` the book was listed under ("remote"). */
     navigateToBookDetails: (Book, String) -> Unit,
     ) {
     val downloadState = viewModel.downloadState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
-    val shamela = downloadState.source == DownloadSource.Shamela
-    val type = if (shamela) "shamela" else "remote"
-    val currentState by rememberUpdatedState(downloadState)
+    val type = "remote"
     LaunchedEffect(key1 = Unit, block = {
         Download.buttons.onEach {
             if (it) {
-                // Both tabs search sections and books of the selected catalog.
-                navigateToSearchResultsScreen("all", if (currentState.source == DownloadSource.Shamela) "shamela" else "remote")
+                // Both tabs search sections and books of the merged catalog.
+                navigateToSearchResultsScreen("all", type)
             }
         }.launchIn(this)
     })
@@ -104,10 +91,8 @@ fun DownloadScreen(
         onSelect = { viewModel.onEvent(DownloadEvent.OnChangeViewType(it)) },
         modifier = Modifier.fillMaxSize(),
         trailing = {
-            SourceDropdown(
-                source = downloadState.source,
-                onSelect = { viewModel.onEvent(DownloadEvent.OnChangeSource(it)) },
-                onRefreshShamela = if (shamela && downloadState.shamelaCatalog !is ShamelaCatalogState.Loading) {
+            CatalogMenu(
+                onRefresh = if (downloadState.shamelaCatalog !is ShamelaCatalogState.Loading) {
                     { viewModel.onEvent(DownloadEvent.RefreshShamelaCatalog) }
                 } else null,
             )
@@ -120,14 +105,13 @@ fun DownloadScreen(
         verticalArrangement = Arrangement.spacedBy(SegmentGap),
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp + LocalFloatingBarInset.current)
     ) {
-        if (shamela) {
-            when (val catalog = downloadState.shamelaCatalog) {
-                is ShamelaCatalogState.Loading -> item(key = "shamela-loading") { CatalogLoading(catalog) }
-                is ShamelaCatalogState.Failed -> item(key = "shamela-failed") {
-                    CatalogFailed(catalog, onRetry = { viewModel.onEvent(DownloadEvent.RefreshShamelaCatalog) })
-                }
-                else -> Unit
+        // The shamela.ws part is still coming (or failed): Kütüphane 1 is listed meanwhile.
+        when (val catalog = downloadState.shamelaCatalog) {
+            is ShamelaCatalogState.Loading -> item(key = "shamela-loading") { CatalogLoading(catalog) }
+            is ShamelaCatalogState.Failed -> item(key = "shamela-failed") {
+                CatalogFailed(catalog, onRetry = { viewModel.onEvent(DownloadEvent.RefreshShamelaCatalog) })
             }
+            else -> Unit
         }
 
         when (viewType) {
@@ -192,89 +176,25 @@ fun DownloadScreen(
 
 }
 
+/** Overflow menu next to the tabs: fetch the shamela.ws part of the catalog again. */
 @Composable
-private fun sourceLabel(source: DownloadSource): String =
-    stringResource(if (source == DownloadSource.Shamela) R.string.source_shamela else R.string.source_library)
-
-private fun sourceIcon(source: DownloadSource) =
-    if (source == DownloadSource.Shamela) ShamelaIcons.Language else ShamelaIcons.LocalLibrary
-
-/**
- * Which library the screen lists: Kütüphane 1 (the app's ready EPUBs) or Kütüphane 2 (shamela.ws,
- * built on the device). Drawn like the tabs next to it: the same rounded track holding one pill.
- */
-@Composable
-private fun SourceDropdown(
-    source: DownloadSource,
-    onSelect: (DownloadSource) -> Unit,
-    onRefreshShamela: (() -> Unit)?,
-) {
+private fun CatalogMenu(onRefresh: (() -> Unit)?) {
     var expanded by remember { mutableStateOf(false) }
-    Box(Modifier.padding(end = 16.dp, top = 8.dp, bottom = 8.dp)) {
-        Box(
-            Modifier
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .padding(4.dp)
-        ) {
-            Row(
-                Modifier
-                    // Grows with the font scale instead of clipping the label.
-                    .heightIn(min = 36.dp)
-                    .shadow(2.dp, CircleShape)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable(role = Role.DropdownList) { expanded = true }
-                    .padding(start = 14.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = sourceLabel(source),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                )
-                Icon(
-                    ShamelaIcons.ArrowDropDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+    Box(Modifier.padding(end = 8.dp)) {
+        IconButton(onClick = { expanded = true }, enabled = onRefresh != null) {
+            Icon(ShamelaIcons.MoreVert, contentDescription = stringResource(R.string.shamela_refresh_catalog))
         }
-        // Material 3 Expressive menu: grouped, rounded items; the selected library is tinted with a check.
         DropdownMenuPopup(expanded = expanded, onDismissRequest = { expanded = false }) {
-            val groups = if (onRefreshShamela != null) 2 else 1
-            val options = DownloadSource.entries
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, groups)) {
-                options.forEachIndexed { index, option ->
-                    DropdownMenuItem(
-                        selected = option == source,
-                        onClick = {
-                            expanded = false
-                            onSelect(option)
-                        },
-                        text = { Text(sourceLabel(option)) },
-                        shapes = menuItemShapes(index, options.size),
-                        leadingIcon = { Icon(sourceIcon(option), contentDescription = null) },
-                        selectedLeadingIcon = { Icon(ShamelaIcons.Check, contentDescription = null) },
-                        colors = menuSelectableItemColors(),
-                    )
-                }
-            }
-            if (onRefreshShamela != null) {
-                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, groups)) {
-                    DropdownMenuItem(
-                        onClick = {
-                            expanded = false
-                            onRefreshShamela()
-                        },
-                        text = { Text(stringResource(R.string.shamela_refresh_catalog)) },
-                        shape = MenuDefaults.itemShape(0, 1).shape,
-                        leadingIcon = { Icon(ShamelaIcons.Refresh, contentDescription = null) },
-                    )
-                }
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                DropdownMenuItem(
+                    onClick = {
+                        expanded = false
+                        onRefresh?.invoke()
+                    },
+                    text = { Text(stringResource(R.string.shamela_refresh_catalog)) },
+                    shape = MenuDefaults.itemShape(0, 1).shape,
+                    leadingIcon = { Icon(ShamelaIcons.Refresh, contentDescription = null) },
+                )
             }
         }
     }

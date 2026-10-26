@@ -186,6 +186,10 @@
     <!-- Şamile (shamela.ws) source -->
     <string name="source_library">Kütüphane 1</string>
     <string name="source_shamela">Kütüphane 2</string>
+    <string name="source_both">İki kütüphanede de var</string>
+    <string name="source_library_detail">Kütüphane 1 · hazır EPUB olarak indirilir</string>
+    <string name="source_shamela_detail">Kütüphane 2 · shamela.ws\'ten telefonda oluşturulur</string>
+    <string name="source_both_detail">İki kütüphanede de var · Kütüphane 1\'den indirilir</string>
     <string name="shamela_refresh_catalog">Kataloğu yenile</string>
     <string name="shamela_catalog_loading_start">Şamile kataloğu indiriliyor…</string>
     <string name="shamela_catalog_loading">Şamile kataloğu indiriliyor: %1$d / %2$d bölüm</string>

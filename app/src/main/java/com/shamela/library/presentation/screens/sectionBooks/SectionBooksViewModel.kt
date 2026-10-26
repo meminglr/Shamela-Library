@@ -10,7 +10,8 @@ import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.shamela.library.data.local.assets.AssetsRepoImpl
+import com.shamela.library.data.catalog.CatalogRepoImpl
+import com.shamela.library.data.catalog.CatalogSources
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
@@ -40,7 +41,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SectionBooksViewModel @Inject constructor(
-    @AssetsRepoImpl private val remoteBooksUseCases: BooksUseCases,
+    @CatalogRepoImpl private val remoteBooksUseCases: BooksUseCases,
     @FilesRepoImpl private val localBooksUseCases: BooksUseCases,
     @ShamelaRepoImpl private val shamelaBooksUseCases: BooksUseCases,
     private val handle: SavedStateHandle,
@@ -50,7 +51,7 @@ class SectionBooksViewModel @Inject constructor(
     private val _sectionBooksState = MutableStateFlow(SectionBooksState())
     val sectionBooksState = _sectionBooksState.asStateFlow()
 
-    /** The catalog books of this section come from: shamela.ws for "shamela", else the R2 library. */
+    /** The catalog books of this section come from: shamela.ws alone for "shamela", else the merged catalog. */
     private val catalogUseCases: BooksUseCases
         get() = if (handle.get<String>("type") == "shamela") shamelaBooksUseCases else remoteBooksUseCases
 
@@ -63,7 +64,7 @@ class SectionBooksViewModel @Inject constructor(
                         loadRemoteBooksOfSection(categoryName)
                     }
                     val bookUriMap = sectionBooksState.value.books.values.associateWith { book ->
-                        async { catalogUseCases.getDownloadUri(categoryName, book.title) }
+                        async { catalogUseCases.getDownloadUri(book.categoryName, book.title) }
                     }
                     val bookUriList = withContext(coroutineContext) {
                         bookUriMap.mapValues { it.value.await() }
@@ -223,11 +224,12 @@ class SectionBooksViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 BooksDownloadManager.downloadStatusFlow,
-                localBooksUseCases.getDownloadedBooks()
-            ) { statusMap, downloadedList ->
+                localBooksUseCases.getDownloadedBooks(),
+                CatalogSources.index,
+            ) { statusMap, downloadedList, _ ->
                 Triple(
                     statusMap,
-                    downloadedList.map { it.id }.toSet(),
+                    CatalogSources.withListedIds(downloadedList.map { it.id }.toSet()),
                     downloadedList.filter { it.isFavorite }.map { it.id }.toSet(),
                 )
             }.collect { (statusMap, downloadedIds, favoriteIds) ->

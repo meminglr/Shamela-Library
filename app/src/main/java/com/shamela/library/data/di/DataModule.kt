@@ -10,6 +10,8 @@ import com.shamela.apptheme.domain.usecases.userPreferences.GetAvailableThemes
 import com.shamela.apptheme.domain.usecases.userPreferences.ReadUserPreferences
 import com.shamela.apptheme.domain.usecases.userPreferences.UpdateUserPreferences
 import com.shamela.apptheme.domain.usecases.userPreferences.UserPreferencesUseCases
+import com.shamela.library.data.catalog.CatalogBooksRepoImpl
+import com.shamela.library.data.catalog.CatalogRepoImpl
 import com.shamela.library.data.local.assets.AssetsBooksRepoImpl
 import com.shamela.library.data.local.assets.AssetsRepoImpl
 import com.shamela.library.data.local.backup.LibraryBackup
@@ -49,6 +51,15 @@ object DataModule {
     @Provides
     fun provideShamelaBooksRepository(app: Application): ShamelaBooksRepoImpl {
         return ShamelaBooksRepoImpl(ShamelaCatalog(app.applicationContext))
+    }
+
+    @Singleton
+    @Provides
+    fun provideCatalogBooksRepository(
+        library: AssetsBooksRepoImpl,
+        site: ShamelaBooksRepoImpl,
+    ): CatalogBooksRepoImpl {
+        return CatalogBooksRepoImpl(library, site)
     }
 
     @Singleton
@@ -108,6 +119,17 @@ object DataModule {
     @Singleton
     @Provides
     fun provideShamelaBooksUseCases(repo: ShamelaBooksRepoImpl, dao: BooksDao, app: Application): BooksUseCases {
+        return BooksUseCases(
+            repository = repo,
+            booksDao = dao,
+            context = app.applicationContext
+        )
+    }
+
+    @CatalogRepoImpl
+    @Singleton
+    @Provides
+    fun provideCatalogBooksUseCases(repo: CatalogBooksRepoImpl, dao: BooksDao, app: Application): BooksUseCases {
         return BooksUseCases(
             repository = repo,
             booksDao = dao,

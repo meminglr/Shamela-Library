@@ -133,7 +133,7 @@ private fun BookListItem(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
-    leading: @Composable () -> Unit = { ListLeadingTile(ShamelaIcons.MenuBook) },
+    leading: @Composable () -> Unit = { SourceTile(item.id) },
     downloadStatus: DownloadStatus? = null,
     trailing: @Composable RowScope.() -> Unit,
 ) {
@@ -158,6 +158,9 @@ private fun BookListItem(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
+                }
+                // shamela.ws doesn't give every book's page count: no separator before nothing.
+                if (author != null && item.pageCount > 0) {
                     Text(
                         text = "  ·  ",
                         style = MaterialTheme.typography.bodyMedium,
@@ -353,7 +356,7 @@ fun LibraryBookItem(
                             content = MaterialTheme.colorScheme.onPrimary,
                         )
                     } else {
-                        ListLeadingTile(ShamelaIcons.MenuBook)
+                        SourceTile(item.id)
                     }
                 }
             },

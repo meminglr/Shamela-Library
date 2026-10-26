@@ -188,6 +188,10 @@
     <!-- Şamile (shamela.ws) source -->
     <string name="source_library">المكتبة 1</string>
     <string name="source_shamela">المكتبة 2</string>
+    <string name="source_both">في المكتبتين</string>
+    <string name="source_library_detail">المكتبة 1 · يُنزَّل ملف EPUB جاهزًا</string>
+    <string name="source_shamela_detail">المكتبة 2 · يُبنى على الجهاز من shamela.ws</string>
+    <string name="source_both_detail">في المكتبتين · يُنزَّل من المكتبة 1</string>
     <string name="shamela_refresh_catalog">تحديث الفهرس</string>
     <string name="shamela_catalog_loading_start">جار تحميل فهرس الشاملة…</string>
     <string name="shamela_catalog_loading">جار تحميل فهرس الشاملة: %1$d / %2$d قسم</string>

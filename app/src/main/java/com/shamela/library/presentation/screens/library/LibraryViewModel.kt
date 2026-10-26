@@ -3,6 +3,7 @@
 package com.shamela.library.presentation.screens.library
 
 
+import com.shamela.library.data.catalog.CatalogBooksRepoImpl
 import com.shamela.library.R
 import android.app.Application
 import android.util.Log
@@ -45,6 +46,7 @@ class LibraryViewModel @Inject constructor(
     @FilesRepoImpl private val booksUseCases: BooksUseCases,
     private val quotesUseCases: QuotesUseCases,
     private val application: Application,
+    private val catalogRepo: CatalogBooksRepoImpl,
 ) : ViewModel(), BooksDownloadManager.Subscriber {
     private val _libraryState = MutableStateFlow<LibraryState>(LibraryState())
     val libraryState = _libraryState.asStateFlow()
@@ -53,6 +55,8 @@ class LibraryViewModel @Inject constructor(
 
     init {
         onEvent(LibraryEvent.LoadUserBooksAndSections)
+        // Match the two catalogs in the background, for the source numbers on the library's books.
+        viewModelScope.launch(Dispatchers.IO) { catalogRepo.warmUp() }
         // The sorted list is rebuilt off the main thread whenever its inputs change (it used to be
         // sorted in composition: an Arabic collation of the whole library on every change).
         viewModelScope.launch {

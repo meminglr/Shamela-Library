@@ -3,6 +3,8 @@
 package com.shamela.library.presentation.screens.bookDetails
 
 import com.shamela.apptheme.presentation.common.PillTabs
+import com.shamela.library.data.catalog.BookSource
+import com.shamela.library.presentation.common.SourceNumberBadge
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.OutlinedButton
@@ -128,7 +130,10 @@ fun BookDetailsScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            MetaChip(icon = ShamelaIcons.AutoStories, text = stringResource(R.string.book_pages, book.pageCount))
+                            // shamela.ws doesn't give the page count of every book.
+                            if (book.pageCount > 0) {
+                                MetaChip(icon = ShamelaIcons.AutoStories, text = stringResource(R.string.book_pages, book.pageCount))
+                            }
                             book.author.takeUnless { it.isBlank() || it == "-" }?.let {
                                 MetaChip(icon = ShamelaIcons.Person, text = it, isContent = true)
                             }
@@ -151,6 +156,26 @@ fun BookDetailsScreen(
                                 style = AppFonts.content(MaterialTheme.typography.labelLarge),
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
+                        }
+
+                        // Which library the book comes from, and how it downloads from there.
+                        if (state.sources.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                SourceNumberBadge(state.sources)
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    text = stringResource(
+                                        when {
+                                            state.sources.size > 1 -> R.string.source_both_detail
+                                            BookSource.Site in state.sources -> R.string.source_shamela_detail
+                                            else -> R.string.source_library_detail
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }

@@ -6,15 +6,7 @@ import com.shamela.library.domain.model.Category
 import com.shamela.library.domain.model.DownloadStatus
 import com.shamela.library.presentation.screens.library.BooksViewType
 
-/** Where the download screen lists books from. */
-enum class DownloadSource {
-    /** The app's own catalog of ready EPUBs (R2). */
-    Library,
-    /** shamela.ws: books are built on the device from the site's pages. */
-    Shamela,
-}
-
-/** The lists of one source. */
+/** The lists of the merged catalog. */
 data class CatalogLists(
     val books: List<Book> = emptyList(),
     val groupedBooks: Map<Char, List<Book>> = emptyMap(),
@@ -23,13 +15,10 @@ data class CatalogLists(
 )
 
 data class DownloadState(
-    val source: DownloadSource = DownloadSource.Library,
     val booksViewType: BooksViewType = BooksViewType.Sections,
-    val library: CatalogLists = CatalogLists(),
-    val shamela: CatalogLists = CatalogLists(),
+    val lists: CatalogLists = CatalogLists(),
+    /** Loading the shamela.ws part of the catalog; Kütüphane 1 is listed meanwhile. */
     val shamelaCatalog: ShamelaCatalogState = ShamelaCatalogState.Idle,
     val downloadStatuses: Map<String, DownloadStatus> = emptyMap(),
     val downloadedBookIds: Set<String> = emptySet(),
-) {
-    val lists: CatalogLists get() = if (source == DownloadSource.Shamela) shamela else library
-}
+)

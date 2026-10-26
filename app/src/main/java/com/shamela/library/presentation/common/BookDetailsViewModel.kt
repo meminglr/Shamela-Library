@@ -3,7 +3,10 @@ package com.shamela.library.presentation.common
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shamela.library.data.local.assets.AssetsBooksRepoImpl
-import com.shamela.library.data.local.assets.AssetsRepoImpl
+import com.shamela.library.data.catalog.BookSource
+import com.shamela.library.data.catalog.CatalogBooksRepoImpl
+import com.shamela.library.data.catalog.CatalogRepoImpl
+import com.shamela.library.data.catalog.CatalogSources
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
@@ -34,7 +37,8 @@ import javax.inject.Inject
 @HiltViewModel
 class BookDetailsViewModel @Inject constructor(
     private val assetsBooksRepo: AssetsBooksRepoImpl,
-    @AssetsRepoImpl private val remoteBooksUseCases: BooksUseCases,
+    private val catalogRepo: CatalogBooksRepoImpl,
+    @CatalogRepoImpl private val remoteBooksUseCases: BooksUseCases,
     private val shamelaBooksRepo: ShamelaBooksRepoImpl,
     @ShamelaRepoImpl private val shamelaBooksUseCases: BooksUseCases,
     @FilesRepoImpl private val localBooksUseCases: BooksUseCases,
@@ -48,6 +52,8 @@ class BookDetailsViewModel @Inject constructor(
         val isDownloading: Boolean = false,
         /** Live download state (queued, progress, waiting, failed), null when idle. */
         val downloadStatus: DownloadStatus? = null,
+        /** The catalog(s) the book is in: Kütüphane 1, shamela.ws or both; empty if neither. */
+        val sources: Set<BookSource> = emptySet(),
     )
 
     private val _state = MutableStateFlow(State())
@@ -64,10 +70,18 @@ class BookDetailsViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
+            catalogRepo.warmUp()
+            val sources = CatalogSources.of(book.id)
+            // A shamela.ws book (only on the site, or the site copy of a shared one, e.g. downloaded
+            // before the catalogs were merged) has its card on the site.
+            val siteBook = BookSource.Site in sources &&
+                (BookSource.Library !in sources || CatalogSources.index.value.libraryIdOf(book.id) != null)
+            if (siteBook) this@BookDetailsViewModel.fromShamela = true
+            _state.update { it.copy(sources = sources) }
             // A malformed detail file (JsonSyntaxException isn't an IOException) shows "no details"
             // instead of crashing the screen.
             val details = try {
-                if (fromShamela) shamelaBooksRepo.getBookDetails(book.categoryName, book.title)
+                if (this@BookDetailsViewModel.fromShamela) shamelaBooksRepo.getBookDetails(book.categoryName, book.title)
                 else assetsBooksRepo.getBookDetails(book.categoryName, book.title)
             } catch (e: CancellationException) {
                 throw e
@@ -83,8 +97,10 @@ class BookDetailsViewModel @Inject constructor(
             combine(
                 BooksDownloadManager.downloadStatusFlow,
                 localBooksUseCases.getDownloadedBooks(),
-            ) { statusMap, downloadedList ->
-                val downloaded = downloadedList.any { it.id == book.id }
+                CatalogSources.index,
+            ) { statusMap, downloadedList, _ ->
+                val siteCopy = CatalogSources.siteCopyOf(book.id)?.id
+                val downloaded = downloadedList.any { it.id == book.id || it.id == siteCopy }
                 downloaded to statusMap[book.id]
             }.collect { (downloaded, status) ->
                 _state.update {
@@ -122,9 +138,12 @@ class BookDetailsViewModel @Inject constructor(
 
     fun openBook() {
         val book = book ?: return
-        FilesBooksRepoImpl.openEpub(
-            book = book,
-            onAddQuoteToFavorite = { quote -> viewModelScope.launch { quotesUseCases.saveQuote(quote) } },
-        )
+        val saveQuote = { quote: com.shamela.library.domain.model.Quote ->
+            viewModelScope.launch { quotesUseCases.saveQuote(quote) }
+            Unit
+        }
+        // The downloaded file may be the shamela.ws copy of a book listed from Kütüphane 1.
+        FilesBooksRepoImpl.openEpub(book = book, onAddQuoteToFavorite = saveQuote) ||
+            CatalogSources.siteCopyOf(book.id)?.let { FilesBooksRepoImpl.openEpub(book = it, onAddQuoteToFavorite = saveQuote) } == true
     }
 }
