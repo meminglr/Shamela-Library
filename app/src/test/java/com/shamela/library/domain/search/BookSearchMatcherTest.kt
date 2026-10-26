@@ -144,49 +144,24 @@ class BookSearchMatcherTest {
 
     // ─── relevanceScore ───────────────────────────────────────────────────────
 
+    private fun score(title: String, query: String, author: String = "مؤلف مجهول") =
+        BookSearchMatcher.relevanceScore(book(title, author), query)
+
     @Test
-    fun `exact title match scores 6`() {
-        assertEquals(6, BookSearchMatcher.relevanceScore(book("صحيح البخاري"), "صحيح البخاري"))
+    fun `exact title ranks above all-words, which ranks above a typo`() {
+        assertTrue(score("سير أعلام النبلاء", "سير أعلام النبلاء") > score("سير أعلام النبلاء", "سير النبلاء"))
+        assertTrue(score("سير أعلام النبلاء", "سير النبلاء") > score("سير أعلام النبلاء", "سبر أعلام النبلاء"))
     }
 
     @Test
-    fun `title starts-with scores 5`() {
-        assertEquals(5, BookSearchMatcher.relevanceScore(book("صحيح البخاري"), "صحيح"))
-    }
-
-    @Test
-    fun `title substring (not prefix) scores 4`() {
-        assertEquals(4, BookSearchMatcher.relevanceScore(book("صحيح البخاري"), "البخاري"))
-    }
-
-    @Test
-    fun `all words in title (non-contiguous) scores 3`() {
-        assertEquals(3, BookSearchMatcher.relevanceScore(book("سير أعلام النبلاء"), "سير النبلاء"))
-    }
-
-    @Test
-    fun `fuzzy title match scores 2`() {
-        assertEquals(2, BookSearchMatcher.relevanceScore(book("سير أعلام النبلاء"), "سبر أعلام النبلاء"))
-    }
-
-    @Test
-    fun `all-words title ranks above fuzzy title`() {
-        val book = book("سير أعلام النبلاء")
-        assertTrue(
-            BookSearchMatcher.relevanceScore(book, "سير النبلاء") >
-            BookSearchMatcher.relevanceScore(book, "سبر أعلام النبلاء")
-        )
-    }
-
-    @Test
-    fun `author-only match scores 1`() {
-        val book = book("الرسالة", author = "الشافعي")
-        assertEquals(1, BookSearchMatcher.relevanceScore(book, "الشافعي"))
+    fun `typo in a title still ranks above an author-only match`() {
+        assertTrue(score("سير أعلام النبلاء", "سبر أعلام النبلاء") > score("الرسالة", "الشافعي", author = "الشافعي"))
+        assertTrue(score("الرسالة", "الشافعي", author = "الشافعي") > 0)
     }
 
     @Test
     fun `no match scores 0`() {
-        assertEquals(0, BookSearchMatcher.relevanceScore(book("صحيح البخاري"), "الترمذي"))
+        assertEquals(0, score("صحيح البخاري", "الترمذي"))
     }
 
     @Test
@@ -207,9 +182,56 @@ class BookSearchMatcherTest {
 
     @Test
     fun `normalization applied in scoring`() {
-        // query أساس (hamza above) should score the same against title اساس (plain alef)
-        val book = book("اساس البلاغة")
-        assertEquals(5, BookSearchMatcher.relevanceScore(book, "أساس"))
+        // query أساس (hamza above) scores the same against title اساس (plain alef)
+        assertEquals(score("اساس البلاغة", "اساس"), score("اساس البلاغة", "أساس"))
+    }
+
+    // ─── Sound-alike letters, Persian keyboard, closest titles ───────────────
+
+    @Test
+    fun `sound-alike letters find the title, which ranks first`() {
+        val bukhari = book("صحيح البخاري")
+        val other = book("تغليق التعليق على صحيح البخاري")
+        for (query in listOf("سحيح البخاري", "صهيح البخاري", "سهيه البهاري")) {
+            assertTrue(query, BookSearchMatcher.matches(bukhari, query))
+            assertEquals(query, bukhari, BookSearchMatcher.search(listOf(other, bukhari), query).first())
+        }
+        assertTrue(BookSearchMatcher.matches(book("تذكرة الحفاظ"), "تزكرة الحفاظ"))
+        assertTrue(BookSearchMatcher.matches(book("القاموس المحيط"), "الكاموس المحيط"))
+        assertTrue(BookSearchMatcher.matches(book("تفسير الطبري"), "طفسير التبري"))
+        assertTrue(BookSearchMatcher.matches(book("فتح الباري"), "فته الباري"))
+    }
+
+    @Test
+    fun `exact spelling ranks above sound-alike spelling`() {
+        assertTrue(score("صحيح البخاري", "صحيح البخاري") > score("صحيح البخاري", "سحيح البخاري"))
+    }
+
+    @Test
+    fun `persian keyboard letters match arabic ones exactly`() {
+        assertEquals(score("صحيح البخاري", "صحيح البخاري"), score("صحيح البخاري", "صحیح البخاری"))
+        assertEquals(score("كتاب التوحيد", "كتاب التوحيد"), score("كتاب التوحيد", "کتاب التوحید"))
+    }
+
+    @Test
+    fun `nothing matching offers the closest titles`() {
+        val books = listOf(book("فتح الباري شرح صحيح البخاري"), book("الأم"), book("رياض الصالحين"))
+        val results = BookSearchMatcher.search(books, "فتح الباري شرح صحيح البخاري العمدة")
+        assertEquals(books[0], results.first())
+        assertTrue(BookSearchMatcher.isClosest(results.first(), "فتح الباري شرح صحيح البخاري العمدة"))
+        assertFalse(BookSearchMatcher.isClosest(books[0], "فتح الباري"))
+    }
+
+    @Test
+    fun `unrelated query offers nothing`() {
+        assertTrue(BookSearchMatcher.search(listOf(book("صحيح البخاري")), "الرسالة القشيرية").isEmpty())
+    }
+
+    @Test
+    fun `findHighlightRange marks a sound-alike match`() {
+        val text = "صحيح البخاري"
+        val range = BookSearchMatcher.findHighlightRange(text, "سحيح")
+        assertEquals("صحيح", text.substring(range!!))
     }
 
     // ─── findHighlightRange ───────────────────────────────────────────────────

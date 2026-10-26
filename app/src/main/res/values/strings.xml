@@ -203,4 +203,5 @@
     <string name="dl_progress_pages">%1$d%% · \u2066%2$d / %3$d\u2069 صفحة</string>
     <string name="dl_shamela_preparing">جار تجهيز الكتاب…</string>
     <string name="dl_failed_shamela_verify">موقع الشاملة يطلب التحقق</string>
+    <string name="search_closest_results">لا نتائج مطابقة · أقرب النتائج</string>
 </resources>

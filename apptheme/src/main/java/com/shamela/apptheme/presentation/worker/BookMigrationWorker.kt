@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.shamela.apptheme.R
 import com.shamela.apptheme.data.db.DatabaseHelper
 import com.shamela.apptheme.data.util.ArabicNormalizer
+import com.shamela.apptheme.data.util.ArabicSoundKey
 import com.shamela.apptheme.domain.model.BookPage
 import com.shamela.apptheme.presentation.util.notifications.ChannelType
 import com.shamela.apptheme.presentation.util.notifications.NotificationHelper
@@ -60,6 +61,7 @@ class BookMigrationWorker(
 
                     contentValues.clear()
                     contentValues.put(BookPage.COL_CONTENT, normalizedContent)
+                    contentValues.put(BookPage.COL_SOUND, ArabicSoundKey.fold(normalizedContent))
 
                     // By rowid: matching the unindexed id column scanned the whole table for every page.
                     database.update(BookPage.TABLE_NAME, contentValues, "rowid=?", arrayOf(id.toString()))

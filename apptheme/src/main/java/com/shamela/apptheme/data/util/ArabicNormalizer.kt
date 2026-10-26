@@ -8,7 +8,7 @@ class ArabicNormalizer {
          * Bump this whenever the normalization rules change: already-indexed book pages must be
          * re-normalized (see DatabaseHelper.onUpgrade), otherwise queries and content diverge.
          */
-        const val VERSION = 2
+        const val VERSION = 3
 
         // Define mapping for normalization
         private val normalizationMap = mapOf(
@@ -20,6 +20,13 @@ class ArabicNormalizer {
             'ى' to 'ي', // ALEF_MAKSURA to YEH
             'ؤ' to 'و', // WAW_HAMZA to WAW
             'ئ' to 'ي', // YEH_HAMZA to YEH
+            // Persian/Turkish keyboard letters typed for their Arabic look-alikes.
+            'ی' to 'ي', // FARSI_YEH to YEH
+            'ې' to 'ي', // E to YEH
+            'ۍ' to 'ي', // YEH_WITH_TAIL to YEH
+            'ک' to 'ك', // KEHEH to KAF
+            'ۀ' to 'ه', // HEH_WITH_YEH_ABOVE to HEH
+            'ە' to 'ه', // AE to HEH
         )
 
         /** Characters that are dropped entirely: harakat, Quranic annotation marks and tatweel. */

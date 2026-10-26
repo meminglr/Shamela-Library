@@ -38,11 +38,13 @@ class ArabicNormalizerTest {
 
     @Test
     fun ftsPhrase_escapesDoubleQuotes() {
-        assertEquals("\"قال \"\"نعم\"\"\"", FtsQuery.phrase("قال \"نعم\""))
+        // Also folded to sound-alike letters (ق→ك, ع→ا), like the indexed text it is matched against.
+        assertEquals("\"كال \"\"نام\"\"\"", FtsQuery.phrase("قال \"نعم\""))
     }
 
     @Test
     fun ftsPhrase_normalizesAndTrims() {
-        assertEquals("\"احكام الصلاه\"", FtsQuery.phrase("  أحكام الصلاة "))
+        assertEquals("\"اهكام السلاه\"", FtsQuery.phrase("  أحكام الصلاة "))
+        assertEquals("احكام الصلاه", FtsQuery.normalized("  أحكام الصلاة "))
     }
 }

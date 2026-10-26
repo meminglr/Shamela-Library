@@ -20,12 +20,19 @@ data class BookPage(
         const val COL_CATEGORY = "category"
         const val COL_BOOK_ID = "book_id"
         const val COL_BOOK_TITLE = "book_title"
+        /**
+         * The page in sound-alike spelling ([com.shamela.apptheme.data.util.ArabicSoundKey]): the
+         * column searches run on. [COL_CONTENT] keeps the spelling, for showing and for ranking
+         * exact-spelling matches first.
+         */
+        const val COL_SOUND = "sound"
         const val CREATE_TABLE = "CREATE VIRTUAL TABLE $TABLE_NAME USING fts5 ( " +
                 "$COL_ID UNINDEXED, " +
                 "$COL_HREF UNINDEXED, " +
                 "$COL_CATEGORY UNINDEXED, " +
                 "$COL_BOOK_ID UNINDEXED, " +
                 "$COL_BOOK_TITLE UNINDEXED, " +
-                "$COL_CONTENT );"
+                "$COL_CONTENT UNINDEXED, " +
+                "$COL_SOUND );"
     }
 }

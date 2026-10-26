@@ -136,25 +136,54 @@ function onClickHtml() {
 // Search result highlighting — called via loadUrl() from FolioActivity
 // ---------------------------------------------------------------------------
 
+// The app's ArabicNormalizer, for finding search matches (stored without harakat) in the page.
+const ARABIC_FOLDS = {
+    'آ': 'ا', 'أ': 'ا', 'إ': 'ا', 'ٱ': 'ا', 'ة': 'ه', 'ى': 'ي', 'ؤ': 'و', 'ئ': 'ي',
+    'ی': 'ي', 'ې': 'ي', 'ۍ': 'ي', 'ک': 'ك', 'ۀ': 'ه', 'ە': 'ه'
+};
+
+function isArabicIgnorable(c) {
+    return (c >= 'ً' && c <= 'ٟ') || c === 'ٰ' ||
+        (c >= 'ؐ' && c <= 'ؚ') || (c >= 'ۖ' && c <= 'ۭ') || c === 'ـ';
+}
+
+function normalizeArabic(s) {
+    let out = '';
+    for (const c of s) if (!isArabicIgnorable(c)) out += ARABIC_FOLDS[c] || c;
+    return out;
+}
+
 /**
  * Highlights a search match and returns its vertical position in CSS px (-1 if not found).
+ * [text] and [before] come from the search index, which has no harakat: they are matched against
+ * the page's text normalized the same way, and the highlight covers the original characters.
  * [before] is the text preceding the match in the result snippet; it picks the right occurrence
  * when the word appears several times on the page. The page is scrolled by the app (the WebView
  * sits inside a native scroll container), so this only reports the position.
  */
 function highlightSearchLocator(text, before) {
     try {
+        text = normalizeArabic(text || '');
         if (!text) return -1;
         const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
         const nodes = [];
-        let full = '';
+        let raw = '';
         let node;
         while ((node = walker.nextNode())) {
-            nodes.push({ node: node, start: full.length });
-            full += node.textContent;
+            nodes.push({ node: node, start: raw.length });
+            raw += node.textContent;
+        }
+        // full[i] is the normalized form of raw[origin[i]].
+        let full = '';
+        const origin = [];
+        for (let i = 0; i < raw.length; i++) {
+            const c = raw[i];
+            if (isArabicIgnorable(c)) continue;
+            full += ARABIC_FOLDS[c] || c;
+            origin.push(i);
         }
         let index = -1;
-        const context = (before || '').replace(/^[.…\s]+/, '');
+        const context = normalizeArabic(before || '').replace(/^[.…\s]+/, '');
         for (let len = Math.min(24, context.length); index < 0 && len >= 4; len -= 4) {
             const tail = context.slice(-len);
             const i = full.indexOf(tail + text);
@@ -162,15 +191,19 @@ function highlightSearchLocator(text, before) {
         }
         if (index < 0) index = full.indexOf(text);
         if (index < 0) return -1;
+        const rawStart = origin[index];
+        // Through the harakat that follow the match's last letter.
+        let rawEnd = origin[index + text.length - 1] + 1;
+        while (rawEnd < raw.length && isArabicIgnorable(raw[rawEnd])) rawEnd++;
 
         let entry = nodes[0];
         for (const n of nodes) {
-            if (n.start <= index) entry = n; else break;
+            if (n.start <= rawStart) entry = n; else break;
         }
-        const offset = index - entry.start;
+        const offset = rawStart - entry.start;
         const range = document.createRange();
         range.setStart(entry.node, offset);
-        range.setEnd(entry.node, Math.min(offset + text.length, entry.node.textContent.length));
+        range.setEnd(entry.node, Math.min(rawEnd - entry.start, entry.node.textContent.length));
 
         const old = document.querySelectorAll('span.search-highlight');
         old.forEach(function (s) { s.replaceWith(document.createTextNode(s.textContent)); });

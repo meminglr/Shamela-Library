@@ -201,4 +201,5 @@
     <string name="dl_progress_pages">%1$d%% · \u2066%2$d / %3$d\u2069 sayfa</string>
     <string name="dl_shamela_preparing">Kitap hazırlanıyor…</string>
     <string name="dl_failed_shamela_verify">shamela.ws doğrulama istiyor</string>
+    <string name="search_closest_results">Tam eşleşme yok · en yakın sonuçlar</string>
 </resources>

@@ -118,12 +118,12 @@ object FilesBooksRepoImpl : BooksRepository {
             val folders = if (categoryName == "all") categories.orEmpty()
             else categories?.filter { it.name == categoryName }.orEmpty()
             // Match on the file name first (cheap), then parse only the hits for author/page count.
-            val matches = folders.flatMap { folder ->
+            val files = folders.flatMap { folder ->
                 folder.listFiles { file -> file.isFile && file.name.endsWith(".epub") }
                     .orEmpty()
                     .map { file -> placeholderBook(file, folder.name) to file }
-            }.filter { (book, _) -> BookSearchMatcher.matches(book, query) }
-                .sortedByDescending { (book, _) -> BookSearchMatcher.relevanceScore(book, query) }
+            }.toMap()
+            val matches = BookSearchMatcher.search(files.keys, query).map { it to files.getValue(it) }
             matches.forEach { (placeholder, file) ->
                 send(parseBook(file, placeholder.categoryName) ?: placeholder)
             }

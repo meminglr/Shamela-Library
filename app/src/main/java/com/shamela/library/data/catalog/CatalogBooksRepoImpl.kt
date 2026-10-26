@@ -129,12 +129,7 @@ class CatalogBooksRepoImpl(
     override fun searchBooksByName(categoryName: String, query: String): Flow<Book> = flow {
         val sections = merged().booksBySection
         val books = if (categoryName == "all") sections.values.flatten() else sections[categoryName].orEmpty()
-        val matches = withContext(Dispatchers.Default) {
-            books.map { it to BookSearchMatcher.relevanceScore(it, query) }
-                .filter { it.second > 0 }
-                .sortedByDescending { it.second }
-                .map { it.first }
-        }
+        val matches = withContext(Dispatchers.Default) { BookSearchMatcher.search(books, query) }
         emitAll(matches.asFlow())
     }
 

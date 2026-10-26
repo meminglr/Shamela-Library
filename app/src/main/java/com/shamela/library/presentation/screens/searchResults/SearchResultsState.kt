@@ -13,6 +13,8 @@ data class SearchResultsState(
     val sectionsResultsList: List<Category> = emptyList(),
     val isLoading: Boolean = false,
     val isListEmpty: Boolean = false,
+    /** Nothing matched the query: the books listed are only the closest titles. */
+    val showsClosest: Boolean = false,
     val downloadStatuses: Map<String, DownloadStatus> = emptyMap(),
     val downloadedBookIds: Set<String> = emptySet(),
 )

@@ -4,12 +4,9 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.util.Log
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.shamela.apptheme.data.util.ArabicNormalizer
+import com.shamela.apptheme.data.util.ArabicSoundKey
 import com.shamela.apptheme.domain.model.BookPage
-import com.shamela.apptheme.presentation.worker.BookMigrationWorker
 import io.requery.android.database.sqlite.SQLiteDatabase
 import io.requery.android.database.sqlite.SQLiteOpenHelper
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +19,9 @@ class DatabaseHelper private constructor(val context: Context) :
         const val DATABASE_NAME = "AppDatabase"
         // v3: ArabicNormalizer.VERSION 2 (more characters unified) — indexed content is re-normalized.
         // v4: BookPageRows, an indexed book id -> page row map (see there).
-        const val DATABASE_VERSION = 4
+        // v5: pages searched in sound-alike spelling (BookPage.COL_SOUND), and ArabicNormalizer.VERSION 3:
+        //     the index is rebuilt from the books (an FTS5 table can't gain a column).
+        const val DATABASE_VERSION = 5
 
         /**
          * Which FTS rows belong to which book. The FTS table can't look up its book id column (it's
@@ -37,7 +36,6 @@ class DatabaseHelper private constructor(val context: Context) :
 
         /** Upper bound on rows returned by section/library searches, which carry full page text. */
         private const val MAX_SEARCH_RESULTS = 300
-        private const val MIGRATION_WORK_NAME = "fts-renormalize"
 
         @Volatile
         private var INSTANCE: DatabaseHelper? = null
@@ -64,21 +62,13 @@ class DatabaseHelper private constructor(val context: Context) :
 
     override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         Log.d("DatabaseHelper", "onUpgrade: $oldVersion -> $newVersion")
-        if (oldVersion < 4) {
-            database.execSQL(CREATE_ROWS_TABLE)
-            database.execSQL(CREATE_ROWS_INDEX)
-            // One scan to map the pages indexed so far.
-            database.execSQL(
-                "INSERT INTO $ROWS_TABLE (book_id, page_rowid) SELECT ${BookPage.COL_BOOK_ID}, rowid FROM ${BookPage.TABLE_NAME}"
-            )
+        if (oldVersion < 5) {
+            // New table layout: start empty. The library's indexing queue (run at every start for
+            // books without pages) rebuilds every book's pages in the background.
+            database.execSQL("DROP TABLE IF EXISTS ${BookPage.TABLE_NAME}")
+            database.execSQL("DROP TABLE IF EXISTS $ROWS_TABLE")
+            onCreate(database)
         }
-        if (oldVersion >= 3) return
-        // Every version so far keeps the same FTS table; only the normalization rules changed.
-        // Re-normalizing is idempotent, so one pass brings any older index up to date without
-        // dropping it (dropping would silently disable search for every downloaded book).
-        val migrationWorkRequest = OneTimeWorkRequestBuilder<BookMigrationWorker>().build()
-        WorkManager.getInstance(context)
-            .enqueueUniqueWork(MIGRATION_WORK_NAME, ExistingWorkPolicy.REPLACE, migrationWorkRequest)
     }
 
     suspend fun insertBookPage(page: BookPage): Boolean {
@@ -90,6 +80,7 @@ class DatabaseHelper private constructor(val context: Context) :
                 put(BookPage.COL_HREF, page.href)
                 put(BookPage.COL_CATEGORY, page.category)
                 put(BookPage.COL_CONTENT, page.content)
+                put(BookPage.COL_SOUND, ArabicSoundKey.fold(page.content))
             }
 
             return@withContext writableDatabase.insert(BookPage.TABLE_NAME, null, contentValues) > 0
@@ -113,6 +104,7 @@ class DatabaseHelper private constructor(val context: Context) :
                     contentValues.put(BookPage.COL_HREF, page.href)
                     contentValues.put(BookPage.COL_CATEGORY, page.category)
                     contentValues.put(BookPage.COL_CONTENT, page.content)
+                    contentValues.put(BookPage.COL_SOUND, ArabicSoundKey.fold(page.content))
                     val rowId = db.insert(BookPage.TABLE_NAME, null, contentValues)
                     if (rowId > 0) {
                         rowValues.clear()
@@ -171,7 +163,7 @@ class DatabaseHelper private constructor(val context: Context) :
 
     suspend fun searchBook(bookId: String, query: String): List<BookPage> =
         search(
-            selection = "${BookPage.COL_BOOK_ID} = ? AND ${BookPage.COL_CONTENT} MATCH ?",
+            selection = "${BookPage.COL_BOOK_ID} = ? AND ${BookPage.COL_SOUND} MATCH ?",
             args = { phrase -> arrayOf(bookId, phrase) },
             query = query,
             withContent = true,
@@ -180,7 +172,7 @@ class DatabaseHelper private constructor(val context: Context) :
 
     suspend fun searchCategory(category: String, query: String): List<BookPage> =
         search(
-            selection = "${BookPage.COL_CATEGORY} = ? AND ${BookPage.COL_CONTENT} MATCH ?",
+            selection = "${BookPage.COL_CATEGORY} = ? AND ${BookPage.COL_SOUND} MATCH ?",
             args = { phrase -> arrayOf(category, phrase) },
             query = query,
             withContent = true,
@@ -189,7 +181,7 @@ class DatabaseHelper private constructor(val context: Context) :
 
     suspend fun searchLibrary(query: String): List<BookPage> =
         search(
-            selection = "${BookPage.COL_CONTENT} MATCH ?",
+            selection = "${BookPage.COL_SOUND} MATCH ?",
             args = { phrase -> arrayOf(phrase) },
             query = query,
             withContent = true,
@@ -197,8 +189,10 @@ class DatabaseHelper private constructor(val context: Context) :
         )
 
     /**
-     * Runs an FTS phrase query. The query is normalized exactly like the indexed content (see
-     * BookPreparationWorker) and escaped, so user input can never break the MATCH syntax.
+     * Runs an FTS phrase query on the pages' sound-alike spelling, so "سهيه" finds "صحيح". The query
+     * is normalized and folded exactly like the indexed text and escaped, so user input can never
+     * break the MATCH syntax. Pages with the query in its exact spelling come first, then by rank
+     * (among the [limit] best ranked).
      */
     @SuppressLint("Range")
     private suspend fun search(
@@ -211,24 +205,20 @@ class DatabaseHelper private constructor(val context: Context) :
         val phrase = FtsQuery.phrase(query)
         if (phrase == FtsQuery.EMPTY) return emptyList()
         return withContext(Dispatchers.IO) {
-            val columns = arrayOf(
+            val columns = listOf(
                 BookPage.COL_HREF,
                 BookPage.COL_BOOK_ID,
                 BookPage.COL_CATEGORY,
                 BookPage.COL_BOOK_TITLE,
                 BookPage.COL_CONTENT,
-            )
+            ).joinToString()
+            // Ranked by the index alone: ordering on the page text in SQL would read every matching
+            // page of the library. Exact spelling is put first among the returned pages below.
+            val sql = "SELECT $columns FROM ${BookPage.TABLE_NAME} WHERE $selection ORDER BY rank" +
+                (limit?.let { " LIMIT $it" } ?: "")
+            val exact = FtsQuery.normalized(query)
             try {
-                readableDatabase.query(
-                    BookPage.TABLE_NAME,
-                    columns,
-                    selection,
-                    args(phrase),
-                    null,
-                    null,
-                    "rank",
-                    limit?.toString()
-                ).use { cursor ->
+                readableDatabase.rawQuery(sql, args(phrase)).use { cursor ->
                     val results = ArrayList<BookPage>(cursor.count)
                     while (cursor.moveToNext()) {
                         results.add(
@@ -243,7 +233,7 @@ class DatabaseHelper private constructor(val context: Context) :
                             )
                         )
                     }
-                    results
+                    if (withContent) results.sortedBy { !it.content.contains(exact) } else results
                 }
             } catch (e: Exception) {
                 Log.e("DatabaseHelper", "search failed for [$query]: ${e.message}")
@@ -258,10 +248,27 @@ object FtsQuery {
     const val EMPTY = "\"\""
     private val normalizer = ArabicNormalizer()
 
-    /** Normalizes [query] like the indexed text and wraps it as an FTS5 string, doubling quotes. */
+    /**
+     * Normalizes and folds [query] like the indexed sound-alike text ([BookPage.COL_SOUND]) and
+     * wraps it as an FTS5 string, doubling quotes.
+     */
     fun phrase(query: String): String =
-        "\"" + normalizer.normalize(query.trim()).replace("\"", "\"\"") + "\""
+        "\"" + ArabicSoundKey.fold(normalized(query)).replace("\"", "\"\"") + "\""
 
     /** The normalized form of [query], for locating matches inside already-normalized content. */
     fun normalized(query: String): String = normalizer.normalize(query.trim())
+
+    /**
+     * Where [query] is in [content] (normalized page text): its exact spelling, or failing that its
+     * sound-alike spelling; null if neither. The range is in [content], to show what the page says.
+     */
+    fun locate(content: String, query: String): IntRange? {
+        val token = normalized(query)
+        if (token.isEmpty()) return null
+        var start = content.indexOf(token)
+        if (start < 0) start = ArabicSoundKey.fold(content).indexOf(ArabicSoundKey.fold(token).trim())
+        if (start < 0) return null
+        val length = if (content.startsWith(token, start)) token.length else ArabicSoundKey.fold(token).trim().length
+        return start until start + length
+    }
 }

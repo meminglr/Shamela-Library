@@ -90,6 +90,11 @@ fun SearchResultsScreen(
                         }
                     }
                 }
+                if (state.showsClosest) {
+                    item(key = "closest-header") {
+                        ListGroupHeader(text = stringResource(R.string.search_closest_results))
+                    }
+                }
                 itemsIndexed(state.booksResultsList, key = { _, it -> it.id }) { index, currentBook ->
                     when (state.type){
                         "local"->{

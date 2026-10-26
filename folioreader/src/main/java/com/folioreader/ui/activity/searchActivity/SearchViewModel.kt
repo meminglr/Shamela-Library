@@ -88,19 +88,19 @@ class SearchViewModel : ViewModel() {
                                                 )
                                             }
                                         }*/
-                                    val token = FtsQuery.normalized(query)
                                     publication?.let { publication ->
                                         bookPages
                                             .map { page -> publication.readingOrder.indexOfFirst { it.href == page.href } to page }
                                             .sortedBy { it.first }
                                             .forEach { (index, page) ->
-                                                // The streamer matches raw text, so a query without harakat can
-                                                // miss a page the (normalized) index found; fall back to a snippet.
+                                                // The streamer matches raw text, so a query without harakat, or
+                                                // in sound-alike letters, can miss a page the index found; fall
+                                                // back to a snippet of that page.
                                                 val results = runCatching { searchApi.search(index, query) }
                                                     .getOrDefault(emptyList())
                                                     .map { it.toSearchLocator() }
                                                     .ifEmpty {
-                                                        listOfNotNull(snippetLocator(page.content, token, page.href, ""))
+                                                        listOfNotNull(snippetLocator(page.content, query, page.href, ""))
                                                     }
                                                 _state.update {
                                                     it.copy(
@@ -179,10 +179,10 @@ class SearchViewModel : ViewModel() {
 
                                     val bookPages =
                                         database?.searchCategory(category, query) ?: emptyList()
-                                    // Page content is stored normalized, so locate the normalized query.
-                                    val token = FtsQuery.normalized(query)
+                                    // Page content is stored normalized: locate the query in it, also
+                                    // in sound-alike letters.
                                     val searchLocators = bookPages.mapNotNull { page ->
-                                        snippetLocator(page.content, token, page.href, page.category)
+                                        snippetLocator(page.content, query, page.href, page.category)
                                             ?.let { page.bookTitle to it }
                                     }
                                     _state.update {
@@ -207,19 +207,21 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    /** A search result showing up to 50 chars around the first [token] match in [content]. */
-    private fun snippetLocator(content: String, token: String, href: String, title: String): SearchLocator? {
-        val queryIndex = content.indexOf(token)
-        if (queryIndex < 0 || token.isEmpty()) return null
-        val matchEnd = queryIndex + token.length
-        val textBefore = content.substring(maxOf(queryIndex - 50, 0), queryIndex)
-        val textAfter = content.substring(matchEnd, minOf(matchEnd + 50, content.length))
+    /**
+     * A search result showing up to 50 chars around the first match of [query] in [content] —
+     * exact or sound-alike spelling — highlighting what the page itself says there.
+     */
+    private fun snippetLocator(content: String, query: String, href: String, title: String): SearchLocator? {
+        val match = FtsQuery.locate(content, query) ?: return null
+        val matched = content.substring(match)
+        val textBefore = content.substring(maxOf(match.first - 50, 0), match.first)
+        val textAfter = content.substring(match.last + 1, minOf(match.last + 1 + 50, content.length))
         return Locator(
             href = href,
             created = 0,
             title = title,
-            locations = Locations(cfi = "...$textBefore $token $textAfter..."),
-            text = LocatorText(before = textBefore, hightlight = token, after = textAfter)
+            locations = Locations(cfi = "...$textBefore $matched $textAfter..."),
+            text = LocatorText(before = textBefore, hightlight = matched, after = textAfter)
         ).toSearchLocator()
     }
 

@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.shamela.apptheme.data.db.FtsQuery
 import com.shamela.library.data.catalog.CatalogRepoImpl
 import com.shamela.library.data.catalog.CatalogSources
+import com.shamela.library.domain.search.BookSearchMatcher
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
@@ -54,7 +55,8 @@ class SearchResultsViewModel @Inject constructor(
                                 isLoading = true,
                                 booksResultsList = emptyList(),
                                 sectionsResultsList = emptyList(),
-                                isListEmpty = false
+                                isListEmpty = false,
+                                showsClosest = false,
                             )
                         }
                         val categoryName =
@@ -91,7 +93,9 @@ class SearchResultsViewModel @Inject constructor(
                         _searchResultsState.update {
                             it.copy(
                                 isLoading = false,
-                                isListEmpty = it.booksResultsList.isEmpty() && it.sectionsResultsList.isEmpty()
+                                isListEmpty = it.booksResultsList.isEmpty() && it.sectionsResultsList.isEmpty(),
+                                showsClosest = it.booksResultsList.isNotEmpty() &&
+                                    it.booksResultsList.all { book -> BookSearchMatcher.isClosest(book, query) },
                             )
                         }
                     }

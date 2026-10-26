@@ -55,12 +55,8 @@ class ShamelaBooksRepoImpl(private val catalog: ShamelaCatalog) : BooksRepositor
 
     override fun searchBooksByName(categoryName: String, query: String): Flow<Book> = flow {
         val data = catalog.get() ?: return@flow
-        val matches = data.books.asSequence()
-            .filter { categoryName == "all" || it.category == categoryName }
-            .map(::toBook)
-            .filter { BookSearchMatcher.matches(it, query) }
-            .sortedByDescending { BookSearchMatcher.relevanceScore(it, query) }
-            .toList()
+        val books = data.books.filter { categoryName == "all" || it.category == categoryName }.map(::toBook)
+        val matches = BookSearchMatcher.search(books, query)
         emitAll(matches.asFlow())
     }
 

@@ -135,9 +135,7 @@ class AssetsBooksRepoImpl(private val context: Context) : BooksRepository {
     override fun searchBooksByName(categoryName: String, query: String): Flow<Book> {
         return if (categoryName == "all") searchAllBooks(query)
         else flow {
-            val matches = _getBooksByCategory(categoryName)
-                .filter { BookSearchMatcher.matches(it, query) }
-                .sortedByDescending { BookSearchMatcher.relevanceScore(it, query) }
+            val matches = BookSearchMatcher.search(_getBooksByCategory(categoryName), query)
             emitAll(matches.asFlow())
         }
     }
@@ -148,14 +146,11 @@ class AssetsBooksRepoImpl(private val context: Context) : BooksRepository {
 
         categoryNames.map { category ->
             launch(Dispatchers.IO) {
-                _getBooksByCategory(category)
-                    .filter { BookSearchMatcher.matches(it, query) }
-                    .forEach { results.add(it) }
+                results.addAll(_getBooksByCategory(category))
             }
         }.joinAll()
 
-        results.sortedByDescending { BookSearchMatcher.relevanceScore(it, query) }
-               .forEach { send(it) }
+        BookSearchMatcher.search(results, query).forEach { send(it) }
     }
 
 
