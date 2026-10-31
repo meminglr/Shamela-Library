@@ -71,7 +71,7 @@ fun SettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val getContentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
+        contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             if (uri != null) {
                 viewModel.onEvent(SettingsEvent.NewFileSelected(uri))
@@ -99,7 +99,7 @@ fun SettingsScreen(
     SettingsScreenUI(
         uiState = uiState,
         preferenceUiState = preferenceUiState,
-        onClickSelectBook = { getContentLauncher.launch("application/epub+zip") },
+        onClickSelectBook = { getContentLauncher.launch(arrayOf("application/epub+zip", "application/pdf")) },
         onChangeViewType = { viewModel.onEvent(SettingsEvent.OnChangeViewType(it)) },
         onClickAddBookToLibrary = {
             uiState.fileUri?.let { uri ->

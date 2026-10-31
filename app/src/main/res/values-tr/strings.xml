@@ -4,7 +4,7 @@
     <!-- Navigation -->
     <string name="nav_library">Kütüphane</string>
     <string name="nav_download">İndir</string>
-    <string name="nav_favorite">Favoriler</string>
+    <string name="nav_favorite">Kaydedilenler</string>
     <string name="nav_search">Ara</string>
     <string name="nav_settings">Ayarlar</string>
 
@@ -18,7 +18,7 @@
     <string name="action_clear">Temizle</string>
     <string name="search_hint">Ara...</string>
     <string name="no_results">Sonuç bulunamadı.</string>
-    <string name="quote_added">Favorilere eklendi</string>
+    <string name="quote_added">Kaydedilenlere eklendi</string>
     <string name="pages_count_label">Sayfa sayısı: %1$d</string>
     <string name="books_count_label">Kitap sayısı: %1$d</string>
     <string name="page_number_label">Sayfa: %1$d</string>
@@ -74,8 +74,8 @@
     <string name="download_section_message">Bu bölümden %1$d kitap indirilecek. Devam edilsin mi?</string>
 
     <!-- Favorites -->
-    <string name="favorite_quotes_empty">Favori alıntınız yok.\nOkurken bir metni seçip favorilere ekleyebilirsiniz!</string>
-    <string name="favorite_books_empty">Favori kitabınız yok.\nKütüphanenizdeki kitapları favorilere ekleyin!</string>
+    <string name="favorite_quotes_empty">Kaydedilmiş alıntınız yok.\nOkurken bir metni seçip kaydedebilirsiniz!</string>
+    <string name="favorite_books_empty">Kaydedilmiş kitabınız yok.\nKütüphanenizdeki kitapları kaydedin!</string>
 
     <!-- Search -->
     <string name="search_select_sections_hint">Arama yapmak için bir veya daha fazla bölüm seçmelisiniz</string>
@@ -114,7 +114,7 @@
     <string name="prefernces">Tercihler</string>
     <string name="external_bboks">Harici kitaplar</string>
     <string name="settings_general">Genel</string>
-    <string name="external_book_hint">Cihazınızdaki bir EPUB kitabı ekleyin; kütüphanede Harici kitaplar bölümünde görünür.</string>
+    <string name="external_book_hint">Cihazınızdaki bir EPUB veya PDF kitabı ekleyin. EPUB kitaplar Harici kitaplar, PDF\'ler Taranmış kitaplar (PDF) bölümünde görünür.</string>
     <string name="select_book">Kitap seçin</string>
     <string name="add_to_library">Kütüphaneye ekle</string>
     <string name="add_external_book">Harici kitap ekle</string>
@@ -133,7 +133,7 @@
     <string name="all_books_deleted">Tüm kitaplar silindi</string>
 
     <string name="backup">Yedekleme</string>
-    <string name="backup_description">Favori kitaplarınızı ve alıntılarınızı bir dosyaya kaydedin; daha sonra veya başka bir cihazda geri yükleyin.</string>
+    <string name="backup_description">Kaydettiğiniz kitapları ve alıntıları bir dosyaya kaydedin; daha sonra veya başka bir cihazda geri yükleyin.</string>
     <string name="backup_export">Dışa aktar</string>
     <string name="backup_import">İçe aktar</string>
     <string name="backup_exported">%1$d öğe dışa aktarıldı</string>
@@ -190,6 +190,8 @@
     <string name="source_library_detail">Kütüphane 1 · hazır EPUB olarak indirilir</string>
     <string name="source_shamela_detail">Kütüphane 2 · shamela.ws\'ten telefonda oluşturulur</string>
     <string name="source_both_detail">İki kütüphanede de var · Kütüphane 1\'den indirilir</string>
+    <string name="source_openiti">Kütüphane 3</string>
+    <string name="source_openiti_detail">Kütüphane 3 · OpenITI metninden telefonda oluşturulur</string>
     <string name="shamela_refresh_catalog">Kataloğu yenile</string>
     <string name="shamela_catalog_loading_start">Şamile kataloğu indiriliyor…</string>
     <string name="shamela_catalog_loading">Şamile kataloğu indiriliyor: %1$d / %2$d bölüm</string>
@@ -203,5 +205,30 @@
     <string name="dl_failed_shamela_verify">shamela.ws doğrulama istiyor</string>
     <string name="search_closest_results">Tam eşleşme yok · en yakın sonuçlar</string>
     <string name="source_badges_setting">Kütüphane numaraları</string>
-    <string name="source_badges_description">Kitap simgelerinin köşesinde, kitabın hangi kütüphaneden geldiğini (1, 2) gösteren numaraları göster.</string>
+    <string name="source_badges_description">Kitap simgelerinin köşesinde, kitabın hangi kütüphaneden geldiğini (1, 2, 3) gösteren numaraları göster.</string>
+    <!-- Scanned (PDF) books -->
+    <string name="scanned_books_section">Taranmış kitaplar (PDF)</string>
+    <string name="pdf_unreadable">PDF dosyası açılamadı</string>
+    <string name="pdf_go_to_page">Sayfaya git</string>
+    <string name="pdf_page_range">Sayfa (1–%1$d)</string>
+    <string name="pdf_go">Git</string>
+    <string name="pdf_added_to_scanned">Kitap Taranmış kitaplar bölümüne eklendi</string>
+    <!-- Scanned books search (archive.org, Kütüphane 4) -->
+    <string name="archive_title">Taranmış kitaplar (PDF)</string>
+    <string name="archive_entry_hint">Kütüphanelerde olmayan kitaplar, sayfa resmi olarak okunur</string>
+    <string name="archive_search_hint">Taranmış kitap ara</string>
+    <string name="archive_about">PDF olarak taranmış kitaplar. Her cilt Taranmış kitaplar bölümüne kaydedilir ve sayfa resmi olarak okunur (metin araması yok).</string>
+    <string name="archive_failed">Taranmış kitaplara ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="archive_no_pdf">Bu kayıtta indirilebilir PDF yok.</string>
+    <string name="archive_download_all">Tüm ciltleri indir (%1$d · %2$s)</string>
+    <string name="archive_volume">Cilt %1$d</string>
+    <string name="archive_single_volume">Kitap (PDF)</string>
+    <string name="archive_tap_to_read">İndirildi · okumak için dokunun</string>
+    <string name="archive_suggest_nothing">Kitap kütüphanelerde bulunamadı. Taranmış (PDF) hali olabilir.</string>
+    <string name="archive_suggest_more">Aradığınızı bulamadınız mı? Taranmış (PDF) halini arayın.</string>
+    <string name="archive_search_button">Taranmış kitaplarda ara</string>
+    <string name="pdf_page_progress">Sayfa %1$d / %2$d</string>
+    <string name="pdf_subtitle">Taranmış kitap · %1$d sayfa</string>
+    <string name="pdf_previous_page">Önceki sayfa</string>
+    <string name="pdf_next_page">Sonraki sayfa</string>
 </resources>

@@ -36,6 +36,8 @@ class FakeBooksDao : BooksDao {
     override suspend fun getDownloadedBooksOnce(): List<Book> = books.value.values.toList()
     override fun getBooksInCategory(categoryName: String): Flow<List<Book>> =
         books.map { m -> m.values.filter { it.categoryName == categoryName } }
+    override fun getBooksInCategories(categoryNames: List<String>): Flow<List<Book>> =
+        books.map { m -> m.values.filter { it.categoryName in categoryNames } }
     override fun getFavoriteBooks(): Flow<List<Book>> = books.map { m -> m.values.filter { it.isFavorite } }
     override suspend fun getBookById(bookId: String): Book? = books.value[bookId]
 }

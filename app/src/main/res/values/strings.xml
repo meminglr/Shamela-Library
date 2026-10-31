@@ -4,7 +4,7 @@
     <!-- Navigation -->
     <string name="nav_library">المكتبة</string>
     <string name="nav_download">التحميل</string>
-    <string name="nav_favorite">المفضلة</string>
+    <string name="nav_favorite">المحفوظات</string>
     <string name="nav_search">البحث</string>
     <string name="nav_settings">الإعدادات</string>
 
@@ -114,7 +114,7 @@
     <string name="prefernces">التفضيلات</string>
     <string name="external_bboks">الكتب الخارجية</string>
     <string name="settings_general">عام</string>
-    <string name="external_book_hint">أضف كتاباً بصيغة EPUB من جهازك، وسيظهر في المكتبة ضمن قسم الكتب الخارجية.</string>
+    <string name="external_book_hint">أضف كتاباً بصيغة EPUB أو PDF من جهازك؛ يظهر كتاب EPUB في قسم الكتب الخارجية، وملف PDF في قسم الكتب المصورة.</string>
     <string name="select_book">اختر كتابا</string>
     <string name="add_to_library">إضافة إلى المكتبة</string>
     <string name="add_external_book">إضافة كتاب خارجي</string>
@@ -192,6 +192,8 @@
     <string name="source_library_detail">المكتبة 1 · يُنزَّل ملف EPUB جاهزًا</string>
     <string name="source_shamela_detail">المكتبة 2 · يُبنى على الجهاز من shamela.ws</string>
     <string name="source_both_detail">في المكتبتين · يُنزَّل من المكتبة 1</string>
+    <string name="source_openiti">المكتبة 3</string>
+    <string name="source_openiti_detail">المكتبة 3 · يُبنى على الجهاز من نص OpenITI</string>
     <string name="shamela_refresh_catalog">تحديث الفهرس</string>
     <string name="shamela_catalog_loading_start">جار تحميل فهرس الشاملة…</string>
     <string name="shamela_catalog_loading">جار تحميل فهرس الشاملة: %1$d / %2$d قسم</string>
@@ -205,5 +207,30 @@
     <string name="dl_failed_shamela_verify">موقع الشاملة يطلب التحقق</string>
     <string name="search_closest_results">لا نتائج مطابقة · أقرب النتائج</string>
     <string name="source_badges_setting">أرقام المكتبات</string>
-    <string name="source_badges_description">إظهار رقم المكتبة (1، 2) التي جاء منها الكتاب في زاوية أيقونته.</string>
+    <string name="source_badges_description">إظهار رقم المكتبة (1، 2، 3) التي جاء منها الكتاب في زاوية أيقونته.</string>
+    <!-- Scanned (PDF) books -->
+    <string name="scanned_books_section">الكتب المصورة (PDF)</string>
+    <string name="pdf_unreadable">تعذر فتح ملف PDF</string>
+    <string name="pdf_go_to_page">الانتقال إلى صفحة</string>
+    <string name="pdf_page_range">الصفحة (1–%1$d)</string>
+    <string name="pdf_go">انتقال</string>
+    <string name="pdf_added_to_scanned">أضيف الكتاب إلى قسم الكتب المصورة</string>
+    <!-- Scanned books search (archive.org, Kütüphane 4) -->
+    <string name="archive_title">الكتب المصورة (PDF)</string>
+    <string name="archive_entry_hint">كتب غير موجودة في المكتبات، تُقرأ صورًا للصفحات</string>
+    <string name="archive_search_hint">ابحث عن كتاب مصور</string>
+    <string name="archive_about">كتب مصورة بصيغة PDF، يُحفظ كل مجلد في قسم الكتب المصورة ويُقرأ صورًا للصفحات (بلا بحث في النص).</string>
+    <string name="archive_failed">تعذر الوصول إلى الكتب المصورة. تحقق من الاتصال وحاول مرة أخرى.</string>
+    <string name="archive_no_pdf">لا يوجد ملف PDF متاح للتحميل في هذا العنصر.</string>
+    <string name="archive_download_all">تحميل المجلدات كلها (%1$d · %2$s)</string>
+    <string name="archive_volume">المجلد %1$d</string>
+    <string name="archive_single_volume">الكتاب (PDF)</string>
+    <string name="archive_tap_to_read">محمّل · اضغط للقراءة</string>
+    <string name="archive_suggest_nothing">لم يوجد الكتاب في المكتبات. قد يوجد مصورًا (PDF).</string>
+    <string name="archive_suggest_more">لم تجد ما تبحث عنه؟ ابحث عنه في الكتب المصورة (PDF).</string>
+    <string name="archive_search_button">ابحث في الكتب المصورة</string>
+    <string name="pdf_page_progress">الصفحة %1$d من %2$d</string>
+    <string name="pdf_subtitle">كتاب مصور · %1$d صفحة</string>
+    <string name="pdf_previous_page">الصفحة السابقة</string>
+    <string name="pdf_next_page">الصفحة التالية</string>
 </resources>

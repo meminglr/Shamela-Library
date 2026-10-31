@@ -1,5 +1,7 @@
 package com.shamela.library.presentation.navigation
 
+import com.shamela.library.presentation.screens.archive.ArchiveSearchScreen
+
 import com.shamela.library.R
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -69,8 +71,8 @@ object Download : HomeHostDestination {
 
 object Favorite : HomeHostDestination {
     override val route = "FAVORITE_SCREEN"
-    override val unSelectedIcon = ShamelaIcons.FavoriteBorder
-    override val selectedIcon = ShamelaIcons.Favorite
+    override val unSelectedIcon = ShamelaIcons.BookmarkBorder
+    override val selectedIcon = ShamelaIcons.Bookmark
     override val label = R.string.nav_favorite
     override val actionIcon = null
     override val onActionClick = {
@@ -129,6 +131,18 @@ object SearchResults : HomeHostDestination {
     fun createRoute(categoryName: String, type: String): String {
         return "SEARCH_RESULTS/${Uri.encode(categoryName)}/$type"
     }
+}
+
+/** Kütüphane 4: scanned books (PDF) searched on archive.org, optionally starting with [createRoute]'s query. */
+object ArchiveSearch : HomeHostDestination {
+    override val route = "ARCHIVE_SEARCH?query={query}"
+    override val unSelectedIcon = ShamelaIcons.Book
+    override val selectedIcon = ShamelaIcons.Book
+    override val label = 0
+    override val actionIcon = null
+    override val onActionClick = { false }
+
+    fun createRoute(query: String = ""): String = "ARCHIVE_SEARCH?query=${Uri.encode(query)}"
 }
 
 object BookDetails : HomeHostDestination {
@@ -197,8 +211,15 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                 },
                 navigateToBookDetails = { book, type ->
                     navController.navigate(BookDetails.createRoute(book, BookDetails.sourceOf(type)))
-                }
+                },
+                navigateToArchiveSearch = { navController.navigate(ArchiveSearch.createRoute()) },
             )
+        }
+        composable(
+            ArchiveSearch.route,
+            arguments = listOf(navArgument("query") { type = NavType.StringType; defaultValue = "" }),
+        ) {
+            ArchiveSearchScreen(navigateBack = { navController.popBackStack() })
         }
         composable(Favorite.route) {
             FavoriteScreen(
@@ -251,6 +272,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                 },
                 navigateBack = { navController.popBackStack() },
                 navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book, source)) },
+                navigateToArchiveSearch = { query -> navController.navigate(ArchiveSearch.createRoute(query)) },
             )
         }
 

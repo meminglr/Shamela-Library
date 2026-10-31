@@ -22,6 +22,13 @@ class ShamelaApp : Application() {
         lateinit var externalBooksDirectory: File
             private set
 
+        /** For opening a book's reader from code that has no Context at hand. */
+        lateinit var appContext: Context
+            private set
+
+        /** Scanned books (PDF): downloaded from archive.org or added from a file. */
+        const val SCANNED_BOOKS_CATEGORY = "الكتب المصورة"
+
         /** Localized app name, used as the title of download notifications. */
         lateinit var appLabel: String
             private set
@@ -33,6 +40,7 @@ class ShamelaApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        appContext = applicationContext
         appLabel = getString(R.string.app_name)
         externalMediaDir = externalMediaDirs.firstOrNull() ?: run {
             File(applicationContext.filesDir, "fallback_directory")
@@ -71,7 +79,7 @@ class ShamelaApp : Application() {
             saveAvailableFontFamilies(availableFontFamilies)
             saveAvailableThemes(availableThemes)
             saveAvailableFontSizes(availableFontSizes)
-            saveAvailableColorSchemes(availableColorSchemes)
+            saveAvailableColorSchemes(availableColorSchemes.toSet())
         }
         setupNotificationChannels(this)
         // Observes download jobs from the start, so progress and results are reported even when

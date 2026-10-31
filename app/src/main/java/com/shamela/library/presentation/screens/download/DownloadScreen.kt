@@ -21,6 +21,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,6 +76,7 @@ fun DownloadScreen(
     navigateToSearchResultsScreen: (categoryName: String, type: String) -> Unit,
     /** The second argument is the screen `type` the book was listed under ("remote"). */
     navigateToBookDetails: (Book, String) -> Unit,
+    navigateToArchiveSearch: () -> Unit = {},
     ) {
     val downloadState = viewModel.downloadState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
@@ -95,6 +102,7 @@ fun DownloadScreen(
                 onRefresh = if (downloadState.shamelaCatalog !is ShamelaCatalogState.Loading) {
                     { viewModel.onEvent(DownloadEvent.RefreshShamelaCatalog) }
                 } else null,
+                onArchiveSearch = navigateToArchiveSearch,
             )
         },
     ) { viewType ->
@@ -116,6 +124,7 @@ fun DownloadScreen(
 
         when (viewType) {
             BooksViewType.Sections -> {
+                item(key = "archive") { ArchiveEntry(onClick = navigateToArchiveSearch) }
                 groupedSectionItems(lists.sections) {
                     navigateToSectionBooksScreen(it.name, type)
                 }
@@ -176,12 +185,12 @@ fun DownloadScreen(
 
 }
 
-/** Overflow menu next to the tabs: fetch the shamela.ws part of the catalog again. */
+/** Overflow menu next to the tabs: fetch the shamela.ws part of the catalog again; scanned books. */
 @Composable
-private fun CatalogMenu(onRefresh: (() -> Unit)?) {
+private fun CatalogMenu(onRefresh: (() -> Unit)?, onArchiveSearch: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box(Modifier.padding(end = 8.dp)) {
-        IconButton(onClick = { expanded = true }, enabled = onRefresh != null) {
+        IconButton(onClick = { expanded = true }) {
             Icon(ShamelaIcons.MoreVert, contentDescription = stringResource(R.string.shamela_refresh_catalog))
         }
         DropdownMenuPopup(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -191,12 +200,53 @@ private fun CatalogMenu(onRefresh: (() -> Unit)?) {
                         expanded = false
                         onRefresh?.invoke()
                     },
+                    enabled = onRefresh != null,
                     text = { Text(stringResource(R.string.shamela_refresh_catalog)) },
-                    shape = MenuDefaults.itemShape(0, 1).shape,
+                    shape = MenuDefaults.itemShape(0, 2).shape,
                     leadingIcon = { Icon(ShamelaIcons.Refresh, contentDescription = null) },
+                )
+                DropdownMenuItem(
+                    onClick = {
+                        expanded = false
+                        onArchiveSearch()
+                    },
+                    text = { Text(stringResource(R.string.archive_title)) },
+                    shape = MenuDefaults.itemShape(1, 2).shape,
+                    leadingIcon = { Icon(ShamelaIcons.Search, contentDescription = null) },
                 )
             }
         }
+    }
+}
+
+/** Above the sections: the way to scanned books (PDF) on archive.org, which aren't listed here. */
+@Composable
+private fun ArchiveEntry(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(ShamelaIcons.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.archive_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Text(
+                text = stringResource(R.string.archive_entry_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
+        Icon(ShamelaIcons.NavigateForward, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
     }
 }
 

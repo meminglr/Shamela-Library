@@ -2,7 +2,7 @@ package com.shamela.apptheme.domain.model
 
 data class UserPrefs(
     val theme:String = "تلقائي",
-    val colorSchemeName:String = "ذهبي",
+    val colorSchemeName:String = "بني",
     val fontFamily:String = "خط تَجَوَّل",
     val fontSize:Int = -2,
     )

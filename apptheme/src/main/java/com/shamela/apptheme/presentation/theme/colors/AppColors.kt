@@ -14,21 +14,24 @@ object AppColors {
      * the null entry and is built on demand.
      */
     private val availableColorSchemes: List<AppColorScheme?> =
-        listOf(Blue, Brown, Golden, Green, Indigo, null, MutedBlue, Olive)
+        listOf(Brown, Sand, Neutral, Green, Blue, Golden, Olive, null)
+
+    /** Palettes that were removed, and the one their users get now. */
+    private val replaced = mapOf(
+        "أزرق باهت" to Blue,
+        "نيلي" to Blue,
+    )
 
     fun colorSchemeOf(color: String, context: Context): AppColorScheme {
-        return availableColorSchemes.find { it?.name == color } ?: if (color == MATERIAL)
+        return availableColorSchemes.find { it?.name == color } ?: replaced[color] ?: if (color == MATERIAL)
             MaterialYou(context)
         else
             availableColorSchemes.first()!!
     }
 
-    fun getAvailableColorSchemes(): Set<String> {
-        return availableColorSchemes.map { it?.name ?: MATERIAL }.toSet()
-    }
+    /** The stored key of each palette, in the order the settings list them. */
+    fun getAvailableColorSchemes(): List<String> = availableColorSchemes.map { it?.name ?: MATERIAL }
 
-
+    /** Stored key of the palette a removed one became (or the key itself). */
+    fun currentKeyOf(color: String): String = replaced[color]?.name ?: color
 }
-
-
-

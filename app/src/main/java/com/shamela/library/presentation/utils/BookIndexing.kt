@@ -33,6 +33,8 @@ object BookIndexing {
 
     /** Indexes [book]; with [replace], also when it already has an index (re-downloaded file). */
     fun enqueue(context: Context, book: Book, replace: Boolean = false) {
+        // A scanned book has no text to index.
+        if (BooksDownloadManager.getBookPath(book).endsWith(".pdf")) return
         val paths = if (replace) arrayOf(BooksDownloadManager.getBookPath(book)) else emptyArray()
         start(context, paths)
     }

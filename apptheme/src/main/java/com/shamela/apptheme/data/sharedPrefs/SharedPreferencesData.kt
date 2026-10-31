@@ -1,5 +1,6 @@
 package com.shamela.apptheme.data.sharedPrefs
 
+import com.shamela.apptheme.presentation.theme.colors.AppColors
 import android.content.Context
 import androidx.core.content.edit
 import com.shamela.apptheme.domain.datasource.UserPrefsDataSource
@@ -19,7 +20,7 @@ class SharedPreferencesData(private val context: Context) : UserPrefsDataSource 
             userPrefs = userPrefs.copy(fontSize = it)
         }
         sharedPrefs.getString(PREFERRED_COLOR_SCHEME, null)?.let {
-            userPrefs = userPrefs.copy(colorSchemeName = it.nfc())
+            userPrefs = userPrefs.copy(colorSchemeName = AppColors.currentKeyOf(it.nfc()))
         }
         return userPrefs
     }

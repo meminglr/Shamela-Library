@@ -9,6 +9,7 @@ import com.shamela.library.data.catalog.CatalogRepoImpl
 import com.shamela.library.data.catalog.CatalogSources
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
+import com.shamela.library.data.remote.openiti.OpenItiBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
@@ -41,6 +42,7 @@ class BookDetailsViewModel @Inject constructor(
     @CatalogRepoImpl private val remoteBooksUseCases: BooksUseCases,
     private val shamelaBooksRepo: ShamelaBooksRepoImpl,
     @ShamelaRepoImpl private val shamelaBooksUseCases: BooksUseCases,
+    private val openItiBooksRepo: OpenItiBooksRepoImpl,
     @FilesRepoImpl private val localBooksUseCases: BooksUseCases,
     private val quotesUseCases: QuotesUseCases,
 ) : ViewModel() {
@@ -52,7 +54,7 @@ class BookDetailsViewModel @Inject constructor(
         val isDownloading: Boolean = false,
         /** Live download state (queued, progress, waiting, failed), null when idle. */
         val downloadStatus: DownloadStatus? = null,
-        /** The catalog(s) the book is in: Kütüphane 1, shamela.ws or both; empty if neither. */
+        /** The catalog(s) the book is in: Kütüphane 1, shamela.ws, both, or OpenITI; empty if none. */
         val sources: Set<BookSource> = emptySet(),
     )
 
@@ -81,8 +83,11 @@ class BookDetailsViewModel @Inject constructor(
             // A malformed detail file (JsonSyntaxException isn't an IOException) shows "no details"
             // instead of crashing the screen.
             val details = try {
-                if (this@BookDetailsViewModel.fromShamela) shamelaBooksRepo.getBookDetails(book.categoryName, book.title)
-                else assetsBooksRepo.getBookDetails(book.categoryName, book.title)
+                when {
+                    BookSource.OpenIti in sources -> openItiBooksRepo.getBookDetails(book.categoryName, book.title)
+                    this@BookDetailsViewModel.fromShamela -> shamelaBooksRepo.getBookDetails(book.categoryName, book.title)
+                    else -> assetsBooksRepo.getBookDetails(book.categoryName, book.title)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -69,6 +69,10 @@ interface BooksDao {
     @Query("SELECT * FROM downloadedBooks WHERE categoryName = :categoryName")
     fun getBooksInCategory(categoryName: String): Flow<List<Book>>
 
+    /** Several folders shown as one section (see SiteSections.foldersOf). */
+    @Query("SELECT * FROM downloadedBooks WHERE categoryName IN (:categoryNames)")
+    fun getBooksInCategories(categoryNames: List<String>): Flow<List<Book>>
+
     @Query("SELECT * FROM downloadedBooks WHERE isFavorite = 1  ")
     fun getFavoriteBooks(): Flow<List<Book>>
 

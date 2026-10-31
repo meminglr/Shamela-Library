@@ -3,6 +3,7 @@ package com.shamela.library.data.catalog
 import android.net.Uri
 import android.util.Log
 import com.shamela.library.data.local.assets.AssetsBooksRepoImpl
+import com.shamela.library.data.remote.openiti.OpenItiBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaBookEntry
 import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaCatalogData
@@ -25,13 +26,15 @@ import javax.inject.Qualifier
 annotation class CatalogRepoImpl
 
 /**
- * The one catalog the download screens show: Kütüphane 1 (ready EPUBs) and shamela.ws together,
- * in Kütüphane 1's sections, which are also the folders of the user's library.
+ * The one catalog the download screens show: Kütüphane 1 (ready EPUBs), shamela.ws and OpenITI
+ * together, in Kütüphane 1's sections, which are also the folders of the user's library.
  *
  * - A book in both is listed once, as its Kütüphane 1 entry, and downloads from there.
  * - A book only on shamela.ws is listed in the section matching its site section
  *   ([SiteSections]) but keeps its own section name, so it downloads, is saved and gets its
  *   details exactly as from the shamela.ws catalog.
+ * - Kütüphane 3 (OpenITI) holds only books the other two lack; one that either of them has since
+ *   gained is left out here too.
  *
  * Until the shamela.ws catalog is on the device, only Kütüphane 1 is listed; the screens rebuild
  * their lists when it arrives.
@@ -39,6 +42,7 @@ annotation class CatalogRepoImpl
 class CatalogBooksRepoImpl(
     private val library: AssetsBooksRepoImpl,
     private val site: ShamelaBooksRepoImpl,
+    private val openIti: OpenItiBooksRepoImpl,
 ) : BooksRepository {
 
     private class Merged(
@@ -47,6 +51,8 @@ class CatalogBooksRepoImpl(
         val booksBySection: Map<String, List<Book>>,
         /** "category/title" of every Kütüphane 1 book: those download from Kütüphane 1. */
         val libraryKeys: Set<String>,
+        /** "category/title" of every listed Kütüphane 3 book: those are built from OpenITI. */
+        val openItiKeys: Set<String>,
     )
 
     private val mutex = Mutex()
@@ -99,6 +105,20 @@ class CatalogBooksRepoImpl(
                 books.getOrPut(SiteSections.librarySectionOf(entry.category)) { mutableListOf() }.add(siteBook)
             }
         }
+
+        val openItiBooks = openIti.entries().map(OpenItiBooksRepoImpl::toBook)
+        val elsewhere = CatalogMatcher.match(
+            openItiBooks, libraryBooks + siteBooks.map(ShamelaBooksRepoImpl::toBook),
+            libraryTitle = { it.title }, libraryAuthor = { it.author },
+            siteTitle = { it.title }, siteAuthor = { it.author },
+        )
+        val openItiKeys = HashSet<String>()
+        for (book in openItiBooks) {
+            if (book in elsewhere || book.id in sources) continue
+            sources[book.id] = OPENITI_ONLY
+            books.getOrPut(book.categoryName) { mutableListOf() }.add(book)
+            openItiKeys += "${book.categoryName}/${book.title}"
+        }
         CatalogSources.publish(CatalogSources.Index(sources, siteCopyOfLibraryBook))
 
         val known = libraryCategories.mapTo(HashSet()) { it.name }
@@ -107,14 +127,16 @@ class CatalogBooksRepoImpl(
                 Category("site-$i", name, books.getValue(name).size)
             }
         Log.d(
-            TAG, "merged ${libraryBooks.size} + ${siteBooks.size} books: ${matches.size} shared, " +
-                "${siteBooks.size - matchedSite.size} only on the site, in ${System.currentTimeMillis() - started} ms"
+            TAG, "merged ${libraryBooks.size} + ${siteBooks.size} + ${openItiBooks.size} books: ${matches.size} shared, " +
+                "${siteBooks.size - matchedSite.size} only on the site, ${openItiKeys.size} from OpenITI, " +
+                "in ${System.currentTimeMillis() - started} ms"
         )
         return Merged(
             siteData = siteData,
             categories = categories,
             booksBySection = books,
             libraryKeys = libraryBooks.mapTo(HashSet()) { "${it.categoryName}/${it.title}" },
+            openItiKeys = openItiKeys,
         )
     }
 
@@ -137,16 +159,23 @@ class CatalogBooksRepoImpl(
         emitAll(merged().booksBySection.values.flatten().asFlow())
     }
 
-    /** From Kütüphane 1 when it has the book, otherwise built from shamela.ws. */
-    override suspend fun getDownloadLink(categoryName: String, bookName: String): Uri? =
-        if ("$categoryName/$bookName" in merged().libraryKeys) library.getDownloadLink(categoryName, bookName)
-        else site.getDownloadLink(categoryName, bookName)
+    /** From Kütüphane 1 when it has the book, built from OpenITI for a Kütüphane 3 book, else from shamela.ws. */
+    override suspend fun getDownloadLink(categoryName: String, bookName: String): Uri? {
+        val key = "$categoryName/$bookName"
+        val merged = merged()
+        return when (key) {
+            in merged.libraryKeys -> library.getDownloadLink(categoryName, bookName)
+            in merged.openItiKeys -> openIti.getDownloadLink(categoryName, bookName)
+            else -> site.getDownloadLink(categoryName, bookName)
+        }
+    }
 
     private companion object {
         const val TAG = "CatalogBooksRepo"
         val LIBRARY_ONLY = setOf(BookSource.Library)
         val SITE_ONLY = setOf(BookSource.Site)
         val BOTH = setOf(BookSource.Library, BookSource.Site)
+        val OPENITI_ONLY = setOf(BookSource.OpenIti)
     }
 }
 
@@ -199,4 +228,15 @@ internal object SiteSections {
 
     /** A section the site adds later goes to "other sciences" until it is mapped here. */
     fun librarySectionOf(siteSection: String): String = toLibrary[siteSection] ?: FALLBACK
+
+    /**
+     * The section a library folder is shown under. A shamela.ws book is saved in a folder named
+     * after its site section ("التفسير"), next to Kütüphane 1's folder for the same subject
+     * ("التفاسير"); the library shows the two as one section. Other folders keep their name.
+     */
+    fun mergedSectionOf(folder: String): String = toLibrary[folder] ?: folder
+
+    /** The library folders shown as [section]: itself and the site sections merged into it. */
+    fun foldersOf(section: String): List<String> =
+        listOf(section) + toLibrary.filter { (site, library) -> library == section && site != section }.keys
 }

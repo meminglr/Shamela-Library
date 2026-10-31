@@ -33,16 +33,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** "1", "2" or "1·2": the catalog number(s) of a book. */
+/** "1", "2", "3" or "1·2": the catalog number(s) of a book. */
 fun sourceNumbers(sources: Set<BookSource>): String =
     sources.sortedBy { it.number }.joinToString("·") { it.number.toString() }
 
-/** Container and content colors of a source: one tone per library, a third for books in both. */
+/** Container and content colors of a source: one tone per library, another for books in two. */
 @Composable
 fun sourceColors(sources: Set<BookSource>): Pair<Color, Color> = with(MaterialTheme.colorScheme) {
     when {
         sources.size > 1 -> secondaryContainer to onSecondaryContainer
         BookSource.Site in sources -> tertiaryContainer to onTertiaryContainer
+        BookSource.OpenIti in sources -> secondary to onSecondary
         else -> primaryContainer to onPrimaryContainer
     }
 }
@@ -51,12 +52,13 @@ fun sourceColors(sources: Set<BookSource>): Pair<Color, Color> = with(MaterialTh
 fun sourceDescription(sources: Set<BookSource>): String = when {
     sources.size > 1 -> stringResource(R.string.source_both)
     BookSource.Site in sources -> stringResource(R.string.source_shamela)
+    BookSource.OpenIti in sources -> stringResource(R.string.source_openiti)
     else -> stringResource(R.string.source_library)
 }
 
 /**
  * Leading tile of a book row: the book icon, with the number of each library the book comes from
- * (Kütüphane 1, Kütüphane 2) in small round badges at its bottom-right corner. A book of neither
+ * (Kütüphane 1, 2, 3) in small round badges at its bottom-right corner. A book of neither
  * catalog (imported from elsewhere) has no badge, nor any book when [SourceBadges] are turned off.
  */
 @Composable
@@ -85,7 +87,11 @@ fun SourceTile(bookId: String, modifier: Modifier = Modifier) {
 private fun CornerBadge(source: BookSource) {
     // Strong tones, to stand out on the pale tile.
     val (container, content) = with(MaterialTheme.colorScheme) {
-        if (source == BookSource.Site) tertiary to onTertiary else primary to onPrimary
+        when (source) {
+            BookSource.Library -> primary to onPrimary
+            BookSource.Site -> tertiary to onTertiary
+            BookSource.OpenIti -> secondary to onSecondary
+        }
     }
     Box(
         Modifier

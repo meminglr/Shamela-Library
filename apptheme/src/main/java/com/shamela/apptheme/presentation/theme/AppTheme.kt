@@ -18,7 +18,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import com.shamela.apptheme.presentation.theme.colors.AppColors
-import com.shamela.apptheme.presentation.theme.colors.Golden
+import com.shamela.apptheme.presentation.theme.colors.Brown
 
 
 object AppTheme {
@@ -27,7 +27,7 @@ object AppTheme {
     const val DARK = "مظلم"
 
 
-    private val selectedColorScheme = mutableStateOf(Golden.lightColorScheme)
+    private val selectedColorScheme = mutableStateOf(Brown.lightColorScheme)
     private val preferredTheme = mutableStateOf(DEFAULT)
 
     fun changeColorScheme(newColorScheme: ColorScheme, newPreferredTheme: String) {

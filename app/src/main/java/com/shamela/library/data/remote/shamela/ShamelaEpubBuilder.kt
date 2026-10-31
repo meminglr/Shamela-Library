@@ -44,6 +44,10 @@ h1,h2,h3,h4,h5,h6{text-align:center}
         author: String,
         meta: ShamelaBookMeta,
         pages: List<ShamelaPage>,
+        /** The book's unique id and where it comes from, for the EPUB metadata. */
+        identifier: String = "urn:shamela:$bookId",
+        source: String = "${ShamelaHttp.BASE}/book/$bookId",
+        publisher: String = ShamelaHttp.BASE,
     ) {
         val sorted = pages.sortedBy { it.index }
         val width = sorted.lastOrNull()?.index?.toString()?.length ?: 1
@@ -68,8 +72,8 @@ h1,h2,h3,h4,h5,h6{text-align:center}
 
             val toc = meta.toc.ifEmpty { sorted.map { TocEntry("صفحة ${it.printed}", it.index) } }
             zip.text("OEBPS/nav.xhtml", nav(title, toc, fileOf))
-            zip.text("OEBPS/toc.ncx", ncx(bookId, title, toc, fileOf))
-            zip.text("OEBPS/content.opf", opf(bookId, title, author, sorted.map { it.index }, fileOf))
+            zip.text("OEBPS/toc.ncx", ncx(identifier, title, toc, fileOf))
+            zip.text("OEBPS/content.opf", opf(identifier, source, publisher, title, author, sorted.map { it.index }, fileOf))
         }
     }
 
@@ -154,7 +158,7 @@ $body
 """
     }
 
-    private fun ncx(bookId: Int, title: String, toc: List<TocEntry>, fileOf: Map<Int, String>): String {
+    private fun ncx(identifier: String, title: String, toc: List<TocEntry>, fileOf: Map<Int, String>): String {
         var order = 1
         fun points(entries: List<TocEntry>): String = entries.joinToString("") { entry ->
             val href = fileOf[entry.page] ?: return@joinToString points(entry.children)
@@ -166,7 +170,7 @@ $body
         return """<?xml version="1.0" encoding="utf-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
 <head>
-<meta name="dtb:uid" content="urn:shamela:$bookId"/>
+<meta name="dtb:uid" content="${escape(identifier)}"/>
 <meta name="dtb:depth" content="1"/>
 <meta name="dtb:totalPageCount" content="0"/>
 <meta name="dtb:maxPageNumber" content="0"/>
@@ -180,7 +184,15 @@ $body
 """
     }
 
-    private fun opf(bookId: Int, title: String, author: String, indexes: List<Int>, fileOf: Map<Int, String>): String {
+    private fun opf(
+        identifier: String,
+        source: String,
+        publisher: String,
+        title: String,
+        author: String,
+        indexes: List<Int>,
+        fileOf: Map<Int, String>,
+    ): String {
         val modified = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
             .apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
         val manifest = indexes.joinToString("\n") {
@@ -190,11 +202,11 @@ $body
         return """<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-<dc:identifier id="bookid">urn:shamela:$bookId</dc:identifier>
+<dc:identifier id="bookid">${escape(identifier)}</dc:identifier>
 <dc:title>${escape(title)}</dc:title>
 <dc:creator>${escape(author.ifBlank { "-" })}</dc:creator>
-<dc:source>${ShamelaHttp.BASE}/book/$bookId</dc:source>
-<dc:publisher>${ShamelaHttp.BASE}</dc:publisher>
+<dc:source>${escape(source)}</dc:source>
+<dc:publisher>${escape(publisher)}</dc:publisher>
 <dc:language>ar</dc:language>
 <meta property="dcterms:modified">$modified</meta>
 </metadata>

@@ -217,7 +217,7 @@ private fun FavoriteIconButton(isFavorite: Boolean, onClick: () -> Unit) {
         ),
     ) {
         Icon(
-            imageVector = if (isFavorite) ShamelaIcons.Favorite else ShamelaIcons.FavoriteBorder,
+            imageVector = if (isFavorite) ShamelaIcons.Bookmark else ShamelaIcons.BookmarkBorder,
             contentDescription = stringResource(R.string.nav_favorite),
         )
     }

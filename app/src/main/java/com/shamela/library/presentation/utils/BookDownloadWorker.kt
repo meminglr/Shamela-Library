@@ -9,6 +9,10 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
+import com.shamela.library.data.remote.archive.ArchiveOrg
+import com.shamela.library.data.remote.openiti.OpenItiBookBuilder
+import com.shamela.library.data.remote.openiti.OpenItiBooksRepoImpl
+import com.shamela.library.data.remote.openiti.OpenItiNotFoundException
 import com.shamela.library.data.remote.shamela.ShamelaBookBuilder
 import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaChallengeException
@@ -48,6 +52,8 @@ class BookDownloadWorker(
     interface Dependencies {
         @FilesRepoImpl
         fun booksUseCases(): BooksUseCases
+
+        fun openItiRepo(): OpenItiBooksRepoImpl
     }
 
     private sealed class Transfer {
@@ -66,14 +72,19 @@ class BookDownloadWorker(
             categoryName = inputData.getString(KEY_CATEGORY) ?: return Result.failure(),
         )
         val url = inputData.getString(KEY_URL) ?: return Result.failure()
-        val destination = File(BooksDownloadManager.getBookPath(book))
+        // A volume of a scanned book (archive.org) is saved as a PDF.
+        val scanned = ArchiveOrg.isVolumeLink(url)
+        val destination = File(if (scanned) BooksDownloadManager.getPdfPath(book) else BooksDownloadManager.getBookPath(book))
         if (destination.isFile) return finish(book, destination)
 
         setProgress(workDataOf(KEY_STATE to STATE_QUEUED))
         ShamelaBooksRepoImpl.bookIdOf(url)?.let { shamelaId ->
             return shamelaSlots.withPermit { build(book, shamelaId, destination) }
         }
-        return slots.withPermit { download(book, url, destination) }
+        OpenItiBooksRepoImpl.bookIdOf(url)?.let { openItiId ->
+            return slots.withPermit { buildOpenIti(book, openItiId, destination) }
+        }
+        return slots.withPermit { download(book, url, destination, scanned) }
     }
 
     /** A shamela.ws book: its EPUB is built on the device from the site's pages. */
@@ -118,7 +129,42 @@ class BookDownloadWorker(
         }
     }
 
-    private suspend fun download(book: Book, url: String, destination: File): Result {
+    /** A Kütüphane 3 book: its OpenITI text is downloaded, then built into an EPUB on the device. */
+    private suspend fun buildOpenIti(book: Book, openItiId: String, destination: File): Result {
+        val entry = EntryPointAccessors.fromApplication(applicationContext, Dependencies::class.java)
+            .openItiRepo().findById(openItiId)
+            ?: return Result.failure(workDataOf(KEY_REASON to BooksDownloadManager.REASON_NOT_FOUND))
+        setProgress(workDataOf(KEY_STATE to STATE_CONNECTING))
+        val partial = BooksDownloadManager.partialFile(book.id)
+        if (!StorageDirs.ensure(partial.parentFile!!, applicationContext)) {
+            return Result.failure(workDataOf(KEY_REASON to BooksDownloadManager.REASON_STORAGE))
+        }
+        val builder = OpenItiBookBuilder(applicationContext.cacheDir)
+        return try {
+            builder.build(entry, partial) { done, total ->
+                setProgress(workDataOf(KEY_STATE to STATE_DOWNLOADING, KEY_BYTES to done, KEY_TOTAL to total))
+            }
+            if (!StorageDirs.ensure(destination.parentFile!!, applicationContext)) {
+                return Result.failure(workDataOf(KEY_REASON to BooksDownloadManager.REASON_STORAGE))
+            }
+            if (destination.exists()) destination.delete()
+            if (!partial.renameTo(destination)) {
+                partial.copyTo(destination, overwrite = true)
+                partial.delete()
+            }
+            finish(book, destination)
+        } catch (e: OpenItiNotFoundException) {
+            builder.discard(entry)
+            fail(BooksDownloadManager.REASON_NOT_FOUND, partial)
+        } catch (e: IOException) {
+            Log.w(TAG, "openiti book $openItiId: ${e.message}")
+            if ((partial.parentFile?.usableSpace ?: Long.MAX_VALUE) < 5_000_000) {
+                fail(BooksDownloadManager.REASON_NO_SPACE, partial)
+            } else retryOrFail(BooksDownloadManager.REASON_NETWORK)
+        }
+    }
+
+    private suspend fun download(book: Book, url: String, destination: File, scanned: Boolean = false): Result {
         val partial = BooksDownloadManager.partialFile(book.id)
         if (!StorageDirs.ensure(partial.parentFile!!, applicationContext)) {
             return Result.failure(workDataOf(KEY_REASON to BooksDownloadManager.REASON_STORAGE))
@@ -126,10 +172,12 @@ class BookDownloadWorker(
         setProgress(workDataOf(KEY_STATE to STATE_CONNECTING, KEY_BYTES to partial.length()))
 
         var transferred = false
-        for (candidate in BooksDownloadManager.urlCandidates(url)) {
-            when (val result = withContext(Dispatchers.IO) { transfer(candidate, partial) }) {
+        // The link-form and connection workarounds are for the book server only.
+        val candidates = if (scanned) listOf(url) else BooksDownloadManager.urlCandidates(url)
+        for (candidate in candidates) {
+            when (val result = withContext(Dispatchers.IO) { transfer(candidate, partial, plain = scanned) }) {
                 Transfer.Done -> {
-                    BooksDownloadManager.rememberWorkingUrl(url, candidate)
+                    if (!scanned) BooksDownloadManager.rememberWorkingUrl(url, candidate)
                     transferred = true
                 }
                 Transfer.NotFound -> continue
@@ -152,17 +200,19 @@ class BookDownloadWorker(
         return finish(book, destination)
     }
 
-    private suspend fun transfer(url: String, partial: File): Transfer {
+    private suspend fun transfer(url: String, partial: File, plain: Boolean = false): Transfer {
         var existing = if (partial.isFile) partial.length() else 0L
+        val configure: HttpURLConnection.() -> Unit = {
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            instanceFollowRedirects = true
+            setRequestProperty("Accept-Encoding", "identity")
+            if (existing > 0) setRequestProperty("Range", "bytes=$existing-")
+        }
         val connection = try {
             // Connects here, working around operators that reset connections to the book server.
-            com.shamela.library.data.remote.BookServerConnection.open(url) {
-                connectTimeout = 15_000
-                readTimeout = 30_000
-                instanceFollowRedirects = true
-                setRequestProperty("Accept-Encoding", "identity")
-                if (existing > 0) setRequestProperty("Range", "bytes=$existing-")
-            }
+            if (plain) (URL(url).openConnection() as HttpURLConnection).apply(configure).apply { connect() }
+            else com.shamela.library.data.remote.BookServerConnection.open(url, configure)
         } catch (e: IOException) {
             Log.w(TAG, "connect failed: ${e.message}")
             return Transfer.Retry
@@ -267,7 +317,9 @@ class BookDownloadWorker(
 
     /** Adds the downloaded book to the library and the search index. */
     private suspend fun finish(book: Book, file: File): Result {
+        // A PDF has no author inside: the one the download was started with stays.
         val parsed = FilesBooksRepoImpl.parseBook(file, book.categoryName)
+            ?.let { if (FilesBooksRepoImpl.isPdf(file)) it.copy(author = book.author) else it }
         if (parsed == null) {
             // Not a readable EPUB (e.g. an error page saved as a file).
             file.delete()

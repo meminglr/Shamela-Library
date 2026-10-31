@@ -169,6 +169,7 @@ fun BookDetailsScreen(
                                         when {
                                             state.sources.size > 1 -> R.string.source_both_detail
                                             BookSource.Site in state.sources -> R.string.source_shamela_detail
+                                            BookSource.OpenIti in state.sources -> R.string.source_openiti_detail
                                             else -> R.string.source_library_detail
                                         }
                                     ),

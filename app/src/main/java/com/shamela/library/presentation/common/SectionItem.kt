@@ -63,10 +63,13 @@ fun SectionItem(
     }
 }
 
-/** Section (folder) names are data; only the app-created external-books folder is translated. */
+/** Section (folder) names are data; only the app-created folders (external, scanned books) are translated. */
 @Composable
-fun sectionDisplayName(name: String): String =
-    if (name == ShamelaApp.EXTERNAL_BOOKS_CATEGORY) stringResource(R.string.external_books_section) else name
+fun sectionDisplayName(name: String): String = when (name) {
+    ShamelaApp.EXTERNAL_BOOKS_CATEGORY -> stringResource(R.string.external_books_section)
+    ShamelaApp.SCANNED_BOOKS_CATEGORY -> stringResource(R.string.scanned_books_section)
+    else -> name
+}
 
 /**
  * Sections under subject headings (Fiqh, Hadith, …), alphabetical within each; each group is its

@@ -22,6 +22,7 @@ import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
 import com.shamela.library.R
 import com.shamela.library.ShamelaApp
+import com.shamela.library.presentation.pdf.PdfImport
 import com.shamela.library.data.local.backup.LibraryBackup
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
@@ -87,7 +88,9 @@ class SettingsViewModel @Inject constructor(
             _preferenceSettings.update { it.copy(availableThemes = themes) }
         }
         userPreferencesUseCases.getAvailableColorSchemes().let { colors ->
-            _preferenceSettings.update { it.copy(availableColorSchemes = colors) }
+            // Stored as a set: put them back in the palettes' own order.
+            val order = com.shamela.apptheme.presentation.theme.colors.AppColors.getAvailableColorSchemes()
+            _preferenceSettings.update { it.copy(availableColorSchemes = colors.sortedBy { c -> order.indexOf(c) }) }
         }
     }
 
@@ -192,7 +195,15 @@ class SettingsViewModel @Inject constructor(
                 viewModelScope.launch {
                     _settingsState.update { it.copy(isLoading = true) }
                     withContext(Dispatchers.IO) {
-                        copyFileToAppFolder(event.bookUri, event.bookTitle)?.let { bookFile ->
+                        if (PdfImport.isPdf(app.applicationContext, event.bookUri)) {
+                            // A scanned book: kept as a PDF among the scanned books.
+                            val message = when (PdfImport.import(app.applicationContext, event.bookUri, booksUseCases)) {
+                                is PdfImport.Result.Added -> R.string.book_added_successfully
+                                is PdfImport.Result.AlreadyThere -> R.string.the_book_already_exists
+                                PdfImport.Result.Failed -> R.string.book_is_not_compatible
+                            }
+                            _toastsChannel.send(ToastMessage(message))
+                        } else copyFileToAppFolder(event.bookUri, event.bookTitle)?.let { bookFile ->
                             FilesBooksRepoImpl.parseBook(
                                 bookFile,
                                 ShamelaApp.EXTERNAL_BOOKS_CATEGORY

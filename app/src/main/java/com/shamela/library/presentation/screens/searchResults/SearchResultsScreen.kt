@@ -3,6 +3,15 @@ package com.shamela.library.presentation.screens.searchResults
 
 import com.shamela.library.presentation.common.downloadStatusOf
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Text
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import com.shamela.library.presentation.common.SegmentGap
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.WindowInsets
@@ -49,6 +58,7 @@ fun SearchResultsScreen(
     navigateToSectionBooksScreen: (categoryName: String, type: String) -> Unit,
     navigateBack: () -> Unit,
     navigateToBookDetails: (Book) -> Unit,
+    navigateToArchiveSearch: (query: String) -> Unit = {},
 ) {
     val state = viewModel.searchResultsState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
@@ -142,10 +152,19 @@ fun SearchResultsScreen(
                         }
                     }
                 }
+                if (state.type == "remote" && state.lastQuery.isNotBlank() && !state.isLoading) {
+                    item(key = "archive") {
+                        ArchiveSuggestion(
+                            nothingFound = state.booksResultsList.isEmpty() || state.showsClosest,
+                            onClick = { navigateToArchiveSearch(state.lastQuery) },
+                        )
+                    }
+                }
             }
-            // Overlays on top of the (empty) list, not stacked above it.
+            // Overlays on top of the (empty) list, not stacked above it. The catalogs' search offers
+            // archive.org's scanned books instead.
             EmptyListScreen(
-                visibility = state.isListEmpty,
+                visibility = state.isListEmpty && state.type != "remote",
                 text = stringResource(R.string.no_results),
             )
             LoadingScreen(visibility = state.isLoading)
@@ -155,5 +174,28 @@ fun SearchResultsScreen(
     DisposableEffect(Unit) {
         focusRequester.requestFocus()
         onDispose { }
+    }
+}
+
+/** At the end of the catalogs' results: search the same words among archive.org's scanned books. */
+@Composable
+private fun ArchiveSuggestion(nothingFound: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(if (nothingFound) R.string.archive_suggest_nothing else R.string.archive_suggest_more),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        FilledTonalButton(onClick = onClick) { Text(stringResource(R.string.archive_search_button)) }
     }
 }

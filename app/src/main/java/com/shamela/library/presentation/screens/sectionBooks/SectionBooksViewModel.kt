@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shamela.library.data.catalog.CatalogRepoImpl
 import com.shamela.library.data.catalog.CatalogSources
+import com.shamela.library.data.catalog.SiteSections
 import com.shamela.library.data.local.files.FilesRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
 import com.shamela.library.domain.model.Book
@@ -182,7 +183,8 @@ class SectionBooksViewModel @Inject constructor(
      * books deleted (here or anywhere) leave it as they go, and an emptied section closes.
      */
     private suspend fun observeLocalBooksOfSection(categoryName: String) {
-        localBooksUseCases.booksDao.getBooksInCategory(categoryName).collect { list ->
+        // The section's own folder and the shamela.ws sections shown under it.
+        localBooksUseCases.booksDao.getBooksInCategories(SiteSections.foldersOf(categoryName)).collect { list ->
             val books = list.associateBy { it.id }
             _sectionBooksState.update {
                 it.copy(

@@ -353,7 +353,7 @@ private fun PreferenceScreenPrev() {
                 userPrefs = UserPrefs(),
                 availableFontSizes = listOf(-4, -2, 0, 2, 4),
                 availableFontFamilies = listOf("خط النسخ", "خط الرق"),
-                availableColorSchemes = listOf("ذهبي", "ازرق"),
+                availableColorSchemes = listOf("بني", "رملي"),
                 availableThemes = listOf("فاتح", "مظلم", "تلقائي")
             ), onEvent = {}
         )

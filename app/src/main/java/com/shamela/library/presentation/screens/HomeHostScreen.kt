@@ -1,5 +1,12 @@
 package com.shamela.library.presentation.screens
 
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TopAppBarState
 import androidx.compose.foundation.layout.padding
@@ -89,12 +96,12 @@ import com.shamela.library.presentation.navigation.SectionBooks
 import com.shamela.library.presentation.navigation.Settings
 import com.shamela.library.presentation.navigation.homeGraph
 
+/** The navigation bar's tabs; settings open from the library's top bar instead. */
 private val destination = listOf(
     Library,
     Download,
     Favorite,
     Search,
-    Settings,
 )
 val LocalPaddingValues = compositionLocalOf { PaddingValues() }
 /**
@@ -133,7 +140,13 @@ fun HomeHostScreen() {
     val matchedTab = destination.indexOfFirst { screen ->
         currentDestination?.hierarchy?.any { it.route == screen.route } == true
     }
-    val selectedScreen = if (matchedTab >= 0) matchedTab else lastTab[0]
+    // Settings open from the library's top bar, so the library tab stays selected there.
+    val onSettingsScreen = currentDestination?.route == Settings.route
+    val selectedScreen = when {
+        onSettingsScreen -> 0
+        matchedTab >= 0 -> matchedTab
+        else -> lastTab[0]
+    }
     SideEffect { lastTab[0] = selectedScreen }
     val hideNavBar = remember { mutableStateOf(false) }
     // Expressive flexible app bar: large title that collapses as the content scrolls.
@@ -144,9 +157,10 @@ fun HomeHostScreen() {
     // The bar's real height (labels make it taller than the default toolbar), for the space lists
     // leave below their last row.
     val density = LocalDensity.current
-    var navBarHeight by remember { mutableStateOf(FloatingToolbarDefaults.ContainerSize) }
+    var navBarHeight by remember { mutableStateOf(NavBarHeight) }
+    // Lists are padded for the system bar already; the floating bar sits at least 4 dp above it.
     val floatingBarInset =
-        if (showBars) navBarHeight + FloatingToolbarDefaults.ScreenOffset
+        if (showBars) navBarHeight + 4.dp
         else 0.dp
     Scaffold(
         modifier = Modifier
@@ -158,7 +172,8 @@ fun HomeHostScreen() {
                 enter = expandVertically(),
                 exit = shrinkVertically(),
             ) {
-                val current = destination[selectedScreen]
+                val onSettings = onSettingsScreen
+                val current = if (onSettings) Settings else destination[selectedScreen]
                 MediumFlexibleTopAppBar(
                     title = {
                         Text(
@@ -172,6 +187,13 @@ fun HomeHostScreen() {
                         containerColor = MaterialTheme.colorScheme.surface,
                         scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                     ),
+                    navigationIcon = {
+                        if (onSettings) {
+                            IconButton(onClick = { navController.popBackStack() }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(ShamelaIcons.NavigateBack, contentDescription = stringResource(com.shamela.apptheme.R.string.back))
+                            }
+                        }
+                    },
                     actions = {
                         current.actionIcon?.let { icon ->
                             IconButton(
@@ -179,6 +201,15 @@ fun HomeHostScreen() {
                                 shapes = IconButtonDefaults.shapes(),
                             ) {
                                 Icon(icon, contentDescription = stringResource(R.string.nav_search))
+                            }
+                        }
+                        // Settings: from the library (home) screen's top-right corner.
+                        if (current == Library) {
+                            IconButton(
+                                onClick = { navController.navigate(Settings.route) { launchSingleTop = true } },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(ShamelaIcons.SettingsOutlined, contentDescription = stringResource(R.string.nav_settings))
                             }
                         }
                     },
@@ -228,12 +259,14 @@ fun HomeHostScreen() {
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = paddingValues.calculateBottomPadding() + FloatingToolbarDefaults.ScreenOffset),
+                    .padding(bottom = navBarBottomGap(paddingValues.calculateBottomPadding())),
             ) {
                 FloatingNavBar(
                     modifier = Modifier.onSizeChanged { navBarHeight = with(density) { it.height.toDp() } },
                     selectedIndex = selectedScreen,
                     onSelect = { index ->
+                        // Leaving settings: it is closed, so the library tab doesn't bring it back.
+                        if (onSettingsScreen) navController.popBackStack()
                         navController.navigate(destination[index].route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
@@ -248,16 +281,28 @@ fun HomeHostScreen() {
         }
     }
 }
-/** Size of the navigation bar relative to its full-width design; proportions stay the same. */
-private const val NavBarScale = 0.85f
+/**
+ * The navigation bar's measurements, after iOS 26's floating tab bar: a capsule 62 pt tall, inset
+ * 21 pt from the screen's sides and bottom, 11 pt labels, the selected tab behind a capsule that
+ * slides between the tabs.
+ */
+private val NavBarHeight = 62.dp
+private val NavBarSideInset = 21.dp
+private val NavBarBottomInset = 21.dp
+/** Gap between the selected tab's capsule and the bar's edge. */
+private val NavBarIndicatorInset = 4.dp
+private val NavBarMaxWidth = 480.dp
 
-/** Share of the screen width the bar takes: the full-width design (screen less 32 dp), scaled. */
-private const val NavBarWidthFraction = 0.79f
+/** Space from the screen's bottom edge to the bar: 21 dp, or just above the system's navigation bar. */
+private fun navBarBottomGap(systemBottom: androidx.compose.ui.unit.Dp) = maxOf(NavBarBottomInset, systemBottom + 4.dp)
+
+/** Gap between the tab capsule and the search button, as in iOS 26. */
+private val NavBarSearchGap = 10.dp
 
 /**
- * Floating navigation bar: a wide pill above the content, the destinations spread evenly across
- * it, each an icon with its label right below. The selected one's icon sits in a primary-colored
- * pill and its label takes the primary color.
+ * Floating navigation bar, after iOS 26's measurements: the tabs in a capsule and, beside it at the
+ * end, search in a round button of its own. The selected tab, light icon and label, sits on a
+ * capsule in the theme's accent ([navSelectedPill]) that slides to it.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -266,33 +311,107 @@ private fun FloatingNavBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    HorizontalFloatingToolbar(
-        expanded = true,
-        // A full pill, everything sized by [NavBarScale] so the bar keeps its proportions; the side
-        // padding keeps the outer items clear of its rounded ends.
+    val tabs = destination.filter { it != Search }
+    val searchIndex = destination.indexOf(Search)
+    Row(
         modifier = modifier
-            .widthIn(max = 560.dp * NavBarScale)
-            .fillMaxWidth(NavBarWidthFraction),
-        shape = CircleShape,
-        contentPadding = PaddingValues(horizontal = 18.dp * NavBarScale, vertical = 14.dp * NavBarScale),
-        // Theme color roles only (mixing in raw primary looked muddy): the list cards use
-        // surfaceContainer, so the bar takes the highest container tone, the same one as the tab
-        // switchers on these screens; the shadow lifts it off the content.
-        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
-            toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        ),
-        expandedShadowElevation = 6.dp,
+            .padding(horizontal = NavBarSideInset)
+            .widthIn(max = NavBarMaxWidth)
+            .fillMaxWidth()
+            .height(NavBarHeight),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        destination.forEachIndexed { index, screen ->
-            val selected = index == selectedIndex
-            FloatingNavItem(
-                selected = selected,
-                icon = if (selected) screen.selectedIcon else screen.unSelectedIcon,
-                label = stringResource(screen.label),
-                onClick = { onSelect(index) },
-            )
+        GlassCapsule(Modifier.weight(1f).fillMaxHeight()) {
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                val itemWidth = maxWidth / tabs.size
+                val selectedTab = tabs.indexOf(destination.getOrNull(selectedIndex))
+                val indicatorOffset by androidx.compose.animation.core.animateDpAsState(
+                    targetValue = itemWidth * selectedTab.coerceAtLeast(0),
+                    animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 500f),
+                    label = "navIndicator",
+                )
+                val indicatorAlpha by androidx.compose.animation.core.animateFloatAsState(
+                    if (selectedTab >= 0) 1f else 0f, label = "navIndicatorAlpha",
+                )
+                // The selected tab's capsule; offset follows the layout direction, like the row below.
+                Box(
+                    Modifier
+                        .offset(x = indicatorOffset)
+                        .width(itemWidth)
+                        .fillMaxHeight()
+                        .graphicsLayer { alpha = indicatorAlpha }
+                        .clip(CircleShape)
+                        .background(navSelectedPill()),
+                )
+                Row(Modifier.fillMaxSize()) {
+                    tabs.forEach { screen ->
+                        val index = destination.indexOf(screen)
+                        val selected = index == selectedIndex
+                        FloatingNavItem(
+                            selected = selected,
+                            icon = if (selected) screen.selectedIcon else screen.unSelectedIcon,
+                            label = stringResource(screen.label),
+                            onClick = { onSelect(index) },
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(NavBarSearchGap))
+        // Search: a round "island" the bar's height, at the end (left in Arabic, right in Turkish).
+        val searchSelected = selectedIndex == searchIndex
+        val searchTint by animateColorAsState(
+            if (searchSelected) navSelectedContent() else MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.motionScheme.defaultEffectsSpec(),
+        )
+        GlassCapsule(Modifier.size(NavBarHeight)) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(if (searchSelected) navSelectedPill() else Color.Transparent)
+                    .selectable(selected = searchSelected, onClick = { onSelect(searchIndex) }, role = Role.Tab),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Search.selectedIcon,
+                    contentDescription = stringResource(Search.label),
+                    tint = searchTint,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
         }
     }
+}
+
+/**
+ * The selected tab's capsule: the accent, deepened toward the page in dark mode (where the pastel
+ * accent is light), so a light icon and label always read on it.
+ */
+@Composable
+private fun navSelectedPill(): Color = with(MaterialTheme.colorScheme) {
+    if (surface.luminance() < 0.5f) androidx.compose.ui.graphics.lerp(primary, surface, 0.45f) else primary
+}
+
+/** Light icon and label on [navSelectedPill]: the page color in light mode, the text color in dark. */
+@Composable
+private fun navSelectedContent(): Color = with(MaterialTheme.colorScheme) {
+    if (surface.luminance() < 0.5f) onSurface else surface
+}
+
+/** The bar's capsule (a circle when square), in the theme's container color, lifted by a shadow. */
+@Composable
+private fun GlassCapsule(modifier: Modifier, content: @Composable () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier
+            .shadow(elevation = 6.dp, shape = CircleShape)
+            .clip(CircleShape)
+            .background(colors.surfaceContainerHigh)
+            // A hairline edge, so the bar stays distinct on a black (dark theme) page too.
+            .border(0.5.dp, colors.outlineVariant, CircleShape)
+            .padding(NavBarIndicatorInset),
+    ) { content() }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -304,44 +423,28 @@ private fun RowScope.FloatingNavItem(
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    val motion = MaterialTheme.motionScheme
-    val indicator by animateColorAsState(
-        // The selected destination's icon sits in a pill in the theme's primary color.
-        if (selected) colors.primary else colors.primary.copy(alpha = 0f),
-        motion.defaultEffectsSpec(),
-    )
-    val iconTint by animateColorAsState(
-        if (selected) colors.onPrimary else colors.onSurfaceVariant,
-        motion.defaultEffectsSpec(),
-    )
+    // The selected item on the theme's dark primary capsule, the others in Android's muted tone.
     val tint by animateColorAsState(
-        if (selected) colors.primary else colors.onSurfaceVariant,
-        motion.defaultEffectsSpec(),
+        if (selected) navSelectedContent() else colors.onSurfaceVariant,
+        MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
     Column(
         modifier = Modifier
             .weight(1f)
-            .clip(MaterialTheme.shapes.large)
-            .selectable(selected = selected, onClick = onClick, role = Role.Tab)
-            .padding(vertical = 4.dp * NavBarScale),
+            .fillMaxHeight()
+            .clip(CircleShape)
+            .selectable(selected = selected, onClick = onClick, role = Role.Tab),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {
-        Box(
-            Modifier
-                .size(width = 60.dp * NavBarScale, height = 36.dp * NavBarScale)
-                .clip(CircleShape)
-                .background(indicator),
-            contentAlignment = Alignment.Center,
-        ) {
-            // The label below names the item, so the icon isn't announced separately.
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(28.dp * NavBarScale))
-        }
-        Spacer(Modifier.height(4.dp * NavBarScale))
+        // The label below names the item, so the icon isn't announced separately.
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontSize = MaterialTheme.typography.labelMedium.fontSize * NavBarScale,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 11.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 lineHeightStyle = LineHeightStyle(
                     alignment = LineHeightStyle.Alignment.Center,
                     trim = LineHeightStyle.Trim.Both,
@@ -350,6 +453,7 @@ private fun RowScope.FloatingNavItem(
             color = tint,
             maxLines = 1,
             softWrap = false,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

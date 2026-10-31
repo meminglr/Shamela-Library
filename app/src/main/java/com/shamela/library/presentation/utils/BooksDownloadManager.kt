@@ -351,6 +351,11 @@ object BooksDownloadManager {
         subscribers.remove(subscriber)
     }
 
+    /** A book added to the library some other way than a download (e.g. a PDF from a file). */
+    fun notifyBookAdded(book: Book) {
+        subscribers.forEach { it.onBookDownloaded(book, true) }
+    }
+
     fun notifyBookDownloaded(book: Book) {
         DownloadNotifier.onBookCompleted()
         val remaining = _downloads.value.count { it.status.isActive && it.bookId != book.id }
@@ -394,10 +399,19 @@ object BooksDownloadManager {
         doubleSlashWorks = working.substringAfter("://").contains("//")
     }
 
+    /** The book's file: its EPUB, or its PDF for a scanned book that has one (and no EPUB). */
     fun getBookPath(book: Book): String {
         val bookFileSubPath = "$DOWNLOADS_FOLDER/${book.categoryName}/${book.title}.epub"
-        return File(ShamelaApp.externalMediaDir, bookFileSubPath).absolutePath
+        val epub = File(ShamelaApp.externalMediaDir, bookFileSubPath)
+        if (!epub.isFile) {
+            val pdf = File(getPdfPath(book))
+            if (pdf.isFile) return pdf.absolutePath
+        }
+        return epub.absolutePath
     }
+
+    fun getPdfPath(book: Book): String =
+        File(ShamelaApp.externalMediaDir, "$DOWNLOADS_FOLDER/${book.categoryName}/${book.title}.pdf").absolutePath
 
     private fun bookFromTags(info: WorkInfo): Book? {
         return Book(

@@ -720,9 +720,9 @@ private fun BookTopBar(
  * Book-like page turn for the chapter pager. Pages stay in place instead of sliding: the page being
  * left lifts off and rotates around the spine (the right edge, since the books are Arabic and pages
  * flow right-to-left), revealing the next page underneath, with shading on both. Swiping back plays
- * it in reverse.
+ * it in reverse. Also used by the app's PDF reader, so both readers turn pages alike.
  */
-private fun Modifier.pageTurn(
+fun Modifier.pageTurn(
     pagerState: androidx.compose.foundation.pager.PagerState,
     page: Int,
     enabled: Boolean,
@@ -1020,7 +1020,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  * a light-grey bar looked like an empty white strip above and below the text.
  */
 @Composable
-private fun ReaderBarColors(theme: ReaderTheme, content: @Composable () -> Unit) {
+fun ReaderBarColors(theme: ReaderTheme, content: @Composable () -> Unit) {
     val page = Color(theme.background)
     val text = Color(theme.text)
     // A shade apart from the page, so the bar reads as a bar without becoming a separate block.
@@ -1040,7 +1040,7 @@ private fun ReaderBarColors(theme: ReaderTheme, content: @Composable () -> Unit)
 
 /** Status and navigation bar icons that stay readable on the page color. */
 @Composable
-private fun ReaderSystemBarIcons(lightPage: Boolean) {
+fun ReaderSystemBarIcons(lightPage: Boolean) {
     val view = androidx.compose.ui.platform.LocalView.current
     androidx.compose.runtime.SideEffect {
         val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect

@@ -277,6 +277,13 @@ class LibraryViewModel @Inject constructor(
                 batch.clear()
             }
         }
+        // Scanned books (PDF) aren't in the full-text index's file list.
+        FilesBooksRepoImpl.libraryPdfFiles().forEach { file ->
+            val category = file.parentFile?.name ?: return@forEach
+            val id = java.util.UUID.nameUUIDFromBytes((FilesBooksRepoImpl.titleOf(file) + category).toByteArray()).toString()
+            if (id in known) return@forEach
+            FilesBooksRepoImpl.parsePdf(file, category)?.let { batch += it }
+        }
         if (batch.isNotEmpty()) dao.upsertAllKeepingUserData(batch)
     }
 }

@@ -20,6 +20,7 @@ import com.shamela.library.data.local.db.BooksDatabase
 import com.shamela.library.data.local.db.QuotesDao
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.data.local.files.FilesRepoImpl
+import com.shamela.library.data.remote.openiti.OpenItiBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaBooksRepoImpl
 import com.shamela.library.data.remote.shamela.ShamelaCatalog
 import com.shamela.library.data.remote.shamela.ShamelaRepoImpl
@@ -55,11 +56,18 @@ object DataModule {
 
     @Singleton
     @Provides
+    fun provideOpenItiBooksRepository(app: Application): OpenItiBooksRepoImpl {
+        return OpenItiBooksRepoImpl(app.applicationContext)
+    }
+
+    @Singleton
+    @Provides
     fun provideCatalogBooksRepository(
         library: AssetsBooksRepoImpl,
         site: ShamelaBooksRepoImpl,
+        openIti: OpenItiBooksRepoImpl,
     ): CatalogBooksRepoImpl {
-        return CatalogBooksRepoImpl(library, site)
+        return CatalogBooksRepoImpl(library, site, openIti)
     }
 
     @Singleton

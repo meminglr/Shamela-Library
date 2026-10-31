@@ -33,6 +33,29 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Scanned (PDF) books. -->
+        <activity
+            android:name=".presentation.pdf.PdfReaderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ShamelaLibrary" />
+        <!-- A PDF shared from another app ("Share", "Open with"): added to the scanned books. -->
+        <activity
+            android:name=".presentation.pdf.PdfShareActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
         <!-- shamela.ws browser check (Cloudflare), passed by the user in a WebView. -->
         <activity
             android:name=".presentation.ShamelaVerifyActivity"

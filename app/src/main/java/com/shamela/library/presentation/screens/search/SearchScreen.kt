@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.shamela.library.presentation.common.sectionDisplayName
 import com.shamela.library.R
+import com.shamela.library.data.catalog.SiteSections
 import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -88,7 +89,8 @@ fun SearchScreen(
                 putExtra(SearchActivity.Search_Query, searchState.searchQuery)
                 putExtra(
                     SearchActivity.Search_Categories,
-                    searchState.selectedCategories.map { it.name }.toTypedArray()
+                    // A section's pages are indexed under each of its folders (shamela.ws sections merged into it).
+                    searchState.selectedCategories.flatMap { SiteSections.foldersOf(it.name) }.toTypedArray()
                 )
             }
             context.startActivity(intent)

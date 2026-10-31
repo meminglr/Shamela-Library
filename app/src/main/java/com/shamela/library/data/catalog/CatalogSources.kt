@@ -11,6 +11,8 @@ enum class BookSource(val number: Int) {
     Library(1),
     /** Kütüphane 2: shamela.ws, built into an EPUB on the device. */
     Site(2),
+    /** Kütüphane 3: OpenITI texts the other two don't have, built into an EPUB on the device. */
+    OpenIti(3),
 }
 
 /**
