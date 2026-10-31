@@ -224,11 +224,12 @@
     <string name="archive_volume">Cilt %1$d</string>
     <string name="archive_single_volume">Kitap (PDF)</string>
     <string name="archive_tap_to_read">İndirildi · okumak için dokunun</string>
-    <string name="archive_suggest_nothing">Kitap kütüphanelerde bulunamadı. Taranmış (PDF) hali olabilir.</string>
-    <string name="archive_suggest_more">Aradığınızı bulamadınız mı? Taranmış (PDF) halini arayın.</string>
-    <string name="archive_search_button">Taranmış kitaplarda ara</string>
     <string name="pdf_page_progress">Sayfa %1$d / %2$d</string>
     <string name="pdf_subtitle">Taranmış kitap · %1$d sayfa</string>
     <string name="pdf_previous_page">Önceki sayfa</string>
     <string name="pdf_next_page">Sonraki sayfa</string>
+    <string name="archive_not_found_title">Kütüphanelerde bulunamadı</string>
+    <string name="archive_more_title">Aradığınız bu değil mi?</string>
+    <string name="archive_search_hint_short">Taranmış (PDF) kitaplarda arayın</string>
+    <string name="archive_search_action">Ara</string>
 </resources>

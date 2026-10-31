@@ -4,12 +4,12 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Old books: the page is parchment and the cards a deeper paper, text in sepia ink, the accent a soft
- * worn-leather brown; at night, a dark leather-bound library with warm cream text.
+ * worn-leather brown; the app's only palette. at night, a dark leather-bound library with warm cream text.
  */
 object Brown : AppColorScheme(
     name = "بني",
-    light = Color(0xFFA07B5A),
-    dark = Color(0xFFC9A27F),
+    light = Color(0xFF8C6A4C),
+    dark = Color(0xFFB8916C),
     lightSurfaces = Surfaces(
         page = Color(0xFFF3E9D2),
         containerLow = Color(0xFFEEE2C6),

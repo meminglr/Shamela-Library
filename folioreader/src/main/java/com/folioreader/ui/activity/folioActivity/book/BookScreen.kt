@@ -1020,7 +1020,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  * a light-grey bar looked like an empty white strip above and below the text.
  */
 @Composable
-fun ReaderBarColors(theme: ReaderTheme, content: @Composable () -> Unit) {
+fun ReaderBarColors(theme: com.folioreader.reader.PageColors, content: @Composable () -> Unit) {
     val page = Color(theme.background)
     val text = Color(theme.text)
     // A shade apart from the page, so the bar reads as a bar without becoming a separate block.

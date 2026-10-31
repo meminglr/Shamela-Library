@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
-import com.shamela.apptheme.presentation.theme.colors.Green
+import com.shamela.apptheme.presentation.theme.colors.Brown
 import com.shamela.apptheme.presentation.util.ShamelaPrev
 import com.shamela.library.R
 
@@ -99,7 +99,7 @@ private fun SelectBookButton(
 @Composable
 private fun ExternalBooksScreenPrev() {
     AppTheme.ShamelaLibraryTheme {
-        AppTheme.changeColorScheme(Green.lightColorScheme, Green.name)
+        AppTheme.changeColorScheme(Brown.lightColorScheme, Brown.name)
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             ExternalBooksScreen(
                 onClickSelectBook = { },

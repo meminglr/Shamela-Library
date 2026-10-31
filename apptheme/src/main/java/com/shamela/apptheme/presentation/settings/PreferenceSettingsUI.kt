@@ -119,25 +119,6 @@ fun PreferenceSettingsUI(
             }
         }
 
-        SettingsCard(stringResource(R.string.change_color), icon = ShamelaIcons.Palette) {
-            ColorSwatches(
-                options = uiState.availableColorSchemes,
-                selected = uiState.userPrefs.colorSchemeName,
-            ) {
-                onEvent(
-                    PreferenceSettingsEvent.OnChangeAppTheme(
-                        colorScheme = AppTheme.themeOf(
-                            theme = uiState.userPrefs.theme,
-                            colorScheme = it,
-                            isSystemInDarkTheme = isSystemDark,
-                            context = context
-                        ),
-                        userPrefs = uiState.userPrefs.copy(colorSchemeName = it)
-                    )
-                )
-            }
-        }
-
         SettingsCard(stringResource(R.string.font_size), icon = ShamelaIcons.FormatSize) {
             FontSizeSelector(
                 sliderPosition = uiState.sliderPosition,
@@ -188,58 +169,6 @@ private fun ChoiceChips(
                 leadingIcon = { leading(option) },
             )
         }
-    }
-}
-
-/**
- * Color schemes as a horizontally scrolling row of round swatches; the selected one gets a ring
- * and a check, and its name is shown underneath.
- */
-@Composable
-private fun ColorSwatches(
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Start scrolled so the selected color is visible.
-        val listState = rememberLazyListState(
-            initialFirstVisibleItemIndex = (options.indexOf(selected) - 2).coerceAtLeast(0)
-        )
-        LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(options) { name ->
-                val isSelected = name == selected
-                val swatch = remember(name) {
-                    AppColors.colorSchemeOf(name, context).lightColorScheme.primary
-                }
-                val label = PreferenceLabels.label(name)
-                Box(
-                    Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(swatch)
-                        .border(
-                            width = if (isSelected) 3.dp else 1.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
-                            shape = CircleShape
-                        )
-                        .selectable(selected = isSelected, role = Role.RadioButton) { onSelect(name) }
-                        .semantics { contentDescription = label },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Icon(ShamelaIcons.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-                    }
-                }
-            }
-        }
-        Text(
-            text = PreferenceLabels.label(selected),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

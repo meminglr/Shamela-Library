@@ -1,12 +1,21 @@
 package com.folioreader.reader
 
 import android.content.Context
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import com.shamela.apptheme.presentation.theme.AppFonts
+import com.shamela.apptheme.presentation.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Page colors for reading. [FollowApp] uses Light or Dark depending on the app theme. */
+/** The colors a page is drawn in (ARGB). */
+data class PageColors(val background: Long, val text: Long, val heading: Long, val link: Long, val isDark: Boolean)
+
+/**
+ * Page colors for reading. [FollowApp] takes the app's palette (its page, text and accent colors,
+ * e.g. the old-book palette's parchment and sepia), light or dark with the app theme.
+ */
 enum class ReaderTheme(val background: Long, val text: Long, val heading: Long, val link: Long) {
     FollowApp(0, 0, 0, 0),
     Light(0xFFFFFFFF, 0xFF1C1B1F, 0xFF000000, 0xFF1565C0),
@@ -14,10 +23,20 @@ enum class ReaderTheme(val background: Long, val text: Long, val heading: Long, 
     Dark(0xFF121212, 0xFFD4D4D4, 0xFFF0F0F0, 0xFF90CAF9),
     Black(0xFF000000, 0xFFC8C8C8, 0xFFE8E8E8, 0xFF90CAF9);
 
-    fun resolve(isAppDark: Boolean): ReaderTheme =
-        if (this == FollowApp) (if (isAppDark) Dark else Light) else this
-
-    val isDark: Boolean get() = this == Dark || this == Black
+    /** The colors to draw with; [isAppDark] only matters for [FollowApp] when no palette is set. */
+    fun resolve(isAppDark: Boolean): PageColors {
+        if (this != FollowApp) return PageColors(background, text, heading, link, this == Dark || this == Black)
+        val scheme = AppTheme.colorScheme
+        val dark = scheme.surface.luminance() < 0.5f
+        fun argb(c: androidx.compose.ui.graphics.Color) = c.toArgb().toLong() and 0xFFFFFFFFL
+        return PageColors(
+            background = argb(scheme.surface),
+            text = argb(scheme.onSurface),
+            heading = argb(scheme.onSurface),
+            link = argb(scheme.primary),
+            isDark = dark,
+        )
+    }
 }
 
 /**

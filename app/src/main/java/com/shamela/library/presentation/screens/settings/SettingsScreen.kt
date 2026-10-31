@@ -44,7 +44,7 @@ import com.shamela.apptheme.presentation.settings.PreferenceSettingsState
 import com.shamela.apptheme.presentation.settings.PreferenceSettingsUI
 import com.shamela.apptheme.presentation.theme.AppFonts
 import com.shamela.apptheme.presentation.theme.AppTheme
-import com.shamela.apptheme.presentation.theme.colors.Green
+import com.shamela.apptheme.presentation.theme.colors.Brown
 import com.shamela.apptheme.presentation.util.ShamelaPrev
 import com.shamela.library.presentation.screens.LocalFloatingBarInset
 import com.shamela.library.presentation.screens.LocalPaddingValues
@@ -185,7 +185,7 @@ private fun SettingsScreenUI(
 @Composable
 private fun SettingScreenPrev_Preferences() {
     AppTheme.ShamelaLibraryTheme {
-        AppTheme.changeColorScheme(Green.lightColorScheme, Green.name)
+        AppTheme.changeColorScheme(Brown.lightColorScheme, Brown.name)
         SettingsScreenUI(
             uiState = SettingsState(selectedViewType = SettingsViewType.Preferences),
             onClickSelectBook = { },

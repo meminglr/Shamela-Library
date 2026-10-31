@@ -93,6 +93,8 @@ class SearchResultsViewModel @Inject constructor(
                         _searchResultsState.update {
                             it.copy(
                                 isLoading = false,
+                                // Also when nothing was found: the screen then offers the scanned books.
+                                lastQuery = query,
                                 isListEmpty = it.booksResultsList.isEmpty() && it.sectionsResultsList.isEmpty(),
                                 showsClosest = it.booksResultsList.isNotEmpty() &&
                                     it.booksResultsList.all { book -> BookSearchMatcher.isClosest(book, query) },

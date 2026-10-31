@@ -3,6 +3,12 @@ package com.shamela.library.presentation.screens.searchResults
 
 import com.shamela.library.presentation.common.downloadStatusOf
 import androidx.compose.foundation.layout.Arrangement
+import com.shamela.apptheme.presentation.theme.ShamelaIcons
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
@@ -46,6 +52,7 @@ import com.shamela.apptheme.presentation.common.LoadingScreen
 import com.shamela.apptheme.presentation.common.SearchTopBar
 import com.shamela.library.data.local.files.FilesBooksRepoImpl
 import com.shamela.library.domain.model.Book
+import com.shamela.library.domain.search.BookSearchMatcher
 import com.shamela.library.presentation.common.BookItem
 import com.shamela.library.presentation.common.DownloadIconButton
 import com.shamela.library.presentation.common.SectionItem
@@ -75,10 +82,25 @@ fun SearchResultsScreen(
             windowInsets = WindowInsets(0),
         )
         Box(Modifier.fillMaxSize()) {
+            // The catalogs' search offers archive.org's scanned books too: first when no title is
+            // exactly what was searched for (the book is likely only scanned), else after the results.
+            val offerScanned = state.type == "remote" && state.lastQuery.isNotBlank() && !state.isLoading
+            val hasExactMatch = remember(state.booksResultsList, state.lastQuery) {
+                val query = BookSearchMatcher.spellingKey(state.lastQuery)
+                state.booksResultsList.any { BookSearchMatcher.spellingKey(it.title) == query }
+            }
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(SegmentGap),
                 contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp + LocalFloatingBarInset.current)
             ) {
+                if (offerScanned && !hasExactMatch) {
+                    item(key = "archive") {
+                        ArchiveSuggestion(
+                            nothingFound = state.booksResultsList.isEmpty() || state.showsClosest,
+                            onClick = { navigateToArchiveSearch(state.lastQuery) },
+                        )
+                    }
+                }
                 val sections = state.sectionsResultsList
                 if (sections.isNotEmpty()) {
                     item(key = "sections-header") {
@@ -152,12 +174,9 @@ fun SearchResultsScreen(
                         }
                     }
                 }
-                if (state.type == "remote" && state.lastQuery.isNotBlank() && !state.isLoading) {
+                if (offerScanned && hasExactMatch) {
                     item(key = "archive") {
-                        ArchiveSuggestion(
-                            nothingFound = state.booksResultsList.isEmpty() || state.showsClosest,
-                            onClick = { navigateToArchiveSearch(state.lastQuery) },
-                        )
+                        ArchiveSuggestion(nothingFound = false, onClick = { navigateToArchiveSearch(state.lastQuery) })
                     }
                 }
             }
@@ -177,25 +196,54 @@ fun SearchResultsScreen(
     }
 }
 
-/** At the end of the catalogs' results: search the same words among archive.org's scanned books. */
+/**
+ * Offer of the scanned books (archive.org) for the same words: a compact card with an icon that says
+ * the book wasn't found (or may not be the right one) and that its scanned copy can be searched.
+ */
 @Composable
 private fun ArchiveSuggestion(nothingFound: Boolean, onClick: () -> Unit) {
-    Column(
+    val colors = MaterialTheme.colorScheme
+    Row(
         Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.surfaceContainerHigh)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(colors.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(ShamelaIcons.FindInPage, contentDescription = null, tint = colors.surface, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(if (nothingFound) R.string.archive_not_found_title else R.string.archive_more_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = colors.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.archive_search_hint_short),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
         Text(
-            text = stringResource(if (nothingFound) R.string.archive_suggest_nothing else R.string.archive_suggest_more),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
-            textAlign = TextAlign.Center,
+            text = stringResource(R.string.archive_search_action),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.surface,
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(colors.primary)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         )
-        Spacer(Modifier.height(8.dp))
-        FilledTonalButton(onClick = onClick) { Text(stringResource(R.string.archive_search_button)) }
     }
 }

@@ -306,11 +306,9 @@ private fun PageColorSwatches(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ReaderTheme.entries.forEach { theme ->
                 val isSelected = theme == selected
-                val fill = if (theme == ReaderTheme.FollowApp) {
-                    Brush.horizontalGradient(
-                        0.5f to Color(ReaderTheme.Light.background), 0.5f to Color(ReaderTheme.Dark.background)
-                    )
-                } else Brush.linearGradient(listOf(Color(theme.background), Color(theme.background)))
+                // "Follow app" shows the app palette's page color.
+                val page = Color(theme.resolve(isAppDark).background)
+                val fill = Brush.linearGradient(listOf(page, page))
                 val name = stringResource(
                     when (theme) {
                         ReaderTheme.FollowApp -> R.string.reader_theme_auto

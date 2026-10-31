@@ -2,7 +2,6 @@
 <resources>
     <string name="font_family">نوع الخط</string>
     <string name="font_size">حجم الخط</string>
-    <string name="change_color">تغيير اللون</string>
     <string name="change_theme">تغيير الثيم</string>
     <string name="xSmall">أصغر</string>
     <string name="small">صغير</string>
@@ -26,14 +25,7 @@
     <string name="theme_auto">تلقائي</string>
     <string name="theme_light">فاتح</string>
     <string name="theme_dark">مظلم</string>
-    <string name="color_golden">طيني</string>
-    <string name="color_blue">أزرق غباري</string>
     <string name="color_brown">كتاب قديم</string>
-    <string name="color_green">مريمية</string>
-    <string name="color_olive">لافندر</string>
-    <string name="color_sand">رملي</string>
-    <string name="color_neutral">بسيط</string>
-    <string name="color_material_you">ألوان النظام (اندرويد 12 فأعلى)</string>
     <string name="font_system">خط النظام</string>
     <string name="font_amiri">خط أميري</string>
     <string name="font_kitab">خط كِتاب</string>

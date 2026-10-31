@@ -7,14 +7,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 
 /**
- * A selectable app palette. [name] is the stable key stored in SharedPreferences (do not change it;
- * the localized label comes from PreferenceLabels).
+ * An app palette. [name] is the key stored in SharedPreferences (do not change it). The app now
+ * has a single one ([Brown]); the type stays so a palette is still built in one place.
  *
- * A palette is one soft, pastel accent on its [Surfaces]: the accent marks what can be tapped or
- * is selected (buttons, the selected tab, sliders, switches), the surfaces set the mood. Things
- * drawn on the accent use the palette's dark ink, as white is too harsh on pastel. Most palettes use clean greys with a faint wash of the accent; a palette with a
- * character of its own (e.g. [Brown]'s old paper and leather) brings its own surfaces; all
- * palettes but the system one ([MaterialYou]) do.
+ * A palette is one soft accent on its [Surfaces]: the accent marks what can be tapped or is
+ * selected (buttons, the selected tab, sliders, switches), the surfaces set the mood. Things drawn
+ * on the accent use the palette's dark ink, as white is too harsh on a soft accent.
  */
 sealed class AppColorScheme(
     val name: String = "",

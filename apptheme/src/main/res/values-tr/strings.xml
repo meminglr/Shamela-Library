@@ -2,7 +2,6 @@
 <resources>
     <string name="font_family">Yazı tipi</string>
     <string name="font_size">Yazı boyutu</string>
-    <string name="change_color">Renk</string>
     <string name="change_theme">Tema</string>
     <string name="xSmall">Çok küçük</string>
     <string name="small">Küçük</string>
@@ -25,14 +24,7 @@
     <string name="theme_auto">Otomatik</string>
     <string name="theme_light">Açık</string>
     <string name="theme_dark">Koyu</string>
-    <string name="color_golden">Kil</string>
-    <string name="color_blue">Toz mavisi</string>
     <string name="color_brown">Eski kitap</string>
-    <string name="color_green">Adaçayı</string>
-    <string name="color_olive">Lavanta</string>
-    <string name="color_sand">Kum</string>
-    <string name="color_neutral">Sade</string>
-    <string name="color_material_you">Sistem renkleri (Android 12+)</string>
     <string name="font_system">Sistem yazı tipi</string>
     <string name="font_amiri">Amiri</string>
     <string name="font_kitab">Kitab</string>
