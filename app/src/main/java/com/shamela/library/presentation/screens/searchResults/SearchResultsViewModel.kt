@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -82,13 +84,13 @@ class SearchResultsViewModel @Inject constructor(
                                 )
                             }
                         }
-                        repo.searchForABook(categoryName, query).collect { book ->
-                            _searchResultsState.update {
-                                it.copy(
-                                    booksResultsList = it.booksResultsList + book,
-                                    lastQuery = query
-                                )
-                            }
+                        // In one update, not a list copy and a recomposition per result.
+                        val books = repo.searchForABook(categoryName, query).toList()
+                        _searchResultsState.update {
+                            it.copy(
+                                booksResultsList = it.booksResultsList + books,
+                                lastQuery = query
+                            )
                         }
                         _searchResultsState.update {
                             it.copy(
@@ -149,7 +151,11 @@ class SearchResultsViewModel @Inject constructor(
                 CatalogSources.index,
             ) { statusMap, downloadedList, _ ->
                 Pair(statusMap, CatalogSources.withListedIds(downloadedList.map { it.id }.toSet()))
-            }.collect { (statusMap, downloadedIds) ->
+            }
+                // Matching every downloaded book against the catalogs is too much for the main thread
+                // (it ran in the first frames of the screen's opening animation).
+                .flowOn(Dispatchers.Default)
+                .collect { (statusMap, downloadedIds) ->
                 _searchResultsState.update {
                     it.copy(downloadStatuses = statusMap, downloadedBookIds = downloadedIds)
                 }

@@ -17,3 +17,4 @@ rootProject.name = "Shamela Library"
 include ':app'
 include ':folioreader'
 include ':apptheme'
+include ':baselineprofile'

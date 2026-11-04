@@ -107,11 +107,32 @@ class CatalogBooksRepoImpl(
         }
 
         val openItiBooks = openIti.entries().map(OpenItiBooksRepoImpl::toBook)
-        val elsewhere = CatalogMatcher.match(
-            openItiBooks, libraryBooks + siteBooks.map(ShamelaBooksRepoImpl::toBook),
+        // Matched against each catalog on its own: a book in both Kütüphane 1 and 2 would otherwise
+        // be two candidates, and so no match, and never show all three numbers.
+        val inLibrary = CatalogMatcher.match(
+            openItiBooks, libraryBooks,
             libraryTitle = { it.title }, libraryAuthor = { it.author },
             siteTitle = { it.title }, siteAuthor = { it.author },
         )
+        val inSite = CatalogMatcher.match(
+            openItiBooks, siteBooks.map(ShamelaBooksRepoImpl::toBook),
+            libraryTitle = { it.title }, libraryAuthor = { it.author },
+            siteTitle = { it.title }, siteAuthor = { it.author },
+        )
+        val elsewhere = inLibrary.keys + inSite.keys
+        // Every copy of a book found in more than one catalog, and the numbers of all of them on each.
+        val copies = HashMap<String, MutableMap<BookSource, Book>>()
+        fun link(a: Pair<BookSource, Book>, b: Pair<BookSource, Book>) {
+            val group = copies[a.second.id] ?: java.util.EnumMap(BookSource::class.java)
+            copies[b.second.id]?.takeIf { it !== group }?.let { group.putAll(it) }
+            group[a.first] = a.second
+            group[b.first] = b.second
+            group.values.forEach { copies[it.id] = group }
+        }
+        matches.forEach { (libraryBook, entry) -> link(BookSource.Library to libraryBook, BookSource.Site to ShamelaBooksRepoImpl.toBook(entry)) }
+        inLibrary.forEach { (openItiBook, libraryBook) -> link(BookSource.OpenIti to openItiBook, BookSource.Library to libraryBook) }
+        inSite.forEach { (openItiBook, siteBook) -> link(BookSource.OpenIti to openItiBook, BookSource.Site to siteBook) }
+        copies.forEach { (id, group) -> sources[id] = group.keys.toSet() }
         val openItiKeys = HashSet<String>()
         for (book in openItiBooks) {
             if (book in elsewhere || book.id in sources) continue
@@ -119,7 +140,16 @@ class CatalogBooksRepoImpl(
             books.getOrPut(book.categoryName) { mutableListOf() }.add(book)
             openItiKeys += "${book.categoryName}/${book.title}"
         }
-        CatalogSources.publish(CatalogSources.Index(sources, siteCopyOfLibraryBook))
+        val sourcesByTitle = HashMap<String, MutableSet<BookSource>>()
+        fun addTitle(title: String, source: BookSource) {
+            for (key in setOf(CatalogMatcher.key(title), CatalogMatcher.shortKey(title))) {
+                if (key.isNotEmpty()) sourcesByTitle.getOrPut(key) { java.util.EnumSet.noneOf(BookSource::class.java) }.add(source)
+            }
+        }
+        libraryBooks.forEach { addTitle(it.title, BookSource.Library) }
+        siteBooks.forEach { addTitle(it.title, BookSource.Site) }
+        openItiBooks.forEach { addTitle(it.title, BookSource.OpenIti) }
+        CatalogSources.publish(CatalogSources.Index(sources, siteCopyOfLibraryBook, sourcesByTitle, copies))
 
         val known = libraryCategories.mapTo(HashSet()) { it.name }
         val categories = libraryCategories.map { it.copy(bookCount = books[it.name]?.size ?: 0) } +
@@ -129,6 +159,7 @@ class CatalogBooksRepoImpl(
         Log.d(
             TAG, "merged ${libraryBooks.size} + ${siteBooks.size} + ${openItiBooks.size} books: ${matches.size} shared, " +
                 "${siteBooks.size - matchedSite.size} only on the site, ${openItiKeys.size} from OpenITI, " +
+                "${copies.values.distinct().count { it.size == 3 }} in all three, " +
                 "in ${System.currentTimeMillis() - started} ms"
         )
         return Merged(
@@ -157,6 +188,13 @@ class CatalogBooksRepoImpl(
 
     override fun getAllBooks(): Flow<Book> = flow {
         emitAll(merged().booksBySection.values.flatten().asFlow())
+    }
+
+    /** The link of a book's copy in [source] (see [CatalogSources.copiesOf]). */
+    suspend fun getDownloadLinkFrom(source: BookSource, book: Book): Uri? = when (source) {
+        BookSource.Library -> library.getDownloadLink(book.categoryName, book.title)
+        BookSource.Site -> site.getDownloadLink(book.categoryName, book.title)
+        BookSource.OpenIti -> openIti.getDownloadLink(book.categoryName, book.title)
     }
 
     /** From Kütüphane 1 when it has the book, built from OpenITI for a Kütüphane 3 book, else from shamela.ws. */

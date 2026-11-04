@@ -6,6 +6,7 @@ plugins {
     id 'com.google.gms.google-services'
     id 'com.google.firebase.crashlytics'
     id 'org.jetbrains.kotlin.plugin.compose'
+    id 'androidx.baselineprofile'
 }
 
 def localProperties = new Properties()
@@ -32,8 +33,8 @@ android {
         applicationId "com.meminglr.shamela"
         minSdk versions.androidMinSdk
         targetSdk versions.androidTargetSdk
-        versionCode 13
-        versionName "1.12"
+        versionCode 14
+        versionName "1.13"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -109,6 +110,9 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 dependencies {
+    // Installs the app's Baseline Profile (see :baselineprofile) on sideloaded installs too.
+    implementation 'androidx.profileinstaller:profileinstaller:1.4.1'
+    baselineProfile project(':baselineprofile')
     // TLS with a Java-stream socket ("engine" mode), so the book server's handshake can be split
     // on networks that reset it (see BookServerConnection).
     implementation "org.conscrypt:conscrypt-android:2.5.3"

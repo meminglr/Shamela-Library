@@ -5,6 +5,7 @@
     <string name="nav_library">المكتبة</string>
     <string name="nav_download">التحميل</string>
     <string name="nav_favorite">المحفوظات</string>
+    <string name="search_book_names">البحث في أسماء الكتب</string>
     <string name="nav_search">البحث</string>
     <string name="nav_settings">الإعدادات</string>
 
@@ -191,6 +192,12 @@
     <string name="source_both">في المكتبتين</string>
     <string name="source_library_detail">المكتبة 1 · يُنزَّل ملف EPUB جاهزًا</string>
     <string name="source_shamela_detail">المكتبة 2 · يُبنى على الجهاز من shamela.ws</string>
+    <string name="other_copies_title">التحميل من المكتبات الأخرى</string>
+    <string name="library_number">المكتبة %1$d</string>
+    <string name="copy_downloaded">محمّل · اضغط للقراءة</string>
+    <string name="source_all">في المكتبات الثلاث</string>
+    <string name="source_all_detail">في المكتبات الثلاث · يُنزَّل من المكتبة 1</string>
+    <string name="source_both_site_detail">في المكتبتين · يُنزَّل من المكتبة 2</string>
     <string name="source_both_detail">في المكتبتين · يُنزَّل من المكتبة 1</string>
     <string name="source_openiti">المكتبة 3</string>
     <string name="source_openiti_detail">المكتبة 3 · يُبنى على الجهاز من نص OpenITI</string>
@@ -225,6 +232,7 @@
     <string name="archive_download_all">تحميل المجلدات كلها (%1$d · %2$s)</string>
     <string name="archive_volume">المجلد %1$d</string>
     <string name="archive_single_volume">الكتاب (PDF)</string>
+    <string name="scanned_volumes_count">عدد المجلدات: %1$d</string>
     <string name="archive_tap_to_read">محمّل · اضغط للقراءة</string>
     <string name="pdf_page_progress">الصفحة %1$d من %2$d</string>
     <string name="pdf_subtitle">كتاب مصور · %1$d صفحة</string>

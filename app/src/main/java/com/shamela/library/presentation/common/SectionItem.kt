@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.shamela.apptheme.presentation.common.Revealed
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.shamela.apptheme.presentation.theme.AppFonts
@@ -31,35 +32,38 @@ fun SectionItem(
     index: Int = 0,
     count: Int = 1,
 ) {
-    SegmentedListItem(
-        onClick = onClick,
-        shapes = segmentShapes(index, count),
-        colors = segmentColors(),
-        modifier = modifier,
-        leadingContent = {
-            ListLeadingTile(
-                icon = ShamelaIcons.LibraryBooks,
-                shape = MaterialShapes.Clover4Leaf.toShape(),
-                container = MaterialTheme.colorScheme.secondaryContainer,
-                content = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-        },
-        supportingContent = {
+    // Built in its turn as the page appears (ProgressiveReveal), not with every other row at once.
+    Revealed(SectionRowHeight) {
+        SegmentedListItem(
+            onClick = onClick,
+            shapes = segmentShapes(index, count),
+            colors = segmentColors(),
+            modifier = modifier,
+            leadingContent = {
+                ListLeadingTile(
+                    icon = ShamelaIcons.LibraryBooks,
+                    shape = MaterialShapes.Clover4Leaf.toShape(),
+                    container = MaterialTheme.colorScheme.secondaryContainer,
+                    content = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.books_count_label, item.bookCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            trailingContent = {
+                Icon(imageVector = ShamelaIcons.NavigateForward, contentDescription = null)
+            },
+        ) {
             Text(
-                text = stringResource(R.string.books_count_label, item.bookCount),
-                style = MaterialTheme.typography.bodyMedium,
+                text = buildHighlightedString(sectionDisplayName(item.name), highlightText),
+                style = AppFonts.content(MaterialTheme.typography.titleMedium),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
-        },
-        trailingContent = {
-            Icon(imageVector = ShamelaIcons.NavigateForward, contentDescription = null)
-        },
-    ) {
-        Text(
-            text = buildHighlightedString(sectionDisplayName(item.name), highlightText),
-            style = AppFonts.content(MaterialTheme.typography.titleMedium),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        }
     }
 }
 
@@ -123,3 +127,6 @@ private fun SectionGroupHeader(title: String, bookCount: Int, modifier: Modifier
         )
     }
 }
+
+/** About a row's height, for the space it keeps until it is built. */
+private val SectionRowHeight = 76.dp

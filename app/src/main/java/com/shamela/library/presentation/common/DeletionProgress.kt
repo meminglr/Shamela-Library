@@ -63,8 +63,10 @@ fun DeletionBar(modifier: Modifier = Modifier) {
 
     AnimatedVisibility(
         visible = state.visible,
-        enter = slideInVertically { it } + fadeIn(),
-        exit = slideOutVertically { it } + fadeOut(),
+        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } +
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } +
+            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
         val shown = if (state.visible) state else last

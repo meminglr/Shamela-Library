@@ -98,6 +98,18 @@ object ArchiveOrg {
         )
     }
 
+    /**
+     * The other way round from [bookOf]: a scanned book saved as "<title> - ج 2" is volume 2 of
+     * "<title>"; null for books that aren't a volume of a multi-volume scan.
+     */
+    fun volumeOf(book: Book): Pair<String, Int>? {
+        if (book.categoryName != ShamelaApp.SCANNED_BOOKS_CATEGORY) return null
+        val match = VOLUME_TITLE.matchEntire(book.title) ?: return null
+        return match.groupValues[1] to (match.groupValues[2].toIntOrNull() ?: return null)
+    }
+
+    private val VOLUME_TITLE = Regex("""(.+) - ج (\d+)""")
+
     /** "vol 2" before "vol 10". */
     private val naturalOrder = Comparator<String> { a, b ->
         val chunks = Regex("""\d+|\D+""")

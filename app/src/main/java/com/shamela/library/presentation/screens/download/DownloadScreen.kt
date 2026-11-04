@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.shamela.apptheme.presentation.common.DelayedProgressIndicator
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -111,7 +112,7 @@ fun DownloadScreen(
         Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SegmentGap),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp + LocalFloatingBarInset.current)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp + LocalFloatingBarInset.current)
     ) {
         // The shamela.ws part is still coming (or failed): Kütüphane 1 is listed meanwhile.
         when (val catalog = downloadState.shamelaCatalog) {
@@ -173,7 +174,7 @@ fun DownloadScreen(
                                 .padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            DelayedProgressIndicator()
                         }
                     }
                 }

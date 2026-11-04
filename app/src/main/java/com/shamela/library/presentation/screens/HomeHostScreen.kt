@@ -1,5 +1,29 @@
 package com.shamela.library.presentation.screens
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateDp
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.material3.Surface
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
+
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.graphicsLayer
@@ -31,7 +55,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -51,6 +74,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
+import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
@@ -74,6 +105,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,6 +117,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.shamela.apptheme.presentation.common.DefaultTopBar
 import com.shamela.apptheme.presentation.theme.AppFonts
+import com.shamela.apptheme.presentation.theme.Motion
+import com.shamela.apptheme.presentation.common.ProgressiveReveal
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import com.shamela.library.presentation.navigation.BookDetails
 import com.shamela.library.presentation.navigation.Download
@@ -103,14 +138,240 @@ private val destination = listOf(
     Favorite,
     Search,
 )
+/** The top bar's padding; the bottom is left to [LocalFloatingBarInset] so lists reach the screen's edge. */
 val LocalPaddingValues = compositionLocalOf { PaddingValues() }
 /**
- * How much of the content's bottom edge the floating navigation bar covers. Content is laid out
- * behind the bar, so scrolling lists pad their end by this to let the last item scroll clear of it.
+ * How much of the screen's bottom edge is covered: the system's navigation bar and everything
+ * floating above it (the navigation bar or a screen's toolbar, the downloads and deletion bars).
+ * Content is laid out behind them, so scrolling content pads its end by this to scroll clear.
  */
 val LocalFloatingBarInset = compositionLocalOf { 0.dp }
-/** A screen sets this while it shows its own floating toolbar in the navigation bar's place. */
-val LocalHideNavBar = compositionLocalOf<MutableState<Boolean>> { mutableStateOf(false) }
+
+/**
+ * A screen's floating toolbar (e.g. the selection's actions), shown in the navigation bar's place
+ * in the host's bottom stack, so the downloads bar always stays above it. Set with [FloatingToolbar].
+ */
+class BottomToolbarSlot {
+    private var owner: Any? = null
+    var content by mutableStateOf<(@Composable () -> Unit)?>(null)
+        private set
+
+    fun show(owner: Any, content: @Composable () -> Unit) {
+        this.owner = owner
+        this.content = content
+    }
+
+    fun hide(owner: Any) {
+        if (this.owner === owner) {
+            this.owner = null
+            content = null
+        }
+    }
+}
+val LocalBottomToolbar = compositionLocalOf { BottomToolbarSlot() }
+
+/** Shows [content] in the host's bottom stack while [visible] (in the navigation bar's place). */
+@Composable
+fun FloatingToolbar(visible: Boolean, content: @Composable () -> Unit) {
+    val slot = LocalBottomToolbar.current
+    val owner = remember { Any() }
+    // Every recomposition hands over the current lambda, so the toolbar shows the screen's latest state.
+    SideEffect { if (visible) slot.show(owner, content) else slot.hide(owner) }
+    DisposableEffect(slot) { onDispose { slot.hide(owner) } }
+}
+
+/** What the bottom stack ends with. */
+private enum class BottomBar { Toolbar, Navigation, None }
+
+/** Whether [entry]'s screen has the home top bar and the navigation bar. */
+private fun showsBars(entry: NavBackStackEntry?): Boolean =
+    // Before the nav graph is set up (the very first frame) there is no route yet: that is the
+    // home screen, so keep the bars. Hiding them there made the content start at the top of the
+    // screen and then slide down when the bars appeared.
+    if (entry == null) true
+    else if (entry.destination.parent?.route == NavigationGraphs.HOME_GRAPH_ROUTE) {
+        when (entry.destination.route) {
+            SearchResults.route -> entry.arguments?.getString("categoryName") == "all"
+            SectionBooks.route, BookDetails.route -> false
+            else -> true
+        }
+    } else false
+
+
+/** What a [HomePage] needs from the host to draw its top bar. */
+private class HomePageHost(val navController: NavController, val lastTab: IntArray)
+private val LocalHomePageHost = staticCompositionLocalOf<HomePageHost?> { null }
+
+/** Corner radius of a page while it moves: shrunk by the back gesture, or scaling in or out. */
+private val PageCorner = 28.dp
+private val PageElevation = 8.dp
+
+/**
+ * A destination's page: opaque, its corners rounding while it is shrunk by the predictive back
+ * gesture (or scales in and out), with the home top bar on the screens that have one. The bar is
+ * part of the page, so the page revealed by the back gesture already shows its own bar.
+ */
+@Composable
+fun AnimatedVisibilityScope.HomePage(entry: NavBackStackEntry, content: @Composable () -> Unit) {
+    // Tab pages slide side by side like pager pages, with square corners and no shadow; only
+    // screens opened over them round and lift while they move (opening, going back).
+    val lifts = tabIndex(entry) < 0
+    // Read only in the layer below, so a moving page is redrawn by the render thread each frame
+    // instead of being recomposed (and its shadow and outline rebuilt) on the main thread.
+    val corner = transition.animateDp(label = "pageCorner") {
+        if (it == EnterExitState.Visible || !lifts) 0.dp else PageCorner
+    }
+    // Both pages share one color: a shadow while it moves marks the edge of the one on top.
+    val elevation = transition.animateDp(label = "pageElevation") {
+        if (it == EnterExitState.Visible || !lifts) 0.dp else PageElevation
+    }
+    val host = LocalHomePageHost.current
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                val radius = corner.value
+                shape = if (radius > 0.dp) RoundedCornerShape(radius) else RectangleShape
+                clip = radius > 0.dp
+                shadowElevation = elevation.value.toPx()
+            }
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        // The page's list rows fill in a row per frame instead of all in its first frame.
+        ProgressiveReveal {
+            if (host != null && showsBars(entry)) PageWithTopBar(entry, host, content) else content()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun PageWithTopBar(entry: NavBackStackEntry, host: HomePageHost, content: @Composable () -> Unit) {
+    val navController = host.navController
+    // The bar names the page's own tab; screens opened from a tab (search results) keep the tab's.
+    val current = remember(entry.id) {
+        val route = entry.destination.route
+        if (route == Settings.route) Settings
+        else destination.firstOrNull { it.route == route } ?: destination[host.lastTab[0]]
+    }
+    val onSettings = current == Settings
+    // Expressive flexible app bar: large title that collapses as the content scrolls; its state
+    // is the page's own, so one tab's collapsed bar doesn't open the next tab collapsed.
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    // In landscape the large title alone took almost half the screen: a one-line bar there.
+    val compactHeight = LocalConfiguration.current.screenHeightDp < 480
+    val title: @Composable () -> Unit = {
+        Text(
+            text = stringResource(current.label),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+    )
+    val navigationIcon: @Composable () -> Unit = {
+        if (onSettings) {
+            IconButton(onClick = { navController.popBackStack() }, shapes = IconButtonDefaults.shapes()) {
+                Icon(ShamelaIcons.NavigateBack, contentDescription = stringResource(com.shamela.apptheme.R.string.back))
+            }
+        }
+    }
+    val actions: @Composable RowScope.() -> Unit = {
+        current.actionIcon?.let { icon ->
+            IconButton(
+                onClick = { current.onActionClick() },
+                shapes = IconButtonDefaults.shapes(),
+            ) {
+                Icon(icon, contentDescription = stringResource(R.string.search_book_names))
+            }
+        }
+        // Settings: from the library (home) screen's top-right corner.
+        if (current == Library) {
+            IconButton(
+                onClick = { navController.navigate(Settings.route) { launchSingleTop = true } },
+                shapes = IconButtonDefaults.shapes(),
+            ) {
+                Icon(ShamelaIcons.SettingsOutlined, contentDescription = stringResource(R.string.nav_settings))
+            }
+        }
+    }
+    Scaffold(
+        // Only the large bar collapses; with the one-line bar the behavior, having no bar to
+        // collapse, would swallow every scroll.
+        modifier = if (compactHeight) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
+        topBar = {
+            if (compactHeight) TopAppBar(
+                title = title,
+                navigationIcon = navigationIcon,
+                actions = actions,
+                colors = colors,
+            ) else MediumFlexibleTopAppBar(
+                title = title,
+                scrollBehavior = scrollBehavior,
+                colors = colors,
+                navigationIcon = navigationIcon,
+                actions = actions,
+            )
+        },
+    ) { padding ->
+        val layoutDirection = LocalLayoutDirection.current
+        // The bottom is left to LocalFloatingBarInset, so lists reach the screen's edge.
+        CompositionLocalProvider(
+            LocalPaddingValues provides PaddingValues(
+                start = padding.calculateStartPadding(layoutDirection),
+                top = padding.calculateTopPadding(),
+                end = padding.calculateEndPadding(layoutDirection),
+            ),
+        ) { content() }
+    }
+}
+
+/*
+ * Page transitions. Between the navigation bar's tabs the pages move exactly like the in-page tabs
+ * (TabbedPager's HorizontalPager): side by side, both across the whole width, with the same curve, in the direction of the tabs' order. Opening a screen follows Android's own (14+)
+ * activity transition: the new page slides in from the reading end while the old one drifts a
+ * quarter of the way (parallax); going back is the reverse, and the predictive back gesture scrubs
+ * it (the page shrinks a little, rounds its corners and follows the finger). Nothing bounces.
+ *
+ * Opening a screen and switching tabs (and the navigation bar with them) use Material's spring
+ * for full-screen transitions; going back uses Android's own predictive back curve over Material's
+ * Long2 length, which traces close to that spring (see Motion). The page shrinks to 90%, as in
+ * Android's predictive back guidance.
+ */
+
+private fun tabIndex(entry: NavBackStackEntry) = destination.indexOfFirst { it.route == entry.destination.route }
+
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs() =
+    tabIndex(initialState) >= 0 && tabIndex(targetState) >= 0
+
+/** Which way the pages move: forward (the new page from the reading end) or back. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.direction(pop: Boolean): SlideDirection {
+    val from = tabIndex(initialState)
+    val to = tabIndex(targetState)
+    val forward = if (from >= 0 && to >= 0) to > from else !pop
+    return if (forward) SlideDirection.Start else SlideDirection.End
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.pageEnter(pop: Boolean): EnterTransition {
+    val dir = direction(pop)
+    // In-page tabs (TabbedPager) use the same spring, so all tabs move alike.
+    return if (betweenTabs()) slideIntoContainer(dir, Motion.page())
+    else if (dir == SlideDirection.Start) slideIntoContainer(dir, Motion.page())
+    else slideIntoContainer(dir, Motion.back()) { it / 4 }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.pageExit(pop: Boolean): ExitTransition {
+    val dir = direction(pop)
+    return if (betweenTabs()) slideOutOfContainer(dir, Motion.page())
+    else if (dir == SlideDirection.Start) slideOutOfContainer(dir, Motion.page()) { it / 4 }
+    else slideOutOfContainer(dir, Motion.back()) + scaleOut(Motion.back(), targetScale = 0.9f)
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeHostScreen() {
@@ -119,20 +380,7 @@ fun HomeHostScreen() {
     val currentDestination = navBackStackEntry?.destination
     // Computed from the back stack entry (no state written during composition, which cost an
     // extra recomposition of the whole host on every navigation).
-    val showBars = remember(navBackStackEntry) {
-        val entry = navBackStackEntry
-        // Before the nav graph is set up (the very first frame) there is no route yet: that is the
-        // home screen, so keep the bars. Hiding them there made the content start at the top of the
-        // screen and then slide down when the bars appeared.
-        if (entry == null) true
-        else if (entry.destination.parent?.route == NavigationGraphs.HOME_GRAPH_ROUTE) {
-            when (entry.destination.route) {
-                SearchResults.route -> entry.arguments?.getString("categoryName") == "all"
-                SectionBooks.route, BookDetails.route -> false
-                else -> true
-            }
-        } else false
-    }
+    val showBars = remember(navBackStackEntry) { showsBars(navBackStackEntry) }
 
     // Screens opened from a tab (e.g. search results) keep that tab selected: remember the last tab
     // in a plain holder (not state), updated after composition.
@@ -148,137 +396,107 @@ fun HomeHostScreen() {
         else -> lastTab[0]
     }
     SideEffect { lastTab[0] = selectedScreen }
-    val hideNavBar = remember { mutableStateOf(false) }
-    // Expressive flexible app bar: large title that collapses as the content scrolls.
-    // One app bar state per tab: a bar collapsed by scrolling one tab no longer opens the next
-    // tab collapsed too.
-    val topBarState = remember(selectedScreen) { TopAppBarState(-Float.MAX_VALUE, 0f, 0f) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(state = topBarState)
-    // The bar's real height (labels make it taller than the default toolbar), for the space lists
-    // leave below their last row.
+    val pageHost = remember(navController) { HomePageHost(navController, lastTab) }
+    val bottomToolbar = remember { BottomToolbarSlot() }
+    // The bottom stack's measured height (bars, toolbar and the gaps between them).
     val density = LocalDensity.current
-    var navBarHeight by remember { mutableStateOf(NavBarHeight) }
-    // Lists are padded for the system bar already; the floating bar sits at least 4 dp above it.
+    var bottomStackHeight by remember { mutableStateOf(0.dp) }
+    val systemBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    // Lists are laid out down to the screen's edge (behind the system bar too) and pad their
+    // end by everything floating there instead.
     val floatingBarInset =
-        if (showBars) navBarHeight + 4.dp
-        else 0.dp
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            AnimatedVisibility(
-                visible = showBars,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
-            ) {
-                val onSettings = onSettingsScreen
-                val current = if (onSettings) Settings else destination[selectedScreen]
-                MediumFlexibleTopAppBar(
-                    title = {
-                        Text(
-                            text = stringResource(current.label),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                    navigationIcon = {
-                        if (onSettings) {
-                            IconButton(onClick = { navController.popBackStack() }, shapes = IconButtonDefaults.shapes()) {
-                                Icon(ShamelaIcons.NavigateBack, contentDescription = stringResource(com.shamela.apptheme.R.string.back))
-                            }
-                        }
-                    },
-                    actions = {
-                        current.actionIcon?.let { icon ->
-                            IconButton(
-                                onClick = { current.onActionClick() },
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(icon, contentDescription = stringResource(R.string.nav_search))
-                            }
-                        }
-                        // Settings: from the library (home) screen's top-right corner.
-                        if (current == Library) {
-                            IconButton(
-                                onClick = { navController.navigate(Settings.route) { launchSingleTop = true } },
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(ShamelaIcons.SettingsOutlined, contentDescription = stringResource(R.string.nav_settings))
-                            }
-                        }
-                    },
-                )
-            }
-        }
-    ) {paddingValues ->
-        CompositionLocalProvider(
-            LocalPaddingValues provides paddingValues,
-            LocalFloatingBarInset provides floatingBarInset,
-            LocalHideNavBar provides hideNavBar,
+        if (bottomStackHeight > 0.dp) navBarBottomGap(systemBottom) + bottomStackHeight
+        else systemBottom
+    com.shamela.library.presentation.common.ProvideSourceBadgeInfo {
+    CompositionLocalProvider(
+        // Screens without the home top bar draw their own below the status bar; pages with it
+        // provide their bar's padding instead (PageWithTopBar).
+        LocalPaddingValues provides WindowInsets.systemBars
+            .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).asPaddingValues(),
+        LocalFloatingBarInset provides floatingBarInset,
+        LocalBottomToolbar provides bottomToolbar,
+        LocalHomePageHost provides pageHost,
+    ) {
+      Box(
+          Modifier
+              .fillMaxSize()
+              .background(MaterialTheme.colorScheme.surface)
+      ) {
+        NavHost(
+            navController = navController,
+            startDestination = NavigationGraphs.HOME_GRAPH_ROUTE,
+            // On tablets and in landscape, lists stay a readable width instead of stretching
+            // across the whole screen.
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = 840.dp)
+                .fillMaxSize(),
+            enterTransition = { pageEnter(pop = false) },
+            exitTransition = { pageExit(pop = false) },
+            popEnterTransition = { pageEnter(pop = true) },
+            popExitTransition = { pageExit(pop = true) },
         ) {
-          Box(Modifier.fillMaxSize()) {
-            NavHost(
-                navController = navController,
-                startDestination = NavigationGraphs.HOME_GRAPH_ROUTE,
-                // On tablets and in landscape, lists stay a readable width instead of stretching
-                // across the whole screen.
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .widthIn(max = 840.dp)
-                    .fillMaxSize(),
-                enterTransition = { fadeIn(tween(350)) },
-                exitTransition = { fadeOut(tween(350)) },
-                popEnterTransition = { fadeIn(tween(350)) },
-                popExitTransition = { fadeOut(tween(350)) }
-            ) {
-                homeGraph(navController)
-            }
-            // Download progress on every screen, just above the navigation bar. Book details shows
-            // its own download state above its action button, so the bar would only cover it there.
-            val currentRoute = currentDestination?.route
-            // Book deletions show the same way, stacked above the downloads bar.
-            androidx.compose.foundation.layout.Column(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = paddingValues.calculateBottomPadding() + floatingBarInset + 12.dp),
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-            ) {
-                com.shamela.library.presentation.common.DeletionBar()
-                if (currentRoute != BookDetails.route) DownloadsBar()
-            }
-            AnimatedVisibility(
-                visible = showBars && !hideNavBar.value,
-                enter = slideInVertically { it } + fadeIn(),
-                exit = slideOutVertically { it } + fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = navBarBottomGap(paddingValues.calculateBottomPadding())),
-            ) {
-                FloatingNavBar(
-                    modifier = Modifier.onSizeChanged { navBarHeight = with(density) { it.height.toDp() } },
-                    selectedIndex = selectedScreen,
-                    onSelect = { index ->
-                        // Leaving settings: it is closed, so the library tab doesn't bring it back.
-                        if (onSettingsScreen) navController.popBackStack()
-                        navController.navigate(destination[index].route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                )
-            }
-          }
+            homeGraph(navController)
         }
+        // Everything floating at the bottom, in one column so nothing can overlap: book
+        // deletions, then downloads, then the navigation bar or the screen's own toolbar. Its
+        // height is what lists leave clear below their last row.
+        val currentRoute = currentDestination?.route
+        val toolbarContent = bottomToolbar.content
+        // While the toolbar animates out its content is already gone: keep showing the last one.
+        var lastToolbar by remember { mutableStateOf(toolbarContent) }
+        if (toolbarContent != null) lastToolbar = toolbarContent
+        val bottomBar = when {
+            toolbarContent != null -> BottomBar.Toolbar
+            showBars -> BottomBar.Navigation
+            else -> BottomBar.None
+        }
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = navBarBottomGap(systemBottom))
+                .padding(horizontal = NavBarSideInset)
+                .widthIn(max = NavBarMaxWidth)
+                .fillMaxWidth()
+                .onSizeChanged { bottomStackHeight = with(density) { it.height.toDp() } },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            com.shamela.library.presentation.common.DeletionBar(Modifier.padding(bottom = 8.dp))
+            // Book details shows its own download state above its action button, so the bar
+            // would only cover it there.
+            if (currentRoute != BookDetails.route) DownloadsBar(Modifier.padding(bottom = 12.dp))
+            // The navigation bar leaves and comes back with the page: same length and curve as the
+            // page transition, sliding all the way off the bottom edge (its height plus the gap
+            // below it) instead of snapping away. A screen's toolbar swaps with it the same way.
+            val offScreen = with(density) { navBarBottomGap(systemBottom).roundToPx() }
+            // Slide only: it leaves the screen anyway, and fading the shadowed capsules needs an
+            // offscreen layer every frame.
+            val barEnter = slideInVertically(Motion.page()) { it + offScreen }
+            val barExit = slideOutVertically(Motion.page()) { it + offScreen }
+            Box(contentAlignment = Alignment.BottomCenter) {
+                androidx.compose.animation.AnimatedVisibility(bottomBar == BottomBar.Toolbar, enter = barEnter, exit = barExit) {
+                    lastToolbar?.invoke()
+                }
+                androidx.compose.animation.AnimatedVisibility(bottomBar == BottomBar.Navigation, enter = barEnter, exit = barExit) {
+                    FloatingNavBar(
+                        selectedIndex = selectedScreen,
+                        onSelect = { index ->
+                            // Leaving settings: it is closed, so the library tab doesn't bring it back.
+                            if (onSettingsScreen) navController.popBackStack()
+                            navController.navigate(destination[index].route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                    )
+                }
+            }
+        }
+      }
+    }
     }
 }
 /**
@@ -315,8 +533,6 @@ private fun FloatingNavBar(
     val searchIndex = destination.indexOf(Search)
     Row(
         modifier = modifier
-            .padding(horizontal = NavBarSideInset)
-            .widthIn(max = NavBarMaxWidth)
             .fillMaxWidth()
             .height(NavBarHeight),
         verticalAlignment = Alignment.CenterVertically,
@@ -327,7 +543,7 @@ private fun FloatingNavBar(
                 val selectedTab = tabs.indexOf(destination.getOrNull(selectedIndex))
                 val indicatorOffset by androidx.compose.animation.core.animateDpAsState(
                     targetValue = itemWidth * selectedTab.coerceAtLeast(0),
-                    animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 500f),
+                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                     label = "navIndicator",
                 )
                 val indicatorAlpha by androidx.compose.animation.core.animateFloatAsState(
@@ -336,7 +552,8 @@ private fun FloatingNavBar(
                 // The selected tab's capsule; offset follows the layout direction, like the row below.
                 Box(
                     Modifier
-                        .offset(x = indicatorOffset)
+                        // Read in the placement and draw phases: the tabs don't recompose every frame.
+                        .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
                         .width(itemWidth)
                         .fillMaxHeight()
                         .graphicsLayer { alpha = indicatorAlpha }

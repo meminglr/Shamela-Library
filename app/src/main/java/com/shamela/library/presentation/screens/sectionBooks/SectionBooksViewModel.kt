@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.shamela.library.domain.util.BookSorter
 import kotlinx.coroutines.launch
@@ -170,10 +171,11 @@ class SectionBooksViewModel @Inject constructor(
     }
 
     private suspend fun loadRemoteBooksOfSection(categoryName: String) {
-        catalogUseCases.getBooksByCategory(categoryName = categoryName).collect { book ->
-            _sectionBooksState.update {
-                it.copy(books = it.books + mapOf(book.id to book), isLoading = false)
-            }
+        // In one update: book by book, a 344-book section copied the map and recomposed the screen
+        // 344 times, freezing the opening animation's first frames.
+        val books = catalogUseCases.getBooksByCategory(categoryName = categoryName).toList()
+        _sectionBooksState.update {
+            it.copy(books = it.books + books.associateBy { book -> book.id }, isLoading = false)
         }
     }
 
@@ -234,7 +236,11 @@ class SectionBooksViewModel @Inject constructor(
                     CatalogSources.withListedIds(downloadedList.map { it.id }.toSet()),
                     downloadedList.filter { it.isFavorite }.map { it.id }.toSet(),
                 )
-            }.collect { (statusMap, downloadedIds, favoriteIds) ->
+            }
+                // Matching every downloaded book against the catalogs is too much for the main thread
+                // (it ran in the first frames of the screen's opening animation).
+                .flowOn(Dispatchers.Default)
+                .collect { (statusMap, downloadedIds, favoriteIds) ->
                 _sectionBooksState.update {
                     it.copy(downloadStatuses = statusMap, downloadedBookIds = downloadedIds, favoriteIds = favoriteIds)
                 }

@@ -102,7 +102,7 @@ fun SearchScreen(
             .padding(localPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(bottom = LocalFloatingBarInset.current),
+            .padding(bottom = 16.dp + LocalFloatingBarInset.current),
     ) {
         SearchTextField(
             value = searchState.searchQuery,

@@ -3,6 +3,11 @@
 package com.shamela.library.presentation.screens.library
 
 import com.shamela.library.presentation.common.groupedSectionItems
+import com.shamela.library.presentation.common.bookRowItems
+import com.shamela.library.presentation.common.bookRows
+import com.shamela.library.presentation.common.volumeSelectionToggles
+import com.shamela.library.presentation.common.VolumeActions
+import androidx.compose.runtime.saveable.rememberSaveable
 
 
 
@@ -72,6 +77,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.shamela.apptheme.presentation.common.DelayedProgressIndicator
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -92,7 +98,7 @@ import com.shamela.library.presentation.common.SectionItem
 import com.shamela.library.presentation.navigation.Library
 import com.shamela.library.presentation.screens.LocalPaddingValues
 import com.shamela.library.presentation.screens.LocalFloatingBarInset
-import com.shamela.library.presentation.screens.LocalHideNavBar
+import com.shamela.library.presentation.screens.FloatingToolbar
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -116,17 +122,32 @@ fun LibraryScreen(
     val libraryState = viewModel.libraryState.collectAsStateWithLifecycle().value
     val localPadding = LocalPaddingValues.current
     val sortedBooks = libraryState.sortedBooks
-    // The selection toolbar takes the floating navigation bar's place while books are selected.
-    val hideNavBar = LocalHideNavBar.current
+    // Scanned books' volumes sit under one row per book, opened like on the download page.
+    var expandedVolumes by rememberSaveable { mutableStateOf(setOf<String>()) }
+    val bookRows = remember(sortedBooks) { bookRows(sortedBooks) }
     val selecting = libraryState.selectedIds.isNotEmpty()
-    DisposableEffect(selecting) {
-        hideNavBar.value = selecting
-        onDispose { hideNavBar.value = false }
+    val openOrSelect: (Book) -> Unit = { book ->
+        if (viewModel.libraryState.value.selectedIds.isEmpty()) {
+            FilesBooksRepoImpl.openEpub(
+                book,
+                onAddQuoteToFavorite = { quote -> viewModel.onEvent(LibraryEvent.AddQuoteToFavorite(quote)) })
+        } else {
+            viewModel.onEvent(LibraryEvent.SelectBook(book.id))
+        }
     }
     // Back clears the selection first, like the section screen.
     BackHandler(enabled = selecting) { viewModel.onEvent(LibraryEvent.CancelSelection) }
     var bookPendingDelete by remember { mutableStateOf<Book?>(null) }
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    // The selection toolbar takes the floating navigation bar's place while books are selected.
+    FloatingToolbar(visible = selecting) {
+        SelectionToolbar(
+            count = libraryState.selectedIds.size,
+            onCancel = { viewModel.onEvent(LibraryEvent.CancelSelection) },
+            onDelete = { showDeleteSelectedDialog = true },
+            onSelectAll = { viewModel.onEvent(LibraryEvent.SelectAll) },
+        )
+    }
     Box(Modifier.fillMaxSize().padding(localPadding)) {
     TabbedPager(
         options = BooksViewType.entries,
@@ -139,12 +160,12 @@ fun LibraryScreen(
         Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SegmentGap),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp + LocalFloatingBarInset.current)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp + LocalFloatingBarInset.current)
     ) {
         if (libraryState.isLoading) {
             item {
                 Box(Modifier.fillParentMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    DelayedProgressIndicator()
                 }
             }
         }
@@ -178,23 +199,27 @@ fun LibraryScreen(
                     }
                 }
 
-                itemsIndexed(sortedBooks, key = { _, it -> it.id }) { index, it ->
+                bookRowItems(
+                    rows = bookRows,
+                    expanded = expandedVolumes,
+                    selectedIds = libraryState.selectedIds,
+                    onToggleExpanded = { key -> expandedVolumes = if (key in expandedVolumes) expandedVolumes - key else expandedVolumes + key },
+                    onToggleVolumes = { volumes ->
+                        volumeSelectionToggles(volumes, viewModel.libraryState.value.selectedIds)
+                            .forEach { viewModel.onEvent(LibraryEvent.SelectBook(it)) }
+                    },
+                    volumeActions = VolumeActions(
+                        onClick = { book -> openOrSelect(book) },
+                        onLongClick = { book -> viewModel.onEvent(LibraryEvent.SelectBook(book.id)) },
+                        onFavorite = { book -> viewModel.onEvent(LibraryEvent.ToggleFavorite(book)) },
+                        onInfo = { book -> navigateToBookDetails(book) },
+                        isFavorite = { book -> book.isFavorite },
+                    ),
+                ) { it, rowModifier, index, count ->
                     LibraryBookItem(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .animateItem(),
+                        modifier = rowModifier,
                         item = it,
-                        onClick = {
-                            if (viewModel.libraryState.value.selectedIds.isEmpty()) {
-                                FilesBooksRepoImpl.openEpub(
-                                    it,
-                                    onAddQuoteToFavorite = { quote ->
-                                        viewModel.onEvent(LibraryEvent.AddQuoteToFavorite(quote))
-                                    })
-                            } else {
-                                viewModel.onEvent(LibraryEvent.SelectBook(it.id))
-                            }
-                        },
+                        onClick = { openOrSelect(it) },
                         onLongClick = { viewModel.onEvent(LibraryEvent.SelectBook(it.id)) },
                         onFavoriteIconClicked = { viewModel.onEvent(LibraryEvent.ToggleFavorite(it)) },
                         onSwipeOut = {
@@ -203,7 +228,7 @@ fun LibraryScreen(
                         isSelected = it.id in libraryState.selectedIds,
                         onInfoClick = { navigateToBookDetails(it) },
                         index = index,
-                        count = sortedBooks.size,
+                        count = count,
                     )
                 }
             }
@@ -212,22 +237,6 @@ fun LibraryScreen(
     }
     }
 
-        // M3 Expressive floating toolbar for the selection's actions.
-        AnimatedVisibility(
-            visible = selecting,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = FloatingToolbarDefaults.ScreenOffset),
-        ) {
-            SelectionToolbar(
-                count = libraryState.selectedIds.size,
-                onCancel = { viewModel.onEvent(LibraryEvent.CancelSelection) },
-                onDelete = { showDeleteSelectedDialog = true },
-                onSelectAll = { viewModel.onEvent(LibraryEvent.SelectAll) },
-            )
-        }
     }
 
     bookPendingDelete?.let { book ->

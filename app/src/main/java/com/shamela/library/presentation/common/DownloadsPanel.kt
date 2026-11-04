@@ -51,6 +51,7 @@ import com.shamela.apptheme.presentation.theme.ShamelaIcons
 import com.shamela.library.R
 import com.shamela.library.domain.model.DownloadStatus
 import com.shamela.library.presentation.ShamelaVerifyActivity
+import com.shamela.library.presentation.screens.library.isolate
 import com.shamela.library.presentation.utils.BooksDownloadManager
 import com.shamela.library.presentation.utils.DownloadItem
 
@@ -68,8 +69,10 @@ fun DownloadsBar(modifier: Modifier = Modifier) {
 
     AnimatedVisibility(
         visible = items.isNotEmpty(),
-        enter = slideInVertically { it } + fadeIn(),
-        exit = slideOutVertically { it } + fadeOut(),
+        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } +
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } +
+            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
         val shown = items.ifEmpty { lastItems }
@@ -121,7 +124,9 @@ fun DownloadsBar(modifier: Modifier = Modifier) {
                     )
                     val detail = running ?: active.firstOrNull() ?: shown.first()
                     Text(
-                        text = listOfNotNull(detail.title, downloadStatusText(detail.status)).joinToString(" · "),
+                        // Status first, so a long title is what gets cut; the title isolated, so an
+                        // Arabic one doesn't reorder the Turkish status around it.
+                        text = listOfNotNull(downloadStatusText(detail.status), isolate(detail.title)).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

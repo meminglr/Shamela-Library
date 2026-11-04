@@ -29,7 +29,18 @@ object CatalogSources {
          * own section and title) before the catalogs were merged.
          */
         val siteCopyOfLibraryBook: Map<String, Book> = emptyMap(),
+        /**
+         * Catalog title key ([CatalogMatcher.key], also of the title before a subtitle) → the
+         * catalogs that have a book of that title: for scanned books, which have no catalog id.
+         */
+        val sourcesByTitle: Map<String, Set<BookSource>> = emptyMap(),
+        /** Id of a book in more than one catalog → its copy in each of them. */
+        val copies: Map<String, Map<BookSource, Book>> = emptyMap(),
     ) {
+        /** The catalogs that have a book titled [title] (as a whole, or before its subtitle). */
+        fun sourcesOfTitle(title: String): Set<BookSource> =
+            sourcesByTitle[CatalogMatcher.key(title)] ?: sourcesByTitle[CatalogMatcher.shortKey(title)].orEmpty()
+
         private val libraryIdOfSiteCopy: Map<String, String> by lazy {
             siteCopyOfLibraryBook.entries.associate { (libraryId, copy) -> copy.id to libraryId }
         }
@@ -41,6 +52,9 @@ object CatalogSources {
     val index: StateFlow<Index> = _index.asStateFlow()
 
     fun of(bookId: String): Set<BookSource> = _index.value.sources[bookId].orEmpty()
+
+    /** The book's copy in each catalog that has it (empty when only one has it). */
+    fun copiesOf(bookId: String): Map<BookSource, Book> = _index.value.copies[bookId].orEmpty()
 
     /** The shamela.ws copy of a Kütüphane 1 book, if the two catalogs share it. */
     fun siteCopyOf(bookId: String): Book? = _index.value.siteCopyOfLibraryBook[bookId]

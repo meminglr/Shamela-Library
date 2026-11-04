@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.shamela.apptheme.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,9 +36,10 @@ import com.shamela.apptheme.presentation.theme.ShamelaIcons
 
 @Composable
 fun EmptyListScreen(visibility: Boolean, text:String, modifier: Modifier = Modifier) {
+    // Shown at once: fading it in after the page had slid in made that page open differently.
     AnimatedVisibility(
         visible = visibility,
-        enter = fadeIn(),
+        enter = EnterTransition.None,
         exit = fadeOut()
     ) {
         EmptyState(

@@ -4,6 +4,11 @@ package com.shamela.library.presentation.screens.sectionBooks
 
 
 import com.shamela.library.presentation.common.downloadStatusOf
+import com.shamela.library.presentation.common.bookRowItems
+import com.shamela.library.presentation.common.bookRows
+import com.shamela.library.presentation.common.volumeSelectionToggles
+import com.shamela.library.presentation.common.VolumeActions
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -69,7 +74,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.navigationBarsPadding
+import com.shamela.library.presentation.screens.FloatingToolbar
+import com.shamela.library.presentation.screens.LocalFloatingBarInset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +94,9 @@ fun SectionBooksScreen(
         else BookSortOption.values().filter { it != BookSortOption.DOWNLOAD_TIME }
     }
     val sortedBooks = sectionBooksState.sortedBooks
+    // Scanned books' volumes sit under one row per book, opened like on the download page.
+    var expandedVolumes by rememberSaveable { mutableStateOf(setOf<String>()) }
+    val bookRows = remember(sortedBooks) { bookRows(sortedBooks) }
 
     val downloadedInSection = remember(sectionBooksState.downloadedBookIds, sectionBooksState.books) {
         sectionBooksState.downloadedBookIds.intersect(sectionBooksState.books.keys).size
@@ -115,6 +124,15 @@ fun SectionBooksScreen(
     }
     val isLocal = sectionBooksState.type == "local"
     val selecting = sectionBooksState.selectedIds.isNotEmpty()
+    val openOrSelect: (Book) -> Unit = { book ->
+        if (viewModel.sectionBooksState.value.selectedIds.isNotEmpty()) {
+            viewModel.onEvent(SectionBooksEvent.ToggleSelection(book.id))
+        } else {
+            FilesBooksRepoImpl.openEpub(
+                book,
+                onAddQuoteToFavorite = { quote -> viewModel.onEvent(SectionBooksEvent.AddQuoteToFavorite(quote)) })
+        }
+    }
     // Books waiting for the delete confirmation: one (swiped), the selection, or the whole section.
     var pendingDelete by remember { mutableStateOf<Set<String>?>(null) }
     var pendingDeleteSection by remember { mutableStateOf(false) }
@@ -122,6 +140,15 @@ fun SectionBooksScreen(
         if (sectionBooksState.isSectionEmptied) navigateBack()
     }
     BackHandler(enabled = selecting) { viewModel.onEvent(SectionBooksEvent.CancelSelection) }
+    // In the host's bottom stack, so the downloads bar stays above it.
+    FloatingToolbar(visible = selecting) {
+        SelectionToolbar(
+            count = sectionBooksState.selectedIds.size,
+            onCancel = { viewModel.onEvent(SectionBooksEvent.CancelSelection) },
+            onDelete = { pendingDelete = sectionBooksState.selectedIds },
+            onSelectAll = { viewModel.onEvent(SectionBooksEvent.SelectAll) },
+        )
+    }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Box(Modifier.fillMaxSize()) {
@@ -151,39 +178,43 @@ fun SectionBooksScreen(
                 .clipToBounds(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(SegmentGap),
-            contentPadding = PaddingValues(top = 8.dp, bottom = if (selecting) 96.dp else 16.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp + LocalFloatingBarInset.current)
         ) {
-            itemsIndexed(sortedBooks, key = { _, it -> it.id }) { index, currentBook ->
-                when (sectionBooksState.type) {
-                    "local" -> {
+            if (isLocal) bookRowItems(
+                rows = bookRows,
+                expanded = expandedVolumes,
+                selectedIds = sectionBooksState.selectedIds,
+                onToggleExpanded = { key -> expandedVolumes = if (key in expandedVolumes) expandedVolumes - key else expandedVolumes + key },
+                onToggleVolumes = { volumes ->
+                    volumeSelectionToggles(volumes, viewModel.sectionBooksState.value.selectedIds)
+                        .forEach { viewModel.onEvent(SectionBooksEvent.ToggleSelection(it)) }
+                },
+                volumeActions = VolumeActions(
+                    onClick = { book -> openOrSelect(book) },
+                    onLongClick = { book -> viewModel.onEvent(SectionBooksEvent.ToggleSelection(book.id)) },
+                    onFavorite = { book ->
+                        viewModel.onEvent(SectionBooksEvent.ToggleFavorite(book.copy(isFavorite = book.id in viewModel.sectionBooksState.value.favoriteIds)))
+                    },
+                    onInfo = { book -> navigateToBookDetails(book) },
+                    isFavorite = { book -> book.id in sectionBooksState.favoriteIds },
+                ),
+            ) { currentBook, rowModifier, index, count ->
                         // Same as the library's book list: swipe to delete, long-press to select.
                         val book = currentBook.copy(isFavorite = currentBook.id in sectionBooksState.favoriteIds)
                         LibraryBookItem(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                .animateItem(),
+                            modifier = rowModifier,
                             item = book,
-                            onClick = {
-                                if (selecting) {
-                                    viewModel.onEvent(SectionBooksEvent.ToggleSelection(book.id))
-                                } else {
-                                    FilesBooksRepoImpl.openEpub(
-                                        currentBook,
-                                        onAddQuoteToFavorite = { quote ->
-                                            viewModel.onEvent(SectionBooksEvent.AddQuoteToFavorite(quote))
-                                        })
-                                }
-                            },
+                            onClick = { openOrSelect(currentBook) },
                             onLongClick = { viewModel.onEvent(SectionBooksEvent.ToggleSelection(book.id)) },
                             onFavoriteIconClicked = { viewModel.onEvent(SectionBooksEvent.ToggleFavorite(book)) },
                             onSwipeOut = { pendingDelete = setOf(book.id) },
                             isSelected = book.id in sectionBooksState.selectedIds,
                             onInfoClick = { navigateToBookDetails(currentBook) },
                             index = index,
-                            count = sortedBooks.size,
+                            count = count,
                         )
-                    }
-
+            } else itemsIndexed(sortedBooks, key = { _, it -> it.id }) { index, currentBook ->
+                when (sectionBooksState.type) {
                     "remote", "shamela" -> {
                         val rowStatus = downloadStatusOf(
                             currentBook.id,
@@ -220,22 +251,6 @@ fun SectionBooksScreen(
         }
     }
 
-        AnimatedVisibility(
-            visible = selecting,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp),
-        ) {
-            SelectionToolbar(
-                count = sectionBooksState.selectedIds.size,
-                onCancel = { viewModel.onEvent(SectionBooksEvent.CancelSelection) },
-                onDelete = { pendingDelete = sectionBooksState.selectedIds },
-                onSelectAll = { viewModel.onEvent(SectionBooksEvent.SelectAll) },
-            )
-        }
     }
 
     pendingDelete?.let { ids ->

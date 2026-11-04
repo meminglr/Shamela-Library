@@ -16,6 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +53,7 @@ fun sourceColors(sources: Set<BookSource>): Pair<Color, Color> = with(MaterialTh
 
 @Composable
 fun sourceDescription(sources: Set<BookSource>): String = when {
+    sources.size > 2 -> stringResource(R.string.source_all)
     sources.size > 1 -> stringResource(R.string.source_both)
     BookSource.Site in sources -> stringResource(R.string.source_shamela)
     BookSource.OpenIti in sources -> stringResource(R.string.source_openiti)
@@ -61,11 +65,51 @@ fun sourceDescription(sources: Set<BookSource>): String = when {
  * (Kütüphane 1, 2, 3) in small round badges at its bottom-right corner. A book of neither
  * catalog (imported from elsewhere) has no badge, nor any book when [SourceBadges] are turned off.
  */
+/** Which libraries each book comes from, or nothing while the badges are turned off. */
+class SourceBadgeInfo(val visible: Boolean, val index: CatalogSources.Index) {
+    fun sourcesOf(bookId: String): Set<BookSource> = if (visible) index.sources[bookId].orEmpty() else emptySet()
+}
+
+/**
+ * The badges' data, collected once for the whole screen ([ProvideSourceBadgeInfo]): collecting it
+ * in every row started two collectors per row on each list's first frame.
+ */
+val LocalSourceBadgeInfo = compositionLocalOf<SourceBadgeInfo?> { null }
+
 @Composable
-fun SourceTile(bookId: String, modifier: Modifier = Modifier) {
+fun ProvideSourceBadgeInfo(content: @Composable () -> Unit) {
     val index by CatalogSources.index.collectAsStateWithLifecycle()
     val shown by SourceBadges.visible.collectAsStateWithLifecycle()
-    val sources = if (shown) index.sources[bookId].orEmpty() else emptySet()
+    val info = remember(index, shown) { SourceBadgeInfo(shown, index) }
+    CompositionLocalProvider(LocalSourceBadgeInfo provides info, content = content)
+}
+
+@Composable
+fun SourceTile(bookId: String, modifier: Modifier = Modifier) {
+    val provided = LocalSourceBadgeInfo.current
+    val sources = if (provided != null) provided.sourcesOf(bookId) else {
+        val index by CatalogSources.index.collectAsStateWithLifecycle()
+        val shown by SourceBadges.visible.collectAsStateWithLifecycle()
+        SourceBadgeInfo(shown, index).sourcesOf(bookId)
+    }
+    SourceTile(sources, modifier)
+}
+
+/** A scanned book's tile: the badges of the catalogs that have a book of the same [title]. */
+@Composable
+fun ScannedSourceTile(title: String, modifier: Modifier = Modifier) {
+    val provided = LocalSourceBadgeInfo.current
+    val info = provided ?: run {
+        val index by CatalogSources.index.collectAsStateWithLifecycle()
+        val shown by SourceBadges.visible.collectAsStateWithLifecycle()
+        SourceBadgeInfo(shown, index)
+    }
+    val sources = remember(info, title) { if (info.visible) info.index.sourcesOfTitle(title) else emptySet() }
+    SourceTile(sources, modifier)
+}
+
+@Composable
+private fun SourceTile(sources: Set<BookSource>, modifier: Modifier) {
     val description = if (sources.isEmpty()) "" else sourceDescription(sources)
     Box(modifier.semantics { if (description.isNotEmpty()) contentDescription = description }) {
         ListLeadingTile(ShamelaIcons.MenuBook)
@@ -116,7 +160,7 @@ fun SourceNumberBadge(sources: Set<BookSource>, modifier: Modifier = Modifier) {
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
             .background(container)
-            .size(width = if (sources.size > 1) 40.dp else 28.dp, height = 28.dp),
+            .size(width = when (sources.size) { 1 -> 28.dp; 2 -> 40.dp; else -> 52.dp }, height = 28.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text = sourceNumbers(sources), style = MaterialTheme.typography.labelLarge, color = content)

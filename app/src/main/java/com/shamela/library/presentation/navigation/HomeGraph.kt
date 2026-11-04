@@ -9,6 +9,10 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.compose.runtime.Composable
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import com.shamela.library.presentation.screens.HomePage
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.shamela.apptheme.presentation.theme.ShamelaIcons
@@ -45,7 +49,7 @@ object Library : HomeHostDestination {
     override val route = "LIBRARY_SCREEN"
     override val unSelectedIcon = ShamelaIcons.LocalLibrary
     override val selectedIcon = ShamelaIcons.LocalLibrary
-    override val actionIcon = ShamelaIcons.Search
+    override val actionIcon = ShamelaIcons.ManageSearch
     override val label = R.string.nav_library
     private val _buttons = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     val buttons: Flow<Boolean> = _buttons.asSharedFlow()
@@ -58,7 +62,7 @@ object Download : HomeHostDestination {
     override val route = "DOWNLOAD_SCREEN"
     override val unSelectedIcon = ShamelaIcons.FileDownload
     override val selectedIcon = ShamelaIcons.FileDownload
-    override val actionIcon = ShamelaIcons.Search
+    override val actionIcon = ShamelaIcons.ManageSearch
     override val label = R.string.nav_download
 
     private val _buttons = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
@@ -163,12 +167,22 @@ object BookDetails : HomeHostDestination {
 }
 
 
+/**
+ * A destination drawn as a [HomePage]: an opaque page (so one shrunk by the back gesture shows the
+ * page beneath around it) carrying the home top bar where the screen has one.
+ */
+private fun NavGraphBuilder.page(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable (NavBackStackEntry) -> Unit,
+) = composable(route, arguments) { entry -> HomePage(entry) { content(entry) } }
+
 fun NavGraphBuilder.homeGraph(navController: NavController) {
     navigation(
         startDestination = Library.route,
         route = NavigationGraphs.HOME_GRAPH_ROUTE
     ) {
-        composable(Library.route) {
+        page(Library.route) {
             LibraryScreen(
                 navigateToSectionBooksScreen = { categoryName: String, type: String ->
                     navController.navigate(
@@ -189,7 +203,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                 navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book)) }
             )
         }
-        composable(
+        page(
             Download.route,
         ) {
             DownloadScreen(
@@ -215,21 +229,21 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
                 navigateToArchiveSearch = { navController.navigate(ArchiveSearch.createRoute()) },
             )
         }
-        composable(
+        page(
             ArchiveSearch.route,
             arguments = listOf(navArgument("query") { type = NavType.StringType; defaultValue = "" }),
         ) {
             ArchiveSearchScreen(navigateBack = { navController.popBackStack() })
         }
-        composable(Favorite.route) {
+        page(Favorite.route) {
             FavoriteScreen(
                 navigateToBookDetails = { book -> navController.navigate(BookDetails.createRoute(book)) }
             )
         }
-        composable(Search.route) { SearchScreen() }
-        composable(Settings.route) { SettingsScreen() }
+        page(Search.route) { SearchScreen() }
+        page(Settings.route) { SettingsScreen() }
 
-        composable(
+        page(
             SectionBooks.route,
             arguments = listOf(
                 navArgument("categoryName") { type = NavType.StringType },
@@ -254,7 +268,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
             }
         }
 
-        composable(
+        page(
             SearchResults.route,
             arguments = listOf(
                 navArgument("categoryName") { type = NavType.StringType },
@@ -276,7 +290,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController) {
             )
         }
 
-        composable(
+        page(
             BookDetails.route,
             arguments = listOf(
                 navArgument("book") { type = NavType.StringType },

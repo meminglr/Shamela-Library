@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -167,6 +168,8 @@ fun BookDetailsScreen(
                                 Text(
                                     text = stringResource(
                                         when {
+                                            state.sources.size > 2 -> R.string.source_all_detail
+                                            state.sources.size > 1 && BookSource.Library !in state.sources -> R.string.source_both_site_detail
                                             state.sources.size > 1 -> R.string.source_both_detail
                                             BookSource.Site in state.sources -> R.string.source_shamela_detail
                                             BookSource.OpenIti in state.sources -> R.string.source_openiti_detail
@@ -177,6 +180,17 @@ fun BookDetailsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                        }
+
+                        // The same book in the other libraries, each downloadable on its own.
+                        if (state.otherCopies.isNotEmpty()) {
+                            Spacer(Modifier.height(16.dp))
+                            OtherCopies(
+                                copies = state.otherCopies,
+                                onDownload = viewModel::downloadCopy,
+                                onCancel = viewModel::cancelCopy,
+                                onOpen = viewModel::openCopy,
+                            )
                         }
                     }
                 }
@@ -236,7 +250,7 @@ fun BookDetailsScreen(
                     // Smooth Transition between tabs
                     Crossfade(
                         targetState = tabs[current],
-                        animationSpec = tween(300),
+                        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         label = "Tab Transition"
                     ) { currentTab ->
@@ -472,6 +486,63 @@ private fun BookActionBottomBar(
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
+            }
+        }
+    }
+}
+
+
+/** "Download from the other libraries": a row per copy, with its library number and button. */
+@Composable
+private fun OtherCopies(
+    copies: List<com.shamela.library.presentation.common.BookDetailsViewModel.Copy>,
+    onDownload: (com.shamela.library.presentation.common.BookDetailsViewModel.Copy) -> Unit,
+    onCancel: (com.shamela.library.presentation.common.BookDetailsViewModel.Copy) -> Unit,
+    onOpen: (com.shamela.library.presentation.common.BookDetailsViewModel.Copy) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.other_copies_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+        )
+        copies.forEach { copy ->
+            val status = if (copy.isDownloaded) DownloadStatus.Downloaded else copy.status ?: DownloadStatus.NotDownloaded
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(enabled = copy.isDownloaded) { onOpen(copy) }
+                    .padding(start = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                com.shamela.library.presentation.common.SourceNumberBadge(setOf(copy.source))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.library_number, copy.source.number),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = if (copy.isDownloaded) stringResource(R.string.copy_downloaded) else copy.book.title,
+                        style = AppFonts.content(MaterialTheme.typography.bodySmall),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+                com.shamela.library.presentation.common.DownloadIconButton(
+                    status = status,
+                    onDownloadClick = { onDownload(copy) },
+                    onCancelClick = { onCancel(copy) },
+                )
             }
         }
     }

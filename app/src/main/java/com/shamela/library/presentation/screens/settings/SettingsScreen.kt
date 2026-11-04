@@ -153,7 +153,7 @@ private fun SettingsScreenUI(
                 Modifier
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = LocalFloatingBarInset.current)
+                    .padding(bottom = 16.dp + LocalFloatingBarInset.current)
             ) {
                 GeneralSettingsScreen(
                     downloadedBooksCount = uiState.downloadedBooksCount,

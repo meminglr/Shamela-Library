@@ -36,6 +36,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.shamela.apptheme.presentation.common.Revealed
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -147,7 +154,9 @@ private fun BookListItem(
         leadingContent = leading,
         trailingContent = { Row(verticalAlignment = Alignment.CenterVertically, content = trailing) },
         supportingContent = {
-            Column {
+            // The download line grows the row: smoothly, so the rows below glide instead of jumping
+            // under a finger tapping down the list.
+            Column(Modifier.animateContentSize()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val author = item.author.takeUnless { it.isBlank() || it == "-" }
                 if (author != null) {
@@ -191,7 +200,7 @@ private fun BookListItem(
 }
 
 @Composable
-private fun InfoIconButton(onInfoClick: (() -> Unit)?) {
+internal fun InfoIconButton(onInfoClick: (() -> Unit)?) {
     if (onInfoClick != null) {
         IconButton(onClick = onInfoClick) {
             Icon(
@@ -206,7 +215,7 @@ private fun InfoIconButton(onInfoClick: (() -> Unit)?) {
 /** Favorite toggle that morphs from a circle to a rounded square when checked (Expressive). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FavoriteIconButton(isFavorite: Boolean, onClick: () -> Unit) {
+internal fun FavoriteIconButton(isFavorite: Boolean, onClick: () -> Unit) {
     IconToggleButton(
         checked = isFavorite,
         onCheckedChange = { onClick() },
@@ -242,17 +251,20 @@ fun BookItem(
     count: Int = 1,
     downloadStatus: DownloadStatus? = null,
 ) {
-    BookListItem(
-        item = item,
-        highlightText = highlightText,
-        index = index,
-        count = count,
-        onClick = onClick,
-        modifier = modifier,
-        downloadStatus = downloadStatus,
-    ) {
-        InfoIconButton(onInfoClick)
-        icon()
+    // Built in its turn as the page appears (ProgressiveReveal), not with every other row at once.
+    Revealed(BookRowHeight) {
+        BookListItem(
+            item = item,
+            highlightText = highlightText,
+            index = index,
+            count = count,
+            onClick = onClick,
+            modifier = modifier,
+            downloadStatus = downloadStatus,
+        ) {
+            InfoIconButton(onInfoClick)
+            icon()
+        }
     }
 }
 
@@ -267,16 +279,19 @@ fun FavoriteBookItem(
     index: Int = 0,
     count: Int = 1,
 ) {
-    BookListItem(
-        item = item,
-        highlightText = highlightText,
-        index = index,
-        count = count,
-        onClick = onClick,
-        modifier = modifier,
-    ) {
-        InfoIconButton(onInfoClick)
-        FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
+    // Built in its turn as the page appears (ProgressiveReveal), not with every other row at once.
+    Revealed(BookRowHeight) {
+        BookListItem(
+            item = item,
+            highlightText = highlightText,
+            index = index,
+            count = count,
+            onClick = onClick,
+            modifier = modifier,
+        ) {
+            InfoIconButton(onInfoClick)
+            FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
+        }
     }
 }
 
@@ -295,74 +310,86 @@ fun LibraryBookItem(
     index: Int = 0,
     count: Int = 1,
 ) {
-    val swipeState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) {
-                onSwipeOut()
-            }
-            // Don't dismiss the item; let the confirmation dialog decide.
-            // The card snaps back, and the actual removal happens via state update on confirm.
-            false
-        },
-    )
-    // Swiping isn't available to screen reader users: offer the same delete as an action.
-    val deleteLabel = stringResource(R.string.delete)
-    SwipeToDismissBox(
-        state = swipeState,
-        modifier = modifier.semantics {
-            customActions = listOf(CustomAccessibilityAction(deleteLabel) { onSwipeOut(); true })
-        },
-        backgroundContent = {
-            val active = swipeState.targetValue != SwipeToDismissBoxValue.Settled
-            val color by animateColorAsState(
-                targetValue = if (active) MaterialTheme.colorScheme.errorContainer else Color.Transparent,
-                label = "swipe background"
-            )
-            val scale by animateFloatAsState(targetValue = if (active) 1.15f else 0.85f, label = "swipe icon scale")
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(MaterialTheme.shapes.large)
-                    .background(color)
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Icon(
-                    imageVector = ShamelaIcons.Delete,
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.scale(scale)
+    // Built in its turn as the page appears (ProgressiveReveal), not with every other row at once.
+    Revealed(BookRowHeight) {
+        val swipeState = rememberSwipeToDismissBoxState(
+            confirmValueChange = {
+                if (it == SwipeToDismissBoxValue.EndToStart) {
+                    onSwipeOut()
+                }
+                // Don't dismiss the item; let the confirmation dialog decide.
+                // The card snaps back, and the actual removal happens via state update on confirm.
+                false
+            },
+        )
+        // Swiping isn't available to screen reader users: offer the same delete as an action.
+        val deleteLabel = stringResource(R.string.delete)
+        SwipeToDismissBox(
+            state = swipeState,
+            modifier = modifier.semantics {
+                customActions = listOf(CustomAccessibilityAction(deleteLabel) { onSwipeOut(); true })
+            },
+            backgroundContent = {
+                // Built only while the row is being swiped: every row used to build its delete
+                // background (two animations and an icon) up front, on each screen's first frame.
+                if (swipeState.dismissDirection == SwipeToDismissBoxValue.Settled) return@SwipeToDismissBox
+                val active = swipeState.targetValue != SwipeToDismissBoxValue.Settled
+                val color by animateColorAsState(
+                    targetValue = if (active) MaterialTheme.colorScheme.errorContainer else Color.Transparent,
+                    label = "swipe background"
                 )
-            }
-        },
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-    ) {
-        BookListItem(
-            item = item,
-            highlightText = highlightText,
-            index = index,
-            count = count,
-            onClick = onClick,
-            onLongClick = onLongClick,
-            selected = isSelected,
-            leading = {
-                AnimatedContent(targetState = isSelected, label = "selection leading") { selected ->
-                    if (selected) {
-                        ListLeadingTile(
-                            icon = ShamelaIcons.Check,
-                            shape = MaterialTheme.shapes.extraLarge,
-                            container = MaterialTheme.colorScheme.primary,
-                            content = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    } else {
-                        SourceTile(item.id)
-                    }
+                val scale by animateFloatAsState(targetValue = if (active) 1.15f else 0.85f, label = "swipe icon scale")
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(color)
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(
+                        imageVector = ShamelaIcons.Delete,
+                        contentDescription = stringResource(R.string.delete),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.scale(scale)
+                    )
                 }
             },
+            enableDismissFromStartToEnd = false,
+            enableDismissFromEndToStart = true,
         ) {
-            InfoIconButton(onInfoClick)
-            FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
+            BookListItem(
+                item = item,
+                highlightText = highlightText,
+                index = index,
+                count = count,
+                onClick = onClick,
+                onLongClick = onLongClick,
+                selected = isSelected,
+                leading = {
+                    // The check fades in over the book tile. Lighter than an AnimatedContent per row,
+                    // which set up a whole content transition for every row of the list.
+                    Box {
+                        // A scanned book has no catalog id: its badges come from its title.
+                        if (item.categoryName == com.shamela.library.ShamelaApp.SCANNED_BOOKS_CATEGORY) ScannedSourceTile(item.title)
+                        else SourceTile(item.id)
+                        androidx.compose.animation.AnimatedVisibility(visible = isSelected, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+                            ListLeadingTile(
+                                icon = ShamelaIcons.Check,
+                                shape = MaterialTheme.shapes.extraLarge,
+                                container = MaterialTheme.colorScheme.primary,
+                                content = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        }
+                    }
+                },
+            ) {
+                InfoIconButton(onInfoClick)
+                FavoriteIconButton(item.isFavorite, onFavoriteIconClicked)
+            }
         }
     }
 }
+
+/** About a row's height, for the space it keeps until it is built. */
+private val BookRowHeight = 80.dp

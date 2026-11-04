@@ -56,6 +56,15 @@ class BookDetailsViewModel @Inject constructor(
         val downloadStatus: DownloadStatus? = null,
         /** The catalog(s) the book is in: Kütüphane 1, shamela.ws, both, or OpenITI; empty if none. */
         val sources: Set<BookSource> = emptySet(),
+        /** The book's copies in the other catalogs, each downloadable on its own. */
+        val otherCopies: List<Copy> = emptyList(),
+    )
+
+    data class Copy(
+        val source: BookSource,
+        val book: Book,
+        val isDownloaded: Boolean = false,
+        val status: DownloadStatus? = null,
     )
 
     private val _state = MutableStateFlow(State())
@@ -105,14 +114,21 @@ class BookDetailsViewModel @Inject constructor(
                 CatalogSources.index,
             ) { statusMap, downloadedList, _ ->
                 val siteCopy = CatalogSources.siteCopyOf(book.id)?.id
-                val downloaded = downloadedList.any { it.id == book.id || it.id == siteCopy }
-                downloaded to statusMap[book.id]
-            }.collect { (downloaded, status) ->
+                val downloadedIds = downloadedList.mapTo(HashSet()) { it.id }
+                val downloaded = book.id in downloadedIds || siteCopy in downloadedIds
+                // The same book in the other catalogs (each with its own download state).
+                val others = CatalogSources.copiesOf(book.id)
+                    .filterValues { it.id != book.id }
+                    .map { (source, copy) -> Copy(source, copy, copy.id in downloadedIds, statusMap[copy.id]) }
+                    .sortedBy { it.source.number }
+                Triple(downloaded, statusMap[book.id], others)
+            }.collect { (downloaded, status, others) ->
                 _state.update {
                     it.copy(
                         isDownloaded = downloaded,
                         isDownloading = !downloaded && status?.isActive == true,
                         downloadStatus = if (downloaded) null else status,
+                        otherCopies = others,
                     )
                 }
             }
@@ -139,6 +155,25 @@ class BookDetailsViewModel @Inject constructor(
 
     fun cancelDownload() {
         book?.let { BooksDownloadManager.cancelDownload(it.id) }
+    }
+
+    /** Downloads the book's copy from another catalog, as a book of its own in the library. */
+    fun downloadCopy(copy: Copy) {
+        BooksDownloadManager.markPreparing(copy.book.id)
+        viewModelScope.launch {
+            val uri = catalogRepo.getDownloadLinkFrom(copy.source, copy.book)
+            if (uri != null) BooksDownloadManager.downloadBook(uri, copy.book, copy.book.categoryName)
+            else BooksDownloadManager.reportLinkUnavailable(copy.book.title, copy.book.id)
+        }
+    }
+
+    fun cancelCopy(copy: Copy) = BooksDownloadManager.cancelDownload(copy.book.id)
+
+    fun openCopy(copy: Copy) {
+        FilesBooksRepoImpl.openEpub(book = copy.book, onAddQuoteToFavorite = { quote ->
+            viewModelScope.launch { quotesUseCases.saveQuote(quote) }
+            Unit
+        })
     }
 
     fun openBook() {

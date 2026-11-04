@@ -29,7 +29,7 @@ object CatalogMatcher {
         normalizer.normalize(title).replace(nonWord, " ").replace(spaces, " ").trim()
 
     /** The title before a "(…)", "[…]", "«" or ":" subtitle. */
-    private fun shortKey(title: String): String = key(title.split('(', '[', '«', ':').first())
+    fun shortKey(title: String): String = key(title.split('(', '[', '«', ':').first())
 
     fun authorWords(author: String): Set<String> =
         key(author).split(' ').mapNotNullTo(HashSet()) { word ->

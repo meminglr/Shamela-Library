@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.apptheme.presentation.common
 
 import androidx.compose.animation.core.Spring
@@ -63,7 +65,8 @@ fun PillTabs(
 ) {
     val animated by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        // The theme's expressive spring: the pill overshoots its tab a touch and settles.
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "pill position",
     )
     val current = (position ?: animated).coerceIn(0f, (labels.size - 1).coerceAtLeast(0).toFloat())

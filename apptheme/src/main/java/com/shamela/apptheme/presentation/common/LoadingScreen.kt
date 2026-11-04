@@ -17,6 +17,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.ExitTransition
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,10 +37,20 @@ fun LoadingScreen(
     /** Behind the indicator: the screen's own background (e.g. the reader's page color). */
     background: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surface,
 ) {
+    // Only for loads that take a while: a quick one (most local data) shows no indicator at all
+    // instead of one that flashes for a moment.
+    var longLoad by remember { mutableStateOf(false) }
+    LaunchedEffect(visibility) {
+        longLoad = false
+        if (visibility) {
+            delay(LoadingIndicatorDelayMillis)
+            longLoad = true
+        }
+    }
     AnimatedVisibility(
-        visible = visibility,
+        visible = visibility && longLoad,
         enter = fadeIn(),
-        exit = fadeOut()
+        exit = ExitTransition.None,
     ) {
         Box(
             modifier = Modifier
@@ -48,6 +64,23 @@ fun LoadingScreen(
         }
     }
 }
+
+/**
+ * A progress indicator that appears only if it is still shown after a moment: a quick load (most
+ * local data) shows nothing instead of a spinner that flashes for a frame or two.
+ */
+@Composable
+fun DelayedProgressIndicator(modifier: Modifier = Modifier) {
+    var longLoad by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(LoadingIndicatorDelayMillis)
+        longLoad = true
+    }
+    if (longLoad) CircularProgressIndicator(modifier)
+}
+
+/** How long a load runs before the indicator appears. */
+private const val LoadingIndicatorDelayMillis = 300L
 
 @Preview
 @Composable

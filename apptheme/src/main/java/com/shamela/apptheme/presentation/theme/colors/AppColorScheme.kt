@@ -5,6 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 
 /**
  * An app palette. [name] is the key stored in SharedPreferences (do not change it). The app now
@@ -12,7 +13,8 @@ import androidx.compose.ui.graphics.lerp
  *
  * A palette is one soft accent on its [Surfaces]: the accent marks what can be tapped or is
  * selected (buttons, the selected tab, sliders, switches), the surfaces set the mood. Things drawn
- * on the accent use the palette's dark ink, as white is too harsh on a soft accent.
+ * on the accent use the palette's dark ink on a soft accent and its page color on a deep one
+ * ([inkOn]), whichever reads better.
  */
 sealed class AppColorScheme(
     val name: String = "",
@@ -88,11 +90,23 @@ data class Surfaces(
     }
 }
 
+/**
+ * Of [preferred] and [other], the one that reads better on [background] (WCAG contrast ratio).
+ * The brown accent is deep enough that its dark ink was hard to read on buttons.
+ */
+private fun inkOn(background: Color, preferred: Color, other: Color): Color {
+    fun contrast(a: Color, b: Color): Float {
+        val (hi, lo) = a.luminance().let { la -> b.luminance().let { lb -> maxOf(la, lb) to minOf(la, lb) } }
+        return (hi + 0.05f) / (lo + 0.05f)
+    }
+    return if (contrast(background, preferred) >= contrast(background, other)) preferred else other
+}
+
 /** The full scheme: accent roles from [accent], the rest from [s] (see [AppColorScheme]). */
 internal fun accentScheme(accent: Color, s: Surfaces, isDark: Boolean): ColorScheme =
     if (!isDark) lightColorScheme(
         primary = accent,
-        onPrimary = s.text,
+        onPrimary = inkOn(accent, s.text, s.page),
         // Containers are the surfaces' fill with the accent (or text) on them, not pastel accents.
         primaryContainer = s.fill,
         // A pastel accent is too faint on the fill: icons on it get a deeper shade of it.
@@ -131,7 +145,7 @@ internal fun accentScheme(accent: Color, s: Surfaces, isDark: Boolean): ColorSch
         surfaceContainerHighest = s.containerHighest,
     ) else darkColorScheme(
         primary = accent,
-        onPrimary = s.page,
+        onPrimary = inkOn(accent, s.page, s.text),
         primaryContainer = s.fill,
         onPrimaryContainer = accent,
         inversePrimary = accent,

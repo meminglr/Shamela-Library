@@ -5,6 +5,7 @@
     <string name="nav_library">Kütüphane</string>
     <string name="nav_download">İndir</string>
     <string name="nav_favorite">Kaydedilenler</string>
+    <string name="search_book_names">Kitap adı ara</string>
     <string name="nav_search">Ara</string>
     <string name="nav_settings">Ayarlar</string>
 
@@ -189,6 +190,12 @@
     <string name="source_both">İki kütüphanede de var</string>
     <string name="source_library_detail">Kütüphane 1 · hazır EPUB olarak indirilir</string>
     <string name="source_shamela_detail">Kütüphane 2 · shamela.ws\'ten telefonda oluşturulur</string>
+    <string name="other_copies_title">Diğer kütüphanelerden indir</string>
+    <string name="library_number">Kütüphane %1$d</string>
+    <string name="copy_downloaded">İndirildi · okumak için dokunun</string>
+    <string name="source_all">Üç kütüphanede de var</string>
+    <string name="source_all_detail">Üç kütüphanede de var · Kütüphane 1\'den indirilir</string>
+    <string name="source_both_site_detail">İki kütüphanede de var · Kütüphane 2\'den indirilir</string>
     <string name="source_both_detail">İki kütüphanede de var · Kütüphane 1\'den indirilir</string>
     <string name="source_openiti">Kütüphane 3</string>
     <string name="source_openiti_detail">Kütüphane 3 · OpenITI metninden telefonda oluşturulur</string>
@@ -223,6 +230,7 @@
     <string name="archive_download_all">Tüm ciltleri indir (%1$d · %2$s)</string>
     <string name="archive_volume">Cilt %1$d</string>
     <string name="archive_single_volume">Kitap (PDF)</string>
+    <string name="scanned_volumes_count">%1$d cilt</string>
     <string name="archive_tap_to_read">İndirildi · okumak için dokunun</string>
     <string name="pdf_page_progress">Sayfa %1$d / %2$d</string>
     <string name="pdf_subtitle">Taranmış kitap · %1$d sayfa</string>

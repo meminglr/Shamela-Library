@@ -77,10 +77,10 @@ object AppTheme {
         content: @Composable () -> Unit,
     ) {
         SystemBarsAppearance(colorScheme.surface)
-        // M3 Expressive: spring-based expressive motion for every Material component.
+        // M3 Expressive components, with springs that settle without bouncing (NoBounceMotion).
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
-            motionScheme = MotionScheme.expressive(),
+            motionScheme = NoBounceMotion,
             typography = AppFonts.Typography,
             content = content
         )
@@ -109,4 +109,18 @@ object AppTheme {
         is ContextWrapper -> baseContext.findActivity()
         else -> null
     }
+}
+
+/**
+ * Material's motion scheme with its published spring stiffnesses (see [Motion]), critically
+ * damped so components settle without bouncing.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private object NoBounceMotion : MotionScheme {
+    override fun <T> defaultSpatialSpec() = Motion.defaultSpatial<T>()
+    override fun <T> fastSpatialSpec() = Motion.fastSpatial<T>()
+    override fun <T> slowSpatialSpec() = Motion.slowSpatial<T>()
+    override fun <T> defaultEffectsSpec() = Motion.defaultEffects<T>()
+    override fun <T> fastEffectsSpec() = Motion.fastEffects<T>()
+    override fun <T> slowEffectsSpec() = Motion.slowEffects<T>()
 }

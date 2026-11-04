@@ -592,8 +592,9 @@ private fun BottomBar(
 ) {
     AnimatedVisibility(
         visible = visibility,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(250)),
+        // Motion scheme springs: the bar settles in with a slight give, leaves quickly without one.
+        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it },
+        exit = slideOutVertically(MaterialTheme.motionScheme.fastEffectsSpec()) { it },
     ) {
         Column(
             Modifier
@@ -671,8 +672,8 @@ private fun BookTopBar(
 ) {
     AnimatedVisibility(
         visible = isVisible,
-        enter = slideInVertically(initialOffsetY = { -it }),
-        exit = slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(250)),
+        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { -it },
+        exit = slideOutVertically(MaterialTheme.motionScheme.fastEffectsSpec()) { -it },
         modifier = modifier,
     ) {
         TopAppBar(

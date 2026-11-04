@@ -73,7 +73,7 @@ fun FavoriteScreen(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SegmentGap),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp + LocalFloatingBarInset.current)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp + LocalFloatingBarInset.current)
     ) {
         when (viewType){
             FavoriteViewType.Quotes -> {

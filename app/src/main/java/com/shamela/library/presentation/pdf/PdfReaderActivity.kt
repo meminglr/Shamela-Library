@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shamela.library.presentation.pdf
 
 import androidx.compose.runtime.setValue
@@ -244,8 +246,9 @@ private fun PdfReader(
         ReaderBarColors(pageTheme) {
             AnimatedVisibility(
                 visible = barsVisible,
-                enter = slideInVertically(initialOffsetY = { -it }),
-                exit = slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(250)),
+                // Motion scheme springs: the bar settles in with a slight give, leaves quickly without one.
+                enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { -it },
+                exit = slideOutVertically(MaterialTheme.motionScheme.fastEffectsSpec()) { -it },
                 modifier = Modifier.align(Alignment.TopCenter),
             ) {
                 TopAppBar(
@@ -275,8 +278,8 @@ private fun PdfReader(
             }
             AnimatedVisibility(
                 visible = barsVisible,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(250)),
+                enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it },
+                exit = slideOutVertically(MaterialTheme.motionScheme.fastEffectsSpec()) { it },
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 PdfBottomBar(
