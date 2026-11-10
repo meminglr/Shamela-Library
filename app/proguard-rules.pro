@@ -22,6 +22,8 @@
 -keep class com.shamela.library.data.remote.shamela.ShamelaCategory { <fields>; <init>(...); }
 -keep class com.shamela.library.data.remote.shamela.ShamelaBookEntry { <fields>; <init>(...); }
 -keep class com.shamela.library.domain.model.BookInfoItem { <fields>; <init>(...); }
+# Kütüphane 3 catalog (assets/openiti/catalog.json)
+-keep class com.shamela.library.data.remote.openiti.OpenItiEntry { <fields>; <init>(...); }
 # The book-details navigation argument
 -keep class com.shamela.library.domain.model.Book { <fields>; <init>(...); }
 
