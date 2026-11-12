@@ -117,7 +117,7 @@ object FilesBooksRepoImpl : BooksRepository {
     override fun getBooksByCategory(categoryName: String): Flow<Book> = channelFlow {
         openShamelaFolder { categoriesFolders ->
             categoriesFolders?.let {
-                categoriesFolders.filter { it.name in SiteSections.foldersOf(categoryName) }.forEach { categoryFolder ->
+                categoriesFolders.filter { SiteSections.mergedSectionOf(it.name) == categoryName }.forEach { categoryFolder ->
                     val bookFiles = categoryFolder.listFiles { file -> isBookFile(file) }
                     bookFiles?.forEach { bookFile ->
                         val bookTitle = titleOf(bookFile)
@@ -127,12 +127,12 @@ object FilesBooksRepoImpl : BooksRepository {
                             title = bookTitle,
                             author = "-",
                             pageCount = 0,
-                            categoryName = categoryName
+                            categoryName = categoryFolder.name
                         )
                         send(initialBook)
                     }
                     bookFiles?.forEach { bookFile ->
-                        parseBook(bookFile, categoryName)?.let { book ->
+                        parseBook(bookFile, categoryFolder.name)?.let { book ->
                             send(book)
                         }
                     }
@@ -144,7 +144,7 @@ object FilesBooksRepoImpl : BooksRepository {
     override fun searchBooksByName(categoryName: String, query: String): Flow<Book> = channelFlow {
         openShamelaFolder { categories ->
             val folders = if (categoryName == "all") categories.orEmpty()
-            else categories?.filter { it.name in SiteSections.foldersOf(categoryName) }.orEmpty()
+            else categories?.filter { SiteSections.mergedSectionOf(it.name) == categoryName }.orEmpty()
             // Match on the file name first (cheap), then parse only the hits for author/page count.
             val files = folders.flatMap { folder ->
                 folder.listFiles { file -> isBookFile(file) }
@@ -156,6 +156,13 @@ object FilesBooksRepoImpl : BooksRepository {
                 send(parseBook(file, placeholder.categoryName) ?: placeholder)
             }
         }
+    }
+
+    /** The folders on disk shown as [section]: the known source names plus any other folder mapping to it. */
+    fun foldersOf(section: String): List<String> {
+        val onDisk = shamelaBooks.listFiles(FileFilter { it.isDirectory })?.map { it.name }.orEmpty()
+            .filter { SiteSections.mergedSectionOf(it) == section }
+        return (SiteSections.foldersOf(section) + onDisk).distinct()
     }
 
     private fun placeholderBook(bookFile: File, categoryName: String): Book {

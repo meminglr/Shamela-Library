@@ -90,7 +90,7 @@ fun SearchScreen(
                 putExtra(
                     SearchActivity.Search_Categories,
                     // A section's pages are indexed under each of its folders (shamela.ws sections merged into it).
-                    searchState.selectedCategories.flatMap { SiteSections.foldersOf(it.name) }.toTypedArray()
+                    searchState.selectedCategories.flatMap { com.shamela.library.data.local.files.FilesBooksRepoImpl.foldersOf(it.name) }.toTypedArray()
                 )
             }
             context.startActivity(intent)

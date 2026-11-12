@@ -49,7 +49,7 @@ object Library : HomeHostDestination {
     override val route = "LIBRARY_SCREEN"
     override val unSelectedIcon = ShamelaIcons.LocalLibrary
     override val selectedIcon = ShamelaIcons.LocalLibrary
-    override val actionIcon = ShamelaIcons.ManageSearch
+    override val actionIcon = ShamelaIcons.Search
     override val label = R.string.nav_library
     private val _buttons = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     val buttons: Flow<Boolean> = _buttons.asSharedFlow()
@@ -62,7 +62,7 @@ object Download : HomeHostDestination {
     override val route = "DOWNLOAD_SCREEN"
     override val unSelectedIcon = ShamelaIcons.FileDownload
     override val selectedIcon = ShamelaIcons.FileDownload
-    override val actionIcon = ShamelaIcons.ManageSearch
+    override val actionIcon = ShamelaIcons.Search
     override val label = R.string.nav_download
 
     private val _buttons = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)

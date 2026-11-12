@@ -18,6 +18,7 @@ import com.shamela.library.domain.util.BookSortOption
 import com.shamela.library.presentation.utils.BookIndexing
 import com.shamela.library.presentation.utils.BooksDownloadManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.shamela.library.data.remote.shamela.TocRetrofit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -90,6 +91,12 @@ class LibraryViewModel @Inject constructor(
                             throw e
                         } catch (e: Exception) {
                             ErrorReporter.report("LibraryViewModel", "library folder sync failed", e)
+                        }
+                        // Books saved with a flat page list as their contents get a generated one.
+                        withContext(Dispatchers.IO) {
+                            BookIndexing.libraryFiles().forEach { file ->
+                                if (TocRetrofit.upgrade(file)) Log.d("Shamela", "table of contents made for ${file.name}")
+                            }
                         }
                         // Books downloaded while the app was killed (or indexed by an older version)
                         // have no full-text index yet; build it in the background.

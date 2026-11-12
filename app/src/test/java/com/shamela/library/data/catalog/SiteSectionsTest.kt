@@ -23,6 +23,6 @@ class SiteSectionsTest {
         val folders = SiteSections.foldersOf("الأدب والبلاغة")
         assertEquals("الأدب والبلاغة", folders.first())
         assertTrue(folders.containsAll(listOf("الأدب", "البلاغة", "العروض والقوافي", "الشعر ودواوينه")))
-        assertEquals(listOf("الكتب المصورة"), SiteSections.foldersOf("الكتب المصورة"))
+        assertEquals(listOf("الكتب المصورة", "الكتب المصورة - مرقم آليا"), SiteSections.foldersOf("الكتب المصورة"))
     }
 }

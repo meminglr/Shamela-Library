@@ -64,7 +64,7 @@ enum class SectionGroup(@StringRes val label: Int) {
         }
 
         /** The group of a section; auto-numbered editions go with their original. */
-        fun of(sectionName: String): SectionGroup = byName[sectionName.removeSuffix(AUTO_NUMBERED)] ?: Other
+        fun of(sectionName: String): SectionGroup = byName[SectionTaxonomy.canonicalOf(sectionName)] ?: Other
 
         private val collator: Collator = Collator.getInstance(Locale("ar")).apply { strength = Collator.PRIMARY }
 

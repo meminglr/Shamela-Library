@@ -70,8 +70,11 @@ h1,h2,h3,h4,h5,h6{text-align:center}
                 zip.text("OEBPS/${fileOf.getValue(page.index)}", xhtml(chapters.firstOrNull() ?: title, "../styles.css", body))
             }
 
-            val toc = meta.toc.ifEmpty { sorted.map { TocEntry("صفحة ${it.printed}", it.index) } }
-            zip.text("OEBPS/nav.xhtml", nav(title, toc, fileOf))
+            val generated = meta.toc.isEmpty() || (TocGenerator.flatSize(meta.toc) < TocGenerator.MIN_SITE_ENTRIES && sorted.size > 30)
+            val toc = if (generated) TocGenerator.generate(sorted.map { TocSourcePage(it.index, it.printed, it.part, it.html) })
+            else TocNesting.nest(meta.toc)
+            val navXml = nav(title, toc, fileOf)
+            zip.text("OEBPS/nav.xhtml", if (generated || toc != meta.toc) navXml.replace("<nav ", "$AUTO_TOC_MARKER\n<nav ") else navXml)
             zip.text("OEBPS/toc.ncx", ncx(identifier, title, toc, fileOf))
             zip.text("OEBPS/content.opf", opf(identifier, source, publisher, title, author, sorted.map { it.index }, fileOf))
         }
@@ -129,7 +132,8 @@ $body
 </html>
 """
 
-    private fun nav(title: String, toc: List<TocEntry>, fileOf: Map<Int, String>): String {
+    /** The `<li>` items of the table of contents, without the book card entry. */
+    internal fun navItems(toc: List<TocEntry>, fileOf: Map<Int, String>): String {
         fun list(entries: List<TocEntry>): String {
             val items = entries.joinToString("") { entry ->
                 val href = fileOf[entry.page]
@@ -139,7 +143,11 @@ $body
             }
             return if (items.isEmpty()) "" else "<ol>$items</ol>"
         }
-        val items = list(toc).removePrefix("<ol>").removeSuffix("</ol>")
+        return list(toc).removePrefix("<ol>").removeSuffix("</ol>")
+    }
+
+    private fun nav(title: String, toc: List<TocEntry>, fileOf: Map<Int, String>): String {
+        val items = navItems(toc, fileOf)
         return """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="ar" xml:lang="ar" dir="rtl">
@@ -151,14 +159,14 @@ $body
 <body dir="rtl">
 <nav epub:type="toc" id="toc">
 <h1>فهرس الموضوعات</h1>
-<ol><li><a href="info.xhtml">بطاقة الكتاب</a></li>$items</ol>
+<ol>$NAV_HEAD$items</ol>
 </nav>
 </body>
 </html>
 """
     }
 
-    private fun ncx(identifier: String, title: String, toc: List<TocEntry>, fileOf: Map<Int, String>): String {
+    internal fun ncxPoints(toc: List<TocEntry>, fileOf: Map<Int, String>): String {
         var order = 1
         fun points(entries: List<TocEntry>): String = entries.joinToString("") { entry ->
             val href = fileOf[entry.page] ?: return@joinToString points(entry.children)
@@ -166,7 +174,11 @@ $body
             "<navPoint id=\"nav_$id\" playOrder=\"${id + 1}\"><navLabel><text>${escape(entry.text)}</text></navLabel>" +
                 "<content src=\"$href\"/>${points(entry.children)}</navPoint>"
         }
-        val body = points(toc)
+        return points(toc)
+    }
+
+    private fun ncx(identifier: String, title: String, toc: List<TocEntry>, fileOf: Map<Int, String>): String {
+        val body = ncxPoints(toc, fileOf)
         return """<?xml version="1.0" encoding="utf-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
 <head>
@@ -212,7 +224,7 @@ $body
 </metadata>
 <manifest>
 <item id="info" href="info.xhtml" media-type="application/xhtml+xml"/>
-<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml"/>
 <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
 <item id="css" href="styles.css" media-type="text/css"/>
 $manifest
@@ -224,6 +236,18 @@ $spine
 </package>
 """
     }
+
+    /**
+     * The OPF has no `properties="nav"` on purpose: the reader's EPUB parser reads a navigation
+     * document as one flat list of links, but nests the entries of `toc.ncx`, which is what gives
+     * the collapsible chapter list. (Kept as a plain manifest item for readers that look for it.)
+     */
+    internal const val NAV_PROPERTY = " properties=\"nav\""
+
+    /** Written into the nav of an EPUB whose table of contents was made by [TocGenerator]. */
+    internal const val AUTO_TOC_MARKER = "<!-- auto-toc:1 -->"
+
+    internal const val NAV_HEAD = """<li><a href="info.xhtml">بطاقة الكتاب</a></li>"""
 
     private const val CONTAINER = """<?xml version="1.0" encoding="utf-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">

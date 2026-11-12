@@ -186,8 +186,8 @@ class SectionBooksViewModel @Inject constructor(
      */
     private suspend fun observeLocalBooksOfSection(categoryName: String) {
         // The section's own folder and the shamela.ws sections shown under it.
-        localBooksUseCases.booksDao.getBooksInCategories(SiteSections.foldersOf(categoryName)).collect { list ->
-            val books = list.associateBy { it.id }
+        localBooksUseCases.booksDao.getDownloadedBooks().collect { all ->
+            val books = all.filter { SiteSections.mergedSectionOf(it.categoryName) == categoryName }.associateBy { it.id }
             _sectionBooksState.update {
                 it.copy(
                     books = books,

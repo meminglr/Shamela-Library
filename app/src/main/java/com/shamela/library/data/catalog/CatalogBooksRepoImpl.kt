@@ -10,6 +10,7 @@ import com.shamela.library.data.remote.shamela.ShamelaCatalogData
 import com.shamela.library.domain.model.Book
 import com.shamela.library.domain.model.Category
 import com.shamela.library.domain.repo.BooksRepository
+import com.shamela.library.domain.util.SectionTaxonomy
 import com.shamela.library.domain.search.BookSearchMatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -86,7 +87,7 @@ class CatalogBooksRepoImpl(
 
         val sources = HashMap<String, Set<BookSource>>(libraryBooks.size + siteBooks.size)
         val siteCopyOfLibraryBook = HashMap<String, Book>()
-        val books = libraryBooks.groupByTo(LinkedHashMap()) { it.categoryName }
+        val books = libraryBooks.groupByTo(LinkedHashMap()) { SectionTaxonomy.canonicalOf(it.categoryName) }
         for (book in libraryBooks) {
             sources[book.id] = if (book in matches) BOTH else LIBRARY_ONLY
         }
@@ -137,7 +138,7 @@ class CatalogBooksRepoImpl(
         for (book in openItiBooks) {
             if (book in elsewhere || book.id in sources) continue
             sources[book.id] = OPENITI_ONLY
-            books.getOrPut(book.categoryName) { mutableListOf() }.add(book)
+            books.getOrPut(SectionTaxonomy.canonicalOf(book.categoryName)) { mutableListOf() }.add(book)
             openItiKeys += "${book.categoryName}/${book.title}"
         }
         val sourcesByTitle = HashMap<String, MutableSet<BookSource>>()
@@ -151,8 +152,10 @@ class CatalogBooksRepoImpl(
         openItiBooks.forEach { addTitle(it.title, BookSource.OpenIti) }
         CatalogSources.publish(CatalogSources.Index(sources, siteCopyOfLibraryBook, sourcesByTitle, copies))
 
-        val known = libraryCategories.mapTo(HashSet()) { it.name }
-        val categories = libraryCategories.map { it.copy(bookCount = books[it.name]?.size ?: 0) } +
+        // One section per canonical name: the auto-numbered editions are counted in their section.
+        val known = LinkedHashMap<String, Category>()
+        libraryCategories.forEach { known.putIfAbsent(SectionTaxonomy.canonicalOf(it.name), it) }
+        val categories = known.map { (name, original) -> Category(original.id, name, books[name]?.size ?: 0) } +
             books.keys.filter { it !in known }.mapIndexed { i, name ->
                 Category("site-$i", name, books.getValue(name).size)
             }
@@ -217,64 +220,22 @@ class CatalogBooksRepoImpl(
     }
 }
 
-/** Where shamela.ws's 40 sections go among Kütüphane 1's sections. */
+/**
+ * Where the sections of every catalog go among the app's sections; the table itself is
+ * [SectionTaxonomy]. shamela.ws's 40 sections and the " - مرقم آليا" editions are folded into
+ * Kütüphane 1's sections.
+ */
 internal object SiteSections {
-    private const val FALLBACK = "علوم أخرى"
-
-    private val toLibrary = mapOf(
-        "العقيدة" to "العقيدة",
-        "الفرق والردود" to "العقيدة",
-        "التفسير" to "التفاسير",
-        "علوم القرآن وأصول التفسير" to "علوم القرآن",
-        "التجويد والقراءات" to "علوم القرآن",
-        "كتب السنة" to "متون الحديث",
-        "شروح الحديث" to "شروح الحديث",
-        "التخريج والأطراف" to "كتب التخريج والزوائد",
-        "العلل والسؤلات الحديثية" to "العلل والسؤالات",
-        "علوم الحديث" to "علوم الحديث",
-        "أصول الفقه" to "أصول الفقه والقواعد الفقهية",
-        "علوم الفقه والقواعد الفقهية" to "أصول الفقه والقواعد الفقهية",
-        "المنطق" to "علوم أخرى",
-        "الفقه الحنفي" to "فقه حنفي",
-        "الفقه المالكي" to "فقه مالكي",
-        "الفقه الشافعي" to "فقه شافعي",
-        "الفقه الحنبلي" to "فقه حنبلي",
-        "الفقه العام" to "فقه عام",
-        "مسائل فقهية" to "فقه عام",
-        "الفرائض والوصايا" to "فقه عام",
-        "السياسة الشرعية والقضاء" to "السياسة الشرعية والقضاء",
-        "الفتاوى" to "الفتاوى",
-        "الرقائق والآداب والأذكار" to "الرقاق والآداب والأذكار",
-        "السيرة النبوية" to "السيرة والشمائل",
-        "التاريخ" to "التاريخ",
-        "التراجم والطبقات" to "التراجم والطبقات",
-        "الأنساب" to "الأنساب",
-        "البلدان والرحلات" to "البلدان والجغرافيا والرحلات",
-        "كتب اللغة" to "كتب اللغة",
-        "الغريب والمعاجم" to "الغريب والمعاجم ولغة الفقه",
-        "النحو والصرف" to "النحو والصرف",
-        "الأدب" to "الأدب والبلاغة",
-        "العروض والقوافي" to "الأدب والبلاغة",
-        "الشعر ودواوينه" to "الأدب والبلاغة",
-        "البلاغة" to "الأدب والبلاغة",
-        "الجوامع" to "الجوامع والمجلات ونحوها",
-        "فهارس الكتب والأدلة" to "فهارس الكتب والأدلة",
-        "الطب" to "علوم أخرى",
-        "كتب عامة" to "كتب إسلامية عامة",
-        "علوم أخرى" to "علوم أخرى",
-    )
-
-    /** A section the site adds later goes to "other sciences" until it is mapped here. */
-    fun librarySectionOf(siteSection: String): String = toLibrary[siteSection] ?: FALLBACK
+    /** The section a catalog section is listed under. */
+    fun librarySectionOf(sourceSection: String): String = SectionTaxonomy.canonicalOf(sourceSection)
 
     /**
-     * The section a library folder is shown under. A shamela.ws book is saved in a folder named
-     * after its site section ("التفسير"), next to Kütüphane 1's folder for the same subject
-     * ("التفاسير"); the library shows the two as one section. Other folders keep their name.
+     * The section a library folder is shown under: a shamela.ws book is saved in a folder named
+     * after its site section ("التفسير"), an auto-numbered edition in "<section> - مرقم آليا"; the
+     * library shows them as one section. Other folders keep their name.
      */
-    fun mergedSectionOf(folder: String): String = toLibrary[folder] ?: folder
+    fun mergedSectionOf(folder: String): String = SectionTaxonomy.canonicalOf(folder)
 
-    /** The library folders shown as [section]: itself and the site sections merged into it. */
-    fun foldersOf(section: String): List<String> =
-        listOf(section) + toLibrary.filter { (site, library) -> library == section && site != section }.keys
+    /** The library folders shown as [section]: itself and the names merged into it. */
+    fun foldersOf(section: String): List<String> = SectionTaxonomy.sourcesOf(section)
 }
